@@ -1,18 +1,22 @@
 #Requires AutoHotkey v2.0
 
-global gJianZongGui := Gui("+ToolWindow")
+global gJianZongGui := Gui("+ToolWindow -Theme")
 global gJianZongCtrls := Map()
+
+GuiTheme_Apply(gJianZongGui)
 
 gJianZongGui.OnEvent("Escape", JianZongGuiEscape)
 gJianZongGui.OnEvent("Close", JianZongGuiClose)
 
-gJianZongGui.Add("Text", "x8 y8 w80 h20 +0x200", "延迟时间(ms)")
-gJianZongCtrls["JianZongDelay"] := gJianZongGui.Add("Edit", "vJianZongDelay x8 y32 w80 h20 +Number")
-gJianZongGui.Add("Text", "x8 y56 w80 h20 +0x200", "帝国剑术键")
-gJianZongCtrls["JianZongSkillKey"] := gJianZongGui.Add("Edit", "vJianZongSkillKey x8 y80 w80 h20 +ReadOnly")
-gJianZongGui.Add("Button", "x8 y104 w80 h22", "设置按键").OnEvent("Click", JianZongSetSkillKey)
-gJianZongGui.Add("Button", "x8 y128 w80 h26", "保存").OnEvent("Click", JianZongSave)
-gJianZongGui.Add("Button", "x94 y8 w18 h18", "?").OnEvent("Click", JianZongHelp)
+; 标签同宽；两枚 Edit 同左 x126、同宽 w72（毫秒与单键均够用）
+gJianZongGui.Add("Text", "x14 y48 w110 h24 +0x200", "延迟时间(ms)")
+gJianZongCtrls["JianZongDelay"] := gJianZongGui.Add("Edit", "vJianZongDelay x126 y48 w72 h24 +Number -E0x200 Border")
+gJianZongGui.Add("Text", "x14 y80 w110 h24 +0x200", "帝国剑术键")
+gJianZongCtrls["JianZongSkillKey"] := gJianZongGui.Add("Edit", "vJianZongSkillKey x126 y80 w72 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+RegisterEditPressKeyCapture(gJianZongCtrls["JianZongSkillKey"])
+GuiTheme_HRule(gJianZongGui, 14, 118, 302)
+GuiTheme_FlatBtn(gJianZongGui, "x89 y128 w152 h34", "保存", JianZongSave, true)
+GuiTheme_FlatBtnSmall(gJianZongGui, "x290 y10 w26 h26", "?", JianZongHelp)
 
 JianZongGetCtrl(name) {
     global gJianZongCtrls
@@ -25,7 +29,7 @@ ShowGuiJianZong(*) {
         gJianZongGui.Opt("+Owner" gMainGui.Hwnd)
     }
     gJianZongGui.Title := "太宗帝剑延迟"
-    gJianZongGui.Show("w120 h160")
+    gJianZongGui.Show("w330 h188")
     JianZongLoadConfig()
     DisableGuiMain()
 }
@@ -50,10 +54,6 @@ JianZongHelp(*) {
 JianZongSave(*) {
     JianZongSaveConfig()
     HideGuiJianZong()
-}
-
-JianZongSetSkillKey(*) {
-    JianZongGetCtrl("JianZongSkillKey").Text := GetPressKey()
 }
 
 JianZongSaveConfig() {

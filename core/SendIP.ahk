@@ -1,12 +1,9 @@
-SendIP(keyCode){
+SendIP(keyCode) {
     Critical("On")
-
-    SetKeyDelay(-1, -1)
-    
-    SendEvent("{Blind}{" keyCode " DownTemp}")
-    DllCall("Sleep", "UInt", 8)
-    SendEvent("{Blind}{" keyCode " Up}")
-    DllCall("Sleep", "UInt", 2)
-    
-    Critical("Off")
+    try {
+        SetKeyDelay(-1, 12)
+        SendEvent("{Blind}{" keyCode "}")
+    } finally {
+        Critical("Off")
+    }
 }

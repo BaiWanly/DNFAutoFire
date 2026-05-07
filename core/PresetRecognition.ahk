@@ -387,7 +387,8 @@ FindPresetBySkillIcon() {
 
 ; ---------- 识别热键与重试序列 ----------
 
-PresetRecognition_MaxRetryAttempts := 120
+PresetRecognition_RetryIntervalMs := 500
+PresetRecognition_MaxRetryAttempts := 240
 
 global __prRetryTimer := false
 global __prStartDelayTimer := false
@@ -425,6 +426,9 @@ PresetRecognition_StartSequence() {
     if !PresetRecognition_IsEnabled() {
         return
     }
+    if !AutoFireIsRunning() {
+        return
+    }
     if !PresetRecognition_GameActive() {
         return
     }
@@ -440,6 +444,9 @@ PresetRecognition_AfterStartDelay(*) {
     if !PresetRecognition_IsEnabled() {
         return
     }
+    if !AutoFireIsRunning() {
+        return
+    }
     if !PresetRecognition_GameActive() {
         return
     }
@@ -450,9 +457,13 @@ PresetRecognition_IsEnabled() {
     return Trim(LoadConfig("SettingAutoPresetSwitch", "0")) = "1"
 }
 
-; 启用校准时：先匹配全局校准图，仅在校准成功后才匹配技能图；校准失败才按 1 秒重试
+; 启用校准时：先匹配全局校准图，仅在校准成功后才匹配技能图；校准失败按 PresetRecognition_RetryIntervalMs 重试
 PresetRecognition_RunAttempt(attemptIdx) {
     if !PresetRecognition_IsEnabled() {
+        PresetRecognition_ClearRetryTimer()
+        return
+    }
+    if !AutoFireIsRunning() {
         PresetRecognition_ClearRetryTimer()
         return
     }
@@ -463,7 +474,7 @@ PresetRecognition_RunAttempt(attemptIdx) {
     r := ParseAutoPresetRegion()
     if !r.Has("w") {
         PresetRecognition_ClearRetryTimer()
-        ShowTip("请先配置识别区域（自动识别配置 → 框选技能图标）", 1000)
+        ShowTip("请先配置识别区域（自动识别设置 → 设置技能图标区域）", 1000)
         return
     }
 
@@ -476,7 +487,7 @@ PresetRecognition_RunAttempt(attemptIdx) {
             }
             fn := PresetRecognition_RunAttempt.Bind(attemptIdx + 1)
             global __prRetryTimer := fn
-            SetTimer(fn, -1000)
+            SetTimer(fn, -PresetRecognition_RetryIntervalMs)
             return
         }
         skillFound := FindPresetBySkillIcon()
@@ -484,13 +495,13 @@ PresetRecognition_RunAttempt(attemptIdx) {
         PresetRecognition_ClearRetryTimer()
         if (skillFound != "" && skillFound != current) {
             ChangePresetAndResumeAutoFire(skillFound)
-            ShowTip("已切换配置: " skillFound, 1000)
+            ShowTip("已切换配置: " skillFound, 1000, true)
         } else if (skillFound = "") {
             firstN := PresetRecognition_FirstPresetName()
             if (firstN != "" && firstN != current) {
                 ChangePresetAndResumeAutoFire(firstN)
+                ShowTip("已切换配置: " firstN, 1000, true)
             }
-            ShowTip("已切换配置: " GetNowSelectPreset(), 1000)
         }
         return
     }
@@ -498,9 +509,13 @@ PresetRecognition_RunAttempt(attemptIdx) {
     PresetRecognition_SkillOnlyAttempt(attemptIdx)
 }
 
-; 仅按技能图标匹配，失败时每 1s 重试
+; 仅按技能图标匹配，失败时按 PresetRecognition_RetryIntervalMs 重试
 PresetRecognition_SkillOnlyAttempt(attemptIdx) {
     if !PresetRecognition_IsEnabled() {
+        PresetRecognition_ClearRetryTimer()
+        return
+    }
+    if !AutoFireIsRunning() {
         PresetRecognition_ClearRetryTimer()
         return
     }
@@ -513,7 +528,7 @@ PresetRecognition_SkillOnlyAttempt(attemptIdx) {
     if (found != "" && found != current) {
         ChangePresetAndResumeAutoFire(found)
         PresetRecognition_ClearRetryTimer()
-        ShowTip("已切换配置: " found, 1000)
+        ShowTip("已切换配置: " found, 1000, true)
         return
     }
     if (found != "" && found = current) {
@@ -522,12 +537,16 @@ PresetRecognition_SkillOnlyAttempt(attemptIdx) {
     }
     if (attemptIdx >= PresetRecognition_MaxRetryAttempts) {
         PresetRecognition_ClearRetryTimer()
-        ShowTip("已切换配置: " GetNowSelectPreset(), 1000)
+        firstN := PresetRecognition_FirstPresetName()
+        if (firstN != "" && firstN != current) {
+            ChangePresetAndResumeAutoFire(firstN)
+            ShowTip("已切换配置: " firstN, 1000, true)
+        }
         return
     }
     fn := PresetRecognition_RunAttempt.Bind(attemptIdx + 1)
     global __prRetryTimer := fn
-    SetTimer(fn, -1000)
+    SetTimer(fn, -PresetRecognition_RetryIntervalMs)
 }
 
 PresetRecognition_IsEscHotkeyStr(hk) {
@@ -553,6 +572,9 @@ PresetRecognition_UpdateHotkeys() {
     global __prRegisteredEsc, __prRegisteredCustom, __prLastCustomHotkey
     PresetRecognition_DisableAllHotkeys()
     if !PresetRecognition_IsEnabled() {
+        return
+    }
+    if !AutoFireIsRunning() {
         return
     }
     hk := Trim(LoadConfig("AutoPresetHotkey", ""))

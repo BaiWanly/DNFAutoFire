@@ -1,21 +1,26 @@
 #Requires AutoHotkey v2.0
 
-global gZhanFaGui := Gui("+ToolWindow")
+global gZhanFaGui := Gui("+ToolWindow -Theme")
 global gZhanFaCtrls := Map()
 global __ZhanFaSkillKeys := []
+
+GuiTheme_Apply(gZhanFaGui)
 
 gZhanFaGui.OnEvent("Escape", ZhanFaGuiEscape)
 gZhanFaGui.OnEvent("Close", ZhanFaGuiClose)
 
-gZhanFaCtrls["ZhanFaKeysListBox"] := gZhanFaGui.Add("ListBox", "vZhanFaKeysListBox x8 y32 w80 h172")
-gZhanFaCtrls["ZhanFaShotKey"] := gZhanFaGui.Add("Edit", "vZhanFaShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
-gZhanFaGui.Add("Button", "x96 y40 w80 h22", "添加技能键").OnEvent("Click", ZhanFaAddKey)
-gZhanFaGui.Add("Button", "x96 y70 w80 h22", "删除技能键").OnEvent("Click", ZhanFaDeleteKey)
-gZhanFaGui.Add("Button", "x96 y148 w80 h22", "设置发射键").OnEvent("Click", ZhanFaSetShotKey)
-gZhanFaGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加技能键")
-gZhanFaGui.Add("Text", "x96 y100 w80 h20 +0x200", "炫纹发射键")
-gZhanFaGui.Add("Button", "x96 y178 w80 h27", "保存").OnEvent("Click", ZhanFaSave)
-gZhanFaGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", ZhanFaHelp)
+; 布局与关羽 EX 一致
+gZhanFaGui.Add("Text", "x14 y10 w100 h18 +0x200", "已添加技能键")
+GuiTheme_FlatBtnSmall(gZhanFaGui, "x116 y10 w18 h18", "?", ZhanFaHelp)
+__zfLb := GuiTheme_ListBoxFlatOutline(gZhanFaGui, 14, 32, 108, 176)
+gZhanFaCtrls["ZhanFaKeysListBox"] := gZhanFaGui.Add("ListBox", Format("vZhanFaKeysListBox x{} y{} w{} h{} -E0x200 -Border -VScroll -HScroll", __zfLb.x, __zfLb.y, __zfLb.w, __zfLb.h))
+GuiTheme_FlatBtnCompact(gZhanFaGui, "x14 y214 w54 h24", "添加", ZhanFaAddKey)
+GuiTheme_FlatBtnCompact(gZhanFaGui, "x76 y214 w54 h24", "删除", ZhanFaDeleteKey)
+gZhanFaGui.Add("Text", "x128 y36 w100 h24 +0x200", "炫纹发射键")
+gZhanFaCtrls["ZhanFaShotKey"] := gZhanFaGui.Add("Edit", "vZhanFaShotKey x234 y36 w56 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+RegisterEditPressKeyCapture(gZhanFaCtrls["ZhanFaShotKey"])
+GuiTheme_HRule(gZhanFaGui, 14, 252, 280)
+GuiTheme_FlatBtn(gZhanFaGui, "x78 y260 w152 h34", "保存", ZhanFaSave, true)
 
 ZhanFaGetCtrl(name) {
     global gZhanFaCtrls
@@ -28,7 +33,7 @@ ShowGuiZhanFa(*) {
         gZhanFaGui.Opt("+Owner" gMainGui.Hwnd)
     }
     gZhanFaGui.Title := "战法自动炫纹"
-    gZhanFaGui.Show("w184 h210")
+    gZhanFaGui.Show("w308 h312")
     ZhanFaLoadConfig()
     DisableGuiMain()
 }
@@ -89,10 +94,6 @@ ZhanFaDeleteKey(*) {
 ZhanFaSave(*) {
     ZhanFaSaveConfig()
     HideGuiZhanFa()
-}
-
-ZhanFaSetShotKey(*) {
-    ZhanFaGetCtrl("ZhanFaShotKey").Text := GetPressKey()
 }
 
 ZhanFaChangeListGui(keys) {

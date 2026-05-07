@@ -1,21 +1,26 @@
 #Requires AutoHotkey v2.0
 
-global gPetSkillGui := Gui("+ToolWindow")
+global gPetSkillGui := Gui("+ToolWindow -Theme")
 global gPetSkillCtrls := Map()
 global __PetSkillSkillKeys := []
+
+GuiTheme_Apply(gPetSkillGui)
 
 gPetSkillGui.OnEvent("Escape", PetSkillGuiEscape)
 gPetSkillGui.OnEvent("Close", PetSkillGuiClose)
 
-gPetSkillCtrls["PetSkillKeysListBox"] := gPetSkillGui.Add("ListBox", "vPetSkillKeysListBox x8 y32 w80 h172")
-gPetSkillCtrls["PetSkillShotKey"] := gPetSkillGui.Add("Edit", "vPetSkillShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
-gPetSkillGui.Add("Button", "x96 y40 w80 h22", "添加触发键").OnEvent("Click", PetSkillAddKey)
-gPetSkillGui.Add("Button", "x96 y70 w80 h22", "删除触发键").OnEvent("Click", PetSkillDeleteKey)
-gPetSkillGui.Add("Button", "x96 y148 w80 h22", "设置宠物键").OnEvent("Click", PetSkillSetShotKey)
-gPetSkillGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加触发键")
-gPetSkillGui.Add("Text", "x96 y100 w80 h20 +0x200", "宠物技能键")
-gPetSkillGui.Add("Button", "x96 y178 w80 h27", "保存").OnEvent("Click", PetSkillSave)
-gPetSkillGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", PetSkillHelp)
+; 布局与关羽 EX 一致（「已添加触发键」与顶栏同宽占位）
+gPetSkillGui.Add("Text", "x14 y10 w100 h18 +0x200", "已添加触发键")
+GuiTheme_FlatBtnSmall(gPetSkillGui, "x116 y10 w18 h18", "?", PetSkillHelp)
+__psLb := GuiTheme_ListBoxFlatOutline(gPetSkillGui, 14, 32, 108, 176)
+gPetSkillCtrls["PetSkillKeysListBox"] := gPetSkillGui.Add("ListBox", Format("vPetSkillKeysListBox x{} y{} w{} h{} -E0x200 -Border -VScroll -HScroll", __psLb.x, __psLb.y, __psLb.w, __psLb.h))
+GuiTheme_FlatBtnCompact(gPetSkillGui, "x14 y214 w54 h24", "添加", PetSkillAddKey)
+GuiTheme_FlatBtnCompact(gPetSkillGui, "x76 y214 w54 h24", "删除", PetSkillDeleteKey)
+gPetSkillGui.Add("Text", "x128 y36 w100 h24 +0x200", "宠物技能键")
+gPetSkillCtrls["PetSkillShotKey"] := gPetSkillGui.Add("Edit", "vPetSkillShotKey x234 y36 w56 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+RegisterEditPressKeyCapture(gPetSkillCtrls["PetSkillShotKey"])
+GuiTheme_HRule(gPetSkillGui, 14, 252, 280)
+GuiTheme_FlatBtn(gPetSkillGui, "x78 y260 w152 h34", "保存", PetSkillSave, true)
 
 PetSkillGetCtrl(name) {
     global gPetSkillCtrls
@@ -28,7 +33,7 @@ ShowGuiPetSkill(*) {
         gPetSkillGui.Opt("+Owner" gMainGui.Hwnd)
     }
     gPetSkillGui.Title := "自动宠物技能"
-    gPetSkillGui.Show("w184 h210")
+    gPetSkillGui.Show("w308 h312")
     PetSkillLoadConfig()
     DisableGuiMain()
 }
@@ -89,10 +94,6 @@ PetSkillDeleteKey(*) {
 PetSkillSave(*) {
     PetSkillSaveConfig()
     HideGuiPetSkill()
-}
-
-PetSkillSetShotKey(*) {
-    PetSkillGetCtrl("PetSkillShotKey").Text := GetPressKey()
 }
 
 PetSkillChangeListGui(keys) {

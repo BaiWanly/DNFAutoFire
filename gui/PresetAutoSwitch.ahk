@@ -7,21 +7,29 @@ global gPresetAutoPvH := 126
 global gRegionPickGui := false
 global gRegionPickKeyHook := false
 global gRegionPickNCHook := false
+global gRegionPickNCCalcHook := false
 global gRegionPickKind := "skill"
+
+GuiTheme_Apply(gPresetAutoGui)
 
 gPresetAutoGui.OnEvent("Escape", PresetAutoGuiEscape)
 gPresetAutoGui.OnEvent("Close", PresetAutoGuiClose)
 
+PresetSkillOpenSkillRegionPick(*) {
+    PresetRegionPickOpen("skill")
+}
+
 ; 与自动识别配置界面相同：宽 240、预览 224×126；识别热键在预览图上方
 gPresetAutoGui.Add("Text", "x8 y8 w224 h14 +0x200", "识别热键 (冒险团玩法信息)")
-gPresetAutoCtrls["AutoPresetHotkey"] := gPresetAutoGui.Add("Edit", "vAutoPresetHotkey x8 y24 w132 h22 +ReadOnly -WantCtrlA")
-gPresetAutoGui.Add("Button", "x148 y22 w84 h26", "设置识别热键").OnEvent("Click", PresetAutoSetHotkeyFromPress)
-gPresetAutoCtrls["CalPreview"] := gPresetAutoGui.Add("Picture", "x8 y52 w224 h126 +Border", "")
+gPresetAutoCtrls["AutoPresetHotkey"] := gPresetAutoGui.Add("Edit", "vAutoPresetHotkey x8 y24 w224 h22 +ReadOnly -WantCtrlA -E0x200 Border")
+RegisterEditPressKeyCapture(gPresetAutoCtrls["AutoPresetHotkey"], PresetAutoHotkeyAfterCapture)
+gPresetAutoCtrls["CalPreview"] := gPresetAutoGui.Add("Picture", "x8 y52 w224 h126", "")
 gPresetAutoCtrls["CalHint"] := gPresetAutoGui.Add("Text", "x8 y182 w224 h44", "")
-gPresetAutoGui.Add("Button", "x8 y230 w224 h26", "框选血条区域").OnEvent("Click", (*) => PresetRegionPickOpen("calibrate"))
-gPresetAutoGui.Add("Button", "x8 y260 w108 h26", "截取图像").OnEvent("Click", PresetAutoUpdateCalibrateIcon)
-gPresetAutoGui.Add("Button", "x124 y260 w108 h26", "清除图像").OnEvent("Click", PresetAutoDoDeleteCalibrateIcon)
-gPresetAutoGui.Add("Button", "x8 y290 w224 h28", "保存").OnEvent("Click", PresetAutoSaveClose)
+GuiTheme_FlatBtn(gPresetAutoGui, "x8 y230 w224 h28", "设置技能识别区域", PresetSkillOpenSkillRegionPick, false)
+GuiTheme_FlatBtn(gPresetAutoGui, "x8 y262 w224 h28", "设置血条识别区域", (*) => PresetRegionPickOpen("calibrate"), false)
+GuiTheme_FlatBtn(gPresetAutoGui, "x8 y294 w108 h28", "截取图像", PresetAutoUpdateCalibrateIcon, false)
+GuiTheme_FlatBtn(gPresetAutoGui, "x124 y294 w108 h28", "清除图像", PresetAutoDoDeleteCalibrateIcon, false)
+GuiTheme_FlatBtn(gPresetAutoGui, "x8 y326 w224 h32", "保存", PresetAutoSaveClose, true)
 
 PresetAutoGetCtrl(name) {
     global gPresetAutoCtrls
@@ -46,7 +54,7 @@ ShowGuiPresetAutoSwitch(*) {
     gPresetAutoGui.Title := "自动识别设置"
     PresetAutoGetCtrl("AutoPresetHotkey").Text := Trim(LoadConfig("AutoPresetHotkey", ""))
     PresetAutoRefreshCalibratePreview()
-    gPresetAutoGui.Show("w240 h326")
+    gPresetAutoGui.Show("w240 h368")
 }
 
 HideGuiPresetAutoSwitch() {
@@ -69,9 +77,8 @@ PresetAutoSaveClose(*) {
     HideGuiPresetAutoSwitch()
 }
 
-PresetAutoSetHotkeyFromPress(*) {
-    hk := Trim(GetPressKey())
-    PresetAutoGetCtrl("AutoPresetHotkey").Text := hk
+PresetAutoHotkeyAfterCapture(key) {
+    hk := Trim(key)
     SaveConfig("AutoPresetHotkey", hk)
     PresetRecognition_UpdateHotkeys()
 }
@@ -129,8 +136,101 @@ PresetAutoUpdateCalibrateIcon(*) {
 
 ; ---------- 识别区域框选（无边框：客户区即截取区域，避免比可视框多出一圈）----------
 ; 拖拽：WM_NCHITTEST 中心为 HTCAPTION；边缘为缩放热点
+; 使用 WS_EX_LAYERED + 整窗 alpha：半透明深色叠层，便于透过框对准游戏
+; 注意：Gui.Show 的 x,y 是「窗口外框」左上角，WinGetClientPos 是「客户区」屏幕坐标；+Resize 带细边框时
+; 二者不一致会导致每次 Enter 后选区漂移、变小。恢复位置必须用 AdjustWindowRectEx + SetWindowPos。
 
-; 框选仍在且为技能区域时：把当前灰框写入全局技能区域并关闭（等同按 Enter），供「截取图像」等调用
+; 读取 hwnd 客户区在屏幕上的矩形（与 BitBlt 截取用的坐标一致）
+PresetRegionPickReadClientScreen(hwnd) {
+    rc := Buffer(16, 0)
+    if !DllCall("user32\GetClientRect", "ptr", hwnd, "ptr", rc) {
+        return ""
+    }
+    cw := NumGet(rc, 8, "int") - NumGet(rc, 0, "int")
+    ch := NumGet(rc, 12, "int") - NumGet(rc, 4, "int")
+    pt := Buffer(8, 0)
+    if !DllCall("user32\ClientToScreen", "ptr", hwnd, "ptr", pt) {
+        return ""
+    }
+    return Map("x", NumGet(pt, 0, "int"), "y", NumGet(pt, 4, "int"), "w", cw, "h", ch)
+}
+
+; 直角 + 去掉 Win11 顶部云母/非客户区灰条，边框色与选区叠层一致（属性不支持时静默失败）
+PresetRegionPickApplyDwmStyle(hwnd) {
+    val := Buffer(4, 0)
+    ; DWMWA_SYSTEMBACKDROP_TYPE = 38，DWMSBT_NONE = 1：不套用主窗口云母，避免顶上一道灰
+    try {
+        NumPut("uint", 1, val, 0)
+        DllCall("dwmapi\DwmSetWindowAttribute", "ptr", hwnd, "uint", 38, "ptr", val, "uint", 4, "uint")
+    }
+    ; DWMWA_WINDOW_CORNER_PREFERENCE = 33，DWMWCP_DONOTROUND = 1
+    try {
+        NumPut("uint", 1, val, 0)
+        DllCall("dwmapi\DwmSetWindowAttribute", "ptr", hwnd, "uint", 33, "ptr", val, "uint", 4, "uint")
+    }
+    ; DWMWA_NCRENDERING_POLICY = 2，DWMNCRP_DISABLED = 1：不单独画 DWM 非客户区（细灰边）
+    try {
+        NumPut("uint", 1, val, 0)
+        DllCall("dwmapi\DwmSetWindowAttribute", "ptr", hwnd, "uint", 2, "ptr", val, "uint", 4, "uint")
+    }
+    ; DWMWA_BORDER_COLOR = 34，与 BackColor 一致（COLORREF：R|(G<<8)|(B<<16)）
+    try {
+        NumPut("uint", 0x00140a05, val, 0) ; 050a14
+        DllCall("dwmapi\DwmSetWindowAttribute", "ptr", hwnd, "uint", 34, "ptr", val, "uint", 4, "uint")
+    }
+}
+
+; WM_NCCALCSIZE：把「新外框矩形」同步为「客户区矩形」，去掉 +Resize/ThickFrame 画的那圈灰边（仍靠 WM_NCHITTEST 拉边）
+PresetRegionPickNCCalcSize(wParam, lParam, msg, hwnd) {
+    global gRegionPickGui
+    if !IsObject(gRegionPickGui) || (hwnd != gRegionPickGui.Hwnd) {
+        return
+    }
+    if !wParam || !lParam {
+        return
+    }
+    DllCall("kernel32\RtlCopyMemory", "ptr", lParam + 16, "ptr", lParam + 0, "uptr", 16)
+    return 0x100 ; WVR_REDRAW
+}
+
+; 将窗口外框放到「客户区恰好落在屏幕矩形 (sx,sy,cw,ch)」的位置（sx,sy 为客户区左上角屏幕坐标）
+PresetRegionPickSetOuterFromClientScreen(hwnd, sx, sy, cw, ch) {
+    style := DllCall("user32\GetWindowLong", "ptr", hwnd, "int", -16, "uint")
+    ex := DllCall("user32\GetWindowLong", "ptr", hwnd, "int", -20, "uint")
+    rc := Buffer(16, 0)
+    NumPut("int", 0, rc, 0)
+    NumPut("int", 0, rc, 4)
+    NumPut("int", cw, rc, 8)
+    NumPut("int", ch, rc, 12)
+    adjusted := false
+    try {
+        dpi := DllCall("user32\GetDpiForWindow", "ptr", hwnd, "uint")
+        if (dpi) {
+            adjusted := DllCall("user32\AdjustWindowRectExForDpi", "ptr", rc, "uint", style, "int", 0, "uint", ex, "uint", dpi, "int")
+        }
+    } catch {
+        adjusted := false
+    }
+    if !adjusted {
+        NumPut("int", 0, rc, 0)
+        NumPut("int", 0, rc, 4)
+        NumPut("int", cw, rc, 8)
+        NumPut("int", ch, rc, 12)
+        DllCall("user32\AdjustWindowRectEx", "ptr", rc, "uint", style, "int", 0, "uint", ex)
+    }
+    l := NumGet(rc, 0, "int")
+    t := NumGet(rc, 4, "int")
+    rr := NumGet(rc, 8, "int")
+    b := NumGet(rc, 12, "int")
+    ow := rr - l
+    oh := b - t
+    ox := sx + l
+    oy := sy + t
+    ; SWP_SHOWWINDOW | SWP_NOZORDER
+    DllCall("user32\SetWindowPos", "ptr", hwnd, "ptr", 0, "int", ox, "int", oy, "int", ow, "int", oh, "uint", 0x0044)
+}
+
+; 框选仍在且为技能区域时：把当前选区写入全局技能区域并关闭（等同按 Enter），供「截取图像」等调用
 PresetRegionPickCommitSkillRegionIfOpen() {
     global gRegionPickGui, gRegionPickKind
     if !IsObject(gRegionPickGui) || !WinExist("ahk_id " gRegionPickGui.Hwnd) {
@@ -163,7 +263,7 @@ PresetRegionPickCommitCalibrateRegionIfOpen() {
     PresetRegionPickOk()
 }
 
-; 关闭配置子窗口时若框选未确认，丢弃灰框（等同 Esc）
+; 关闭配置子窗口时若框选未确认，丢弃未确认的选区（等同 Esc）
 PresetRegionPickCancelIfOpen() {
     global gRegionPickGui
     if IsObject(gRegionPickGui) && WinExist("ahk_id " gRegionPickGui.Hwnd) {
@@ -172,25 +272,33 @@ PresetRegionPickCancelIfOpen() {
 }
 
 PresetRegionPickOpen(kind := "skill") {
-    global gRegionPickGui, gRegionPickKeyHook, gRegionPickNCHook, gRegionPickKind
+    global gRegionPickGui, gRegionPickKeyHook, gRegionPickNCHook, gRegionPickNCCalcHook, gRegionPickKind
     gRegionPickKind := kind
     if IsObject(gRegionPickGui) {
         try gRegionPickGui.Destroy()
         gRegionPickGui := false
     }
-    gRegionPickGui := Gui("+AlwaysOnTop +Resize +ToolWindow +MinSize8x8 -Caption -DPIScale", "RegionPick")
+    gRegionPickGui := Gui("+AlwaysOnTop +Resize +ToolWindow +MinSize8x8 -Caption -Border -DPIScale +E0x80000", "RegionPick")
     gRegionPickGui.MarginX := 0
     gRegionPickGui.MarginY := 0
-    gRegionPickGui.BackColor := "505050"
+    ; 深色叠层（略加深）；灰边靠 WM_NCCALCSIZE 吃掉 ThickFrame 非客户区
+    gRegionPickGui.BackColor := "050a14"
     gRegionPickGui.OnEvent("Close", PresetRegionPickCancel)
+    gRegionPickGui.Show("Hide w200 h90")
+    hwnd := gRegionPickGui.Hwnd
     r := (kind = "calibrate") ? ParseAutoPresetCalibrateRegion() : ParseAutoPresetRegion()
     if r.Has("w") {
-        gRegionPickGui.Show("x" r["x"] " y" r["y"] " w" r["w"] " h" r["h"])
+        PresetRegionPickSetOuterFromClientScreen(hwnd, r["x"], r["y"], r["w"], r["h"])
     } else {
-        gRegionPickGui.Show("w200 h90")
-        WinGetPos(&gx, &gy, &gw, &gh, "ahk_id " gRegionPickGui.Hwnd)
-        gRegionPickGui.Move((A_ScreenWidth - gw) // 2, (A_ScreenHeight - gh) // 2)
+        cw := 200
+        ch := 90
+        sx := (A_ScreenWidth - cw) // 2
+        sy := (A_ScreenHeight - ch) // 2
+        PresetRegionPickSetOuterFromClientScreen(hwnd, sx, sy, cw, ch)
     }
+    ; 先 DWM 再分层：避免云母/圆角与半透明叠出顶栏灰线（须在外框落定后再设）
+    PresetRegionPickApplyDwmStyle(hwnd)
+    WinSetTransparent(125, "ahk_id " hwnd)
     if !gRegionPickKeyHook {
         OnMessage(0x0100, PresetRegionPickKey)
         gRegionPickKeyHook := true
@@ -199,6 +307,13 @@ PresetRegionPickOpen(kind := "skill") {
         OnMessage(0x0084, PresetRegionPickNCHitTest)
         gRegionPickNCHook := true
     }
+    if !gRegionPickNCCalcHook {
+        OnMessage(0x0083, PresetRegionPickNCCalcSize)
+        gRegionPickNCCalcHook := true
+    }
+    ; 触发一次非客户区重算，让 NCCALCSIZE 立刻吃掉灰边
+    DllCall("user32\SetWindowPos", "ptr", hwnd, "ptr", 0, "int", 0, "int", 0, "int", 0, "int", 0
+        , "uint", 0x0027) ; SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_FRAMECHANGED
 }
 
 PresetRegionPickNCHitTest(wParam, lParam, msg, hwnd) {
@@ -277,7 +392,14 @@ PresetRegionPickOk(*) {
     if !IsObject(gRegionPickGui) {
         return
     }
-    WinGetClientPos(&x, &y, &w, &h, "ahk_id " gRegionPickGui.Hwnd)
+    cr := PresetRegionPickReadClientScreen(gRegionPickGui.Hwnd)
+    if (cr = "") {
+        return
+    }
+    x := cr["x"]
+    y := cr["y"]
+    w := cr["w"]
+    h := cr["h"]
     kind := gRegionPickKind
     if (kind = "calibrate") {
         SaveAutoPresetCalibrateRegion(x, y, w, h)

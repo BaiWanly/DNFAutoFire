@@ -12,6 +12,12 @@ global gPresetSuppressChange := false
 global gPresetDragPreviewList := []
 global gPresetDragCurrentFromIndex := 0
 global gPresetDragItemName := ""
+global gKeyIntervalMenu := Menu()
+global gKeyIntervalMenuTarget := ""
+global gMainExSwitchUi := Map()
+global gMainMutedLinks := []
+global G_MAIN_EX_SWITCH_NAMES := ["LvRen", "GuanYu", "JianZong", "ZhanFa", "PetSkill", "AutoRun", "Combo"]
+global __QuickSwitchHotkey := ""
 
 gMainGui.OnEvent("Escape", MainGuiEscape)
 gMainGui.OnEvent("Close", MainGuiClose)
@@ -19,6 +25,8 @@ gMainGui.OnEvent("ContextMenu", MainGuiContextMenu)
 OnMessage(0x0201, MainPresetListOnLButtonDown)
 OnMessage(0x0202, MainPresetListOnLButtonUp)
 OnMessage(0x0200, MainPresetListOnMouseMove)
+
+GuiTheme_Apply(gMainGui)
 
 MainAdd(ctrlType, options, text := "") {
     global gMainGui, gMainCtrls
@@ -45,96 +53,206 @@ MainGetCtrl(name) {
 MainKeyUiGrayOnly(name) {
     static gray := Map(
         "Esc", true,
-        "Tab", true,
-        "Caps", true,
-        "LShift", true,
-        "RShift", true,
-        "LCtrl", true,
-        "RCtrl", true,
-        "LAlt", true,
-        "RAlt", true,
     )
     return gray.Has(name)
 }
 
-; 主界面「其他功能」复选框是否勾选（供 core/Scripts.ahk 等使用，避免 v1 式未赋值全局变量触发 #Warn）
+; 主界面「其他功能」开关是否开启（隐藏 CheckBox 存状态，供 core/Scripts.ahk 等使用）
 MainCheckboxOn(name) {
     c := MainGetCtrl(name)
     return IsObject(c) && c.Value
 }
 
-gMainGui.Add("GroupBox", "x8 y8 w926 h276", "按键设置 - [ 红色为启用连发 蓝色为关闭连发 ]")
-gMainGui.SetFont("s12 cBlue")
+MainAddExFeatureRow(name, colX, y, toggleW, linkW, linkText, linkHandler) {
+    global gMainGui, gMainExSwitchUi
+    swH := 20
+    ui := GuiTheme_FlatSwitch(gMainGui, colX, y + 1, toggleW, swH)
+    gMainExSwitchUi[name] := { track: ui.track, knob: ui.knob, x: ui.x, y: ui.y, tw: ui.tw, th: ui.th, ks: ui.ks }
+    ui.track.OnEvent("Click", MainExSwitchClick.Bind(name))
+    ui.knob.OnEvent("Click", MainExSwitchClick.Bind(name))
+    lx := colX + toggleW + 8
+    t := MainAdd("Text", "vMainExLink_" name " x" lx " y" y " w" linkW " h22 +0x200 +0x100", linkText)
+    t.OnEvent("Click", linkHandler)
+    MainMutedLinkRegister(t)
+}
+
+MainExSwitchClick(name, *) {
+    cb := MainGetCtrl(name)
+    if !IsObject(cb) {
+        return
+    }
+    cb.Value := cb.Value ? 0 : 1
+    MainExSwitchPaint(name)
+    MainSaveExToggle()
+}
+
+MainExSwitchPaint(name) {
+    global gMainExSwitchUi
+    if !gMainExSwitchUi.Has(name) {
+        return
+    }
+    ui := gMainExSwitchUi[name]
+    cb := MainGetCtrl(name)
+    if !IsObject(cb) {
+        return
+    }
+    on := cb.Value
+    bg := on ? "93C5FD" : "E2E8F0"
+    ui.track.Opt("+Background" bg)
+    kx := on ? (ui.x + ui.tw - ui.ks - 2) : (ui.x + 2)
+    ui.knob.Move(kx, ui.y + 2, ui.ks, ui.ks)
+}
+
+MainExSwitchPaintAll(*) {
+    global G_MAIN_EX_SWITCH_NAMES
+    for name in G_MAIN_EX_SWITCH_NAMES {
+        MainExSwitchPaint(name)
+    }
+}
+
+MainMutedLinkRegister(ctrl) {
+    global gMainMutedLinks
+    if !IsObject(ctrl) {
+        return
+    }
+    ctrl.SetFont("s10 norm c64748B", GuiTheme_Face)
+    gMainMutedLinks.Push({ hwnd: ctrl.Hwnd, ctrl: ctrl, hover: false })
+}
+
+MainMutedLinkPoll(*) {
+    global gMainMutedLinks
+    if (gMainMutedLinks.Length = 0) {
+        return
+    }
+    MouseGetPos(&_mx, &_my, &hwUnder)
+    for it in gMainMutedLinks {
+        isOver := (hwUnder = it.hwnd)
+        if (isOver && !it.hover) {
+            it.ctrl.SetFont("s10 underline c5B84D9", GuiTheme_Face)
+            it.hover := true
+        } else if (!isOver && it.hover) {
+            it.ctrl.SetFont("s10 norm c64748B", GuiTheme_Face)
+            it.hover := false
+        }
+    }
+}
+
+; 紧凑 98 键布局下的主窗口几何（顶区变窄变矮后底区与按钮随动）
+global MAIN_GUI_W := 784
+global MAIN_GUI_H := 504
+global MAIN_GUI_H_RUNNING := 512
+global MAIN_BTN_X := MAIN_GUI_W - 104
+global MAIN_KEY_GB_W := 768
+global MAIN_KEY_GB_H := 270
+global MAIN_BOTTOM_Y := 8 + MAIN_KEY_GB_H + 12
+global MAIN_OTHER_GB_W := MAIN_BTN_X - 8 - 326
+global MAIN_CFG_SECTION_BOTTOM := MAIN_BOTTOM_Y + 200
+global MAIN_CFG_LIST_TOP := MAIN_BOTTOM_Y + 26
+global MAIN_CFG_LIST_H := MAIN_CFG_SECTION_BOTTOM - MAIN_CFG_LIST_TOP
+global MAIN_CFG_LIST_BOTTOM := MAIN_CFG_SECTION_BOTTOM
+global MAIN_PRESET_BTN_H := 36
+global MAIN_PRESET_BTN_Y := MAIN_CFG_LIST_BOTTOM - MAIN_PRESET_BTN_H
+global MAIN_CFG_FIELD_X := 174
+global MAIN_CFG_FIELD_W := 124
+
+; 按键区不用 GroupBox，避免外围细线框；标题与键区同宽左侧说明
+gMainGui.SetFont("s10 c" GuiTheme_Hint, GuiTheme_Face)
+gMainGui.Add("Text", "x16 y10 w590 h20 +0x200", "按键设置 - [ 黑色=关闭 红色=启用 蓝色=独立间隔（右键可设置独立间隔） ]")
 for item in [
     ["Esc","x16 y30 w36 h36"],["F1","x90 y30 w36 h36"],["F2","x130 y30 w36 h36"],["F3","x170 y30 w36 h36"],["F4","x210 y30 w36 h36"],["F5","x270 y30 w36 h36"],["F6","x310 y30 w36 h36"],["F7","x350 y30 w36 h36"],["F8","x390 y30 w36 h36"],["F9","x450 y30 w36 h36"],["F10","x490 y30 w36 h36"],["F11","x530 y30 w36 h36"],["F12","x570 y30 w36 h36"],
     ["Tilde","x16 y80 w36 h36","``"],["1","x56 y80 w36 h36"],["2","x96 y80 w36 h36"],["3","x136 y80 w36 h36"],["4","x176 y80 w36 h36"],["5","x216 y80 w36 h36"],["6","x256 y80 w36 h36"],["7","x296 y80 w36 h36"],["8","x336 y80 w36 h36"],["9","x376 y80 w36 h36"],["0","x416 y80 w36 h36"],["Sub","x456 y80 w36 h36","-"],["Add","x496 y80 w36 h36","+"],["Backspace","x536 y80 w70 h36","←"],
     ["Tab","x16 y120 w54 h36"],["Q","x74 y120 w36 h36"],["W","x114 y120 w36 h36"],["E","x154 y120 w36 h36"],["R","x194 y120 w36 h36"],["T","x234 y120 w36 h36"],["Y","x274 y120 w36 h36"],["U","x314 y120 w36 h36"],["I","x354 y120 w36 h36"],["O","x394 y120 w36 h36"],["P","x434 y120 w36 h36"],["LeftBracket","x474 y120 w36 h36","["],["RightBracket","x514 y120 w36 h36","]"],["Backslash","x554 y120 w52 h36","\"],
     ["Caps","x16 y160 w64 h36"],["A","x84 y160 w36 h36"],["S","x124 y160 w36 h36"],["D","x164 y160 w36 h36"],["F","x204 y160 w36 h36"],["G","x244 y160 w36 h36"],["H","x284 y160 w36 h36"],["J","x324 y160 w36 h36"],["K","x364 y160 w36 h36"],["L","x404 y160 w36 h36"],["Semicolon","x444 y160 w36 h36",";"],["QuotationMark","x484 y160 w36 h36","'"],["Enter","x524 y160 w82 h36"],
-    ["LShift","x16 y200 w86 h36","Shift"],["Z","x106 y200 w36 h36"],["X","x146 y200 w36 h36"],["C","x186 y200 w36 h36"],["V","x226 y200 w36 h36"],["B","x266 y200 w36 h36"],["N","x306 y200 w36 h36"],["M","x346 y200 w36 h36"],["Comma","x386 y200 w36 h36",","],["Period","x426 y200 w36 h36","."],["Slash","x466 y200 w36 h36","/"],["RShift","x506 y200 w100 h36","Shift"],
-    ["LCtrl","x16 y240 w48 h36","Ctrl"],["LAlt","x120 y240 w48 h36","Alt"],["Space","x172 y240 w226 h36"],["RAlt","x402 y240 w48 h36","Alt"],["RCtrl","x558 y240 w48 h36","Ctrl"],
-    ["Up","x670 y200 w36 h36","↑"],["Left","x630 y240 w36 h36","←"],["Down","x670 y240 w36 h36","↓"],["Right","x710 y240 w36 h36","→"],
-    ["Num0","x770 y240 w76 h36"],["NumPeriod","x850 y240 w36 h36","."],["NumSlash","x810 y80 w36 h36","/"],["NumStar","x850 y80 w36 h36","*"],["NumSub","x890 y80 w36 h36","-"],["NumAdd","x890 y120 w36 h76","+"],
-    ["Ins","x630 y70 w36 h36"],["Home","x670 y70 w36 h36"],["PgUp","x710 y70 w36 h36"],["Del","x630 y110 w36 h36"],["End","x670 y110 w36 h36"],["PgDn","x710 y110 w36 h36"],
-    ["Num1","x770 y200 w36 h36"],["Num2","x810 y200 w36 h36"],["Num3","x850 y200 w36 h36"],["Num4","x770 y160 w36 h36"],["Num5","x810 y160 w36 h36"],["Num6","x850 y160 w36 h36"],["Num7","x770 y120 w36 h36"],["Num8","x810 y120 w36 h36"],["Num9","x850 y120 w36 h36"],
-    ["PrtSc","x630 y30 w36 h36"],["ScrLk","x670 y30 w36 h36"],["Pause","x710 y30 w36 h36"],["NumEnter","x890 y200 w36 h76","`n`n`nNum`nEnter"],["NumLk","x770 y80 w36 h36"]
+    ["LShift","x16 y200 w86 h36","Shift"],["Z","x106 y200 w36 h36"],["X","x146 y200 w36 h36"],["C","x186 y200 w36 h36"],["V","x226 y200 w36 h36"],["B","x266 y200 w36 h36"],["N","x306 y200 w36 h36"],["M","x346 y200 w36 h36"],["Comma","x386 y200 w36 h36",","],["Period","x426 y200 w36 h36","."],["Slash","x466 y200 w36 h36","/"],["RShift","x506 y200 w62 h36","Shift"],["Up","x572 y200 w36 h36","↑"],
+    ["NumLk","x612 y80 w36 h36","Num"],["NumSlash","x652 y80 w36 h36","/"],["NumStar","x692 y80 w36 h36","*"],["NumSub","x732 y80 w36 h36","-"],
+    ["Num7","x612 y120 w36 h36","7"],["Num8","x652 y120 w36 h36","8"],["Num9","x692 y120 w36 h36","9"],["NumAdd","x732 y120 w36 h76","+"],
+    ["Num4","x612 y160 w36 h36","4"],["Num5","x652 y160 w36 h36","5"],["Num6","x692 y160 w36 h36","6"],
+    ["Num1","x612 y200 w36 h36","1"],["Num2","x652 y200 w36 h36","2"],["Num3","x692 y200 w36 h36","3"],["NumEnter","x732 y200 w36 h76","Ent"],
+    ["LCtrl","x16 y240 w48 h36","Ctrl"],["LAlt","x120 y240 w48 h36","Alt"],["Space","x172 y240 w216 h36"],["RAlt","x392 y240 w64 h36","Alt"],["RCtrl","x460 y240 w68 h36","Ctrl"],
+    ["Left","x532 y240 w36 h36","←"],["Down","x572 y240 w36 h36","↓"],["Right","x612 y240 w36 h36","→"],
+    ["Num0","x652 y240 w36 h36","0"],["NumPeriod","x692 y240 w36 h36","."]
 ] {
     name := item[1], pos := item[2], label := item.Length >= 3 ? item[3] : name
-    fontSize := (name = "PrtSc" || name = "ScrLk" || name = "Pause" || name = "NumEnter" || name = "NumLk") ? "s7" : ((name ~= "^(Ins|Home|PgUp|Del|End|PgDn|Num[1-9])$") ? "s9" : "s12")
+    fontSize := (name = "NumLk" || name = "NumEnter") ? "s9" : "s12"
     if MainKeyUiGrayOnly(name) {
-        gMainGui.SetFont(fontSize)
-        ctrl := MainAdd("Text", "v" name " " pos " +0x200 +0x400000 +Center +Disabled", label)
+        gMainGui.SetFont(fontSize, GuiTheme_Face)
+        ctrl := MainAdd("Text", "v" name " " pos " BackgroundE2E8F0 -E0x200 +0x200 +0x100 +Center +Disabled", label)
     } else {
-        gMainGui.SetFont(fontSize " cBlue")
-        ctrl := MainAdd("Text", "v" name " " pos " +0x200 +0x400000 +Center", label)
+        gMainGui.SetFont(fontSize " c" GuiTheme_KeyOff, GuiTheme_Face)
+        ctrl := MainAdd("Text", "v" name " " pos " BackgroundE2E8F0 -E0x200 +0x200 +0x100 +Center", label)
         ctrl.OnEvent("Click", MainKeyClick)
     }
 }
-gMainGui.SetFont()
+gMainGui.SetFont("s10 norm c334155", GuiTheme_Face)
 
-gMainGui.Add("Text", "x68 y240 w48 h36 +0x200 +0x400000 +Center +Disabled", "Win")
-gMainGui.Add("Text", "x454 y240 w48 h36 +0x200 +0x400000 +Center +Disabled", "Fn")
-gMainGui.Add("Text", "x506 y240 w48 h36 +0x200 +0x400000 +Center +Disabled", "App")
+gMainGui.Add("Text", "x68 y240 w48 h36 BackgroundE2E8F0 -E0x200 +0x200 +0x100 +Center +Disabled", "Win")
 
-gMainGui.SetFont("s9")
-MainAdd("Text", "vMainVersionText x770 y30 w112 h42", "版本信息：`nv" __Version "`n原作者：某亚瑟")
-MainAdd("Button", "vMainClear x890 y30 w36 h36 +0x200 +Center", "清空").OnEvent("Click", MainClear)
-gMainGui.SetFont()
+gMainGui.SetFont("s9", GuiTheme_Face)
+MainAdd("Text", "vMainVersionText x612 y28 w100 h40", "版本信息：v" __Version "`n原作者：某亚瑟")
+; 与 F12 同排（y30 h36）；x732 为小键盘列上方空隙，不与 F12 重叠
+gMainCtrls["MainClear"] := GuiTheme_FlatBtnSmall(gMainGui, "vMainClear x732 y30 w36 h36", "清空", MainClear)
+gMainGui.SetFont("s10 norm c334155", GuiTheme_Face)
 
-gMainGui.Add("GroupBox", "x8 y300 w340 h200", "配置设置 - [ 单击切换配置，右键配置列表管理 ]")
-MainAdd("ListBox", "vPreset x16 y320 w150 h180")
+gMainGui.SetFont("s10 norm c64748B", GuiTheme_Face)
+gMainGui.Add("Text", "x16 y" . (MAIN_BOTTOM_Y + 6) . " w324 h18 +0x200", "配置设置 - [ 单击切换配置，右键配置列表管理 ]")
+gMainGui.SetFont("s10 norm c334155", GuiTheme_Face)
+MainAdd("ListBox", "vPreset x16 y" . MAIN_CFG_LIST_TOP . " w150 h" . MAIN_CFG_LIST_H . " -E0x200 -Border -VScroll")
 MainGetCtrl("Preset").OnEvent("Change", MainChangeListPreset)
-gMainGui.Add("Text", "x174 y320 w150 h24 +0x200", "当前配置名称：")
-MainAdd("Edit", "vPresetNameEdit x174 y344 w150 h22 +ReadOnly")
+gMainGui.Add("Text", "x" . MAIN_CFG_FIELD_X . " y" . MAIN_CFG_LIST_TOP . " w" . MAIN_CFG_FIELD_W . " h24 +0x200", "当前配置名称：")
+MainAdd("Edit", "vPresetNameEdit x" . MAIN_CFG_FIELD_X . " y" . (MAIN_CFG_LIST_TOP + 24) . " w" . MAIN_CFG_FIELD_W . " h22 +ReadOnly -E0x200 Border")
 
-gMainGui.Add("Text", "x174 y370 w150 h24 +0x200", "连发间隔(ms)")
-ctrlInterval := MainAdd("Edit", "vMainAutoFireInterval x174 y394 w150 h20 +Number")
+gMainGui.Add("Text", "x" . MAIN_CFG_FIELD_X . " y" . (MAIN_CFG_LIST_TOP + 50) . " w" . MAIN_CFG_FIELD_W . " h24 +0x200", "连发间隔(ms)")
+ctrlInterval := MainAdd("Edit", "vMainAutoFireInterval x" . MAIN_CFG_FIELD_X . " y" . (MAIN_CFG_LIST_TOP + 74) . " w" . MAIN_CFG_FIELD_W . " h22 +Number -E0x200 Border")
 ctrlInterval.OnEvent("Change", MainSaveAutoFireInterval)
 ctrlInterval.OnEvent("LoseFocus", MainCommitAutoFireInterval)
 
-gMainGui.Add("Text", "x174 y420 w150 h24 +0x200", "快速切换热键")
-MainAdd("Hotkey", "vQuickChangeHotKey x174 y444 w150 h20").OnEvent("Change", MainSaveQuickChangeHotKey)
+gMainGui.SetFont("s9 norm c334155", GuiTheme_Face)
+; 下沿与配置列表底对齐；与 GuiTheme_FlatBtn 一致。勿用 -Wrap：AHK 对 Text 的 -Wrap 会施加 SS_LEFTNOWORDWRAP，且若写在 +Center 之后会覆盖居中。
+ctrlMainPresetSkill := MainAdd("Text", "vMainPresetSkill x" . MAIN_CFG_FIELD_X . " y" . MAIN_PRESET_BTN_Y . " w" . MAIN_CFG_FIELD_W . " h" . MAIN_PRESET_BTN_H . " +0x200 +0x100 +Center BackgroundE2E8F0 c334155 -E0x200", "自动识别配置")
+ctrlMainPresetSkill.OnEvent("Click", MainPresetSkill)
+gMainGui.SetFont("s10 norm c334155", GuiTheme_Face)
 
-MainAdd("Button", "vMainSetting x838 y305 w96 h60", "软件设置").OnEvent("Click", MainSetting)
-MainAdd("Button", "vMainCheckUpdate x838 y372 w96 h60", "检查更新").OnEvent("Click", MainCheckUpdate)
-MainAdd("Button", "vMainStart x838 y440 w96 h60", "启动连发").OnEvent("Click", MainStart)
+gMainCtrls["MainSetting"] := GuiTheme_FlatBtn(gMainGui, "vMainSetting x" . MAIN_BTN_X . " y" . (MAIN_BOTTOM_Y + 5) . " w96 h60", "软件设置", MainSetting, false)
+gMainCtrls["MainCheckUpdate"] := GuiTheme_FlatBtn(gMainGui, "vMainCheckUpdate x" . MAIN_BTN_X . " y" . (MAIN_BOTTOM_Y + 72) . " w96 h60", "检查更新", MainCheckUpdate, false)
+gMainCtrls["MainStart"] := GuiTheme_FlatBtn(gMainGui, "vMainStart x" . MAIN_BTN_X . " y" . (MAIN_BOTTOM_Y + 140) . " w96 h60", "启动连发", MainStart, true)
 
-; 右缘与按钮左缘间距 8px，与左侧 GroupBox 到窗口左缘间距一致（按钮 x838）
-gMainGui.Add("GroupBox", "x356 y300 w474 h200", "其他功能")
-MainAdd("CheckBox", "vLvRen x364 y320 h20 w16").OnEvent("Click", MainSaveExToggle)
-MainAdd("Link", "vMainLvRen x382 y323 h20", "<a>旅人自动流星</a>").OnEvent("Click", MainLvRen)
-MainAdd("CheckBox", "vGuanYu x364 y340 h20 w16").OnEvent("Click", MainSaveExToggle)
-MainAdd("Link", "vMainGuanYu x382 y343 h20", "<a>关羽自动猛攻</a>").OnEvent("Click", MainGuanYu)
-MainAdd("CheckBox", "vJianZong x364 y360 h20 w16").OnEvent("Click", MainSaveExToggle)
-MainAdd("Link", "vMainJianZong x382 y363 h20", "<a>太宗帝剑延迟</a>").OnEvent("Click", MainJianZong)
-MainAdd("CheckBox", "vZhanFa x364 y380 h20 w16").OnEvent("Click", MainSaveExToggle)
-MainAdd("Link", "vMainZhanFa x382 y383 h20", "<a>战法自动炫纹</a>").OnEvent("Click", MainZhanFa)
-MainAdd("CheckBox", "vPetSkill x364 y400 h20 w16").OnEvent("Click", MainSaveExToggle)
-MainAdd("Link", "vMainPetSkill x382 y403 h20", "<a>自动宠物技能</a>").OnEvent("Click", MainPetSkill)
-MainAdd("CheckBox", "vAutoRun x364 y420 h20 w16").OnEvent("Click", MainSaveExToggle)
-MainAdd("Link", "vMainAutoRun x382 y423 h20", "<a>自动奔跑</a>").OnEvent("Click", MainAutoRun)
-MainAdd("CheckBox", "vCombo x364 y440 h20 w16").OnEvent("Click", MainSaveExToggle)
-MainAdd("Link", "vMainCombo x382 y443 h20", "<a>一键连招</a>").OnEvent("Click", MainCombo)
-MainAdd("Link", "vMainPresetSkill x364 y480 w400 h18", "<a>自动识别配置（需在软件设置中开启自动识别）</a>").OnEvent("Click", MainPresetSkill)
+; 按钮右缘距窗口右缘 8px（MAIN_BTN_X = MAIN_GUI_W - 8 - 96）
+; 其他功能：无 GroupBox / 无列表容器，双列独立行 + 扁平开关 + 淡化文字链
+gMainGui.SetFont("s10 norm c64748B", GuiTheme_Face)
+gMainGui.Add("Text", "x334 y" . (MAIN_BOTTOM_Y + 6) . " w200 h18 +0x200", "其他功能")
+gMainGui.SetFont("s10 norm c334155", GuiTheme_Face)
+for n in G_MAIN_EX_SWITCH_NAMES {
+    MainAdd("CheckBox", "v" n " Hidden x-2000 y-2000 w1 h1 -TabStop")
+}
+MAIN_OTHER_ROW := 36
+MAIN_OTHER_ROW0 := MAIN_BOTTOM_Y + 26
+MAIN_OTHER_COL1 := 334
+MAIN_OTHER_COL2 := 502
+MAIN_OTHER_TW := 40
+MAIN_OTHER_LW1 := 104
+MAIN_OTHER_LW2 := 84
+__mainExLi := 0
+for row in [
+    ["LvRen", "旅人自动流星", MainLvRen],
+    ["GuanYu", "关羽自动猛攻", MainGuanYu],
+    ["JianZong", "太宗帝剑延迟", MainJianZong],
+    ["ZhanFa", "战法自动炫纹", MainZhanFa],
+] {
+    __mainExLi += 1
+    y := MAIN_OTHER_ROW0 + (__mainExLi - 1) * MAIN_OTHER_ROW
+    MainAddExFeatureRow(row[1], MAIN_OTHER_COL1, y, MAIN_OTHER_TW, MAIN_OTHER_LW1, row[2], row[3])
+}
+__mainExRi := 0
+for row in [
+    ["PetSkill", "自动宠物技能", MainPetSkill],
+    ["AutoRun", "自动奔跑", MainAutoRun],
+    ["Combo", "一键连招", MainCombo],
+] {
+    __mainExRi += 1
+    y := MAIN_OTHER_ROW0 + (__mainExRi - 1) * MAIN_OTHER_ROW
+    MainAddExFeatureRow(row[1], MAIN_OTHER_COL2, y, MAIN_OTHER_TW, MAIN_OTHER_LW2, row[2], row[3])
+}
+MainExSwitchPaintAll()
 
 gPresetContextMenu.Add("新建配置", MainCreatePreset)
 gPresetContextMenu.Add("重命名配置", MainRenamePreset)
@@ -142,18 +260,56 @@ gPresetContextMenu.Add("克隆配置", MainClonePreset)
 gPresetContextMenu.Add("删除配置", MainDeletePreset)
 gPresetBlankContextMenu.Add("新建配置", MainCreatePreset)
 
+gKeyIntervalMenu.Add("设置该键连发间隔…", MainKeyIntervalMenuEdit)
+gKeyIntervalMenu.Add("恢复为全局默认", MainKeyIntervalMenuClear)
+
+; 按控件真实位置对齐：「自动识别配置」底缘=列表底缘，左右与「当前配置名称」输入框一致
+MainSyncPresetSkillLayout() {
+    global gMainGui
+    preset := MainGetCtrl("Preset")
+    nameEdit := MainGetCtrl("PresetNameEdit")
+    btn := MainGetCtrl("MainPresetSkill")
+    if !IsObject(preset) || !IsObject(nameEdit) || !IsObject(btn) {
+        return
+    }
+    try {
+        if !IsObject(gMainGui) || !gMainGui.Hwnd {
+            return
+        }
+    } catch {
+        return
+    }
+    preset.GetPos(, &ply, , &plh)
+    nameEdit.GetPos(&ex, &ey, &ew, &eh)
+    bh := 36
+    try {
+        btn.GetPos(, , , &bhh)
+        if (bhh > 0) {
+            bh := bhh
+        }
+    } catch {
+    }
+    try {
+        btn.Move(ex, ply + plh - bh, ew, bh)
+    } catch {
+    }
+}
+
 ShowGuiMain(*) {
     global gMainGui
     try PresetRecognition_CancelPending()
     gMainGui.Title := "DAF连发工具 - DNF AutoFire"
-    gMainGui.Show("w940 h510")
+    gMainGui.Show("w" . MAIN_GUI_W . " h" . MAIN_GUI_H)
     MainLoadAllPreset()
-    MainLoatQuickChangeHotKey()
+    MainSyncPresetSkillLayout()
+    QuickChangeHotKey_SyncFromConfig()
+    SetTimer(MainMutedLinkPoll, 100)
 }
 
 HideGuiMain(*) {
     global gMainGui
     try PresetRecognition_CancelPending()
+    SetTimer(MainMutedLinkPoll, 0)
     gMainGui.Hide()
 }
 
@@ -174,10 +330,20 @@ EnableGuiMain() {
     global gMainGui
     gMainGui.Opt("-Disabled")
     gMainGui.Title := "DAF连发工具 - DNF AutoFire - v" __Version "（原作者：某亚瑟）"
-    gMainGui.Show("w940 h518")
+    gMainGui.Show("w" . MAIN_GUI_W . " h" . MAIN_GUI_H_RUNNING)
+    MainSyncPresetSkillLayout()
+    SetTimer(MainMutedLinkPoll, 100)
 }
 
-MainSetKeyState(key, state) {
+; 可右键设置独立连发间隔的键（与主界面可点键一致）
+MainIsInteractiveKeyName(name) {
+    if (name = "" || MainKeyUiGrayOnly(name)) {
+        return false
+    }
+    return IsValueInArray(name, GetAllKeys())
+}
+
+MainSetKeyState(key, state, ovMap := 0) {
     if MainKeyUiGrayOnly(key) {
         return
     }
@@ -185,15 +351,53 @@ MainSetKeyState(key, state) {
     if !IsObject(ctrl) {
         return
     }
-    color := state ? "cRed" : "cBlue"
-    weight := state ? "Bold" : "Norm"
     size := "s12"
-    if (key = "PrtSc" || key = "ScrLk" || key = "Pause" || key = "NumEnter" || key = "NumLk") {
-        size := "s7"
-    } else if (key ~= "^(Ins|Home|PgUp|Del|End|PgDn|Num[1-9])$") {
+    if (key = "NumLk" || key = "NumEnter") {
         size := "s9"
     }
-    ctrl.SetFont(size " " color " " weight)
+    if !state {
+        color := "c" GuiTheme_KeyOff
+        weight := "Norm"
+    } else {
+        hasOv := false
+        if IsObject(ovMap) {
+            hasOv := ovMap.Has(key)
+        } else {
+            om := LoadPresetKeyIntervalOverrides(GetNowSelectPreset())
+            hasOv := om.Has(key)
+        }
+        if hasOv {
+            color := "c" GuiTheme_KeyOv
+            weight := "Bold"
+        } else {
+            color := "c" GuiTheme_KeyOn
+            weight := "Bold"
+        }
+    }
+    ctrl.SetFont(size " " color " " weight, GuiTheme_Face)
+}
+
+MainRefreshAllKeyAppearances() {
+    presetName := GetNowSelectPreset()
+    if (presetName = "") {
+        return
+    }
+    ov := LoadPresetKeyIntervalOverrides(presetName)
+    allKeys := GetAllKeys()
+    try n := allKeys.Length
+    catch {
+        n := 0
+    }
+    loop n {
+        if !allKeys.Has(A_Index) {
+            continue
+        }
+        k := allKeys[A_Index]
+        if MainKeyUiGrayOnly(k) {
+            continue
+        }
+        MainSetKeyState(k, IsKeyAutoFire(k), ov)
+    }
 }
 
 MainKeyClick(ctrl, *) {
@@ -344,6 +548,7 @@ MainLoadAllPreset() {
         ChangePreset(presetName)
         presetNameCtrl.Text := presetName
     }
+    MainSyncPresetSkillLayout()
 }
 
 MainSetting(*) {
@@ -387,6 +592,8 @@ MainLoadEx() {
     MainGetCtrl("Combo").Value := LoadPreset(GetNowSelectPreset(), "ComboState", false)
     MainGetCtrl("MainAutoFireInterval").Text := LoadPreset(GetNowSelectPreset(), "MainAutoFireInterval", 20)
     MainNormalizeAutoFireInterval()
+    MainRefreshAllKeyAppearances()
+    MainExSwitchPaintAll()
 }
 
 MainNormalizeAutoFireInterval() {
@@ -474,19 +681,50 @@ MainSaveExToggle(*) {
     MainSaveEx()
 }
 
+MainPruneObsoleteKeyIntervals(presetName) {
+    m := LoadPresetKeyIntervalOverrides(presetName)
+    vk := GetAllKeys()
+    del := []
+    for k, v in m {
+        if !IsValueInArray(k, vk) {
+            del.Push(k)
+        }
+    }
+    for k in del {
+        m.Delete(k)
+    }
+    if del.Length {
+        SavePresetKeyIntervalOverrides(presetName, m)
+    }
+}
+
 MainSaveCurrentPreset() {
     global _AutoFireEnableKeys
     presetName := GetNowSelectPreset()
     if (presetName = "") {
         return
     }
+    MainPruneObsoleteKeyIntervals(presetName)
     SavePresetKeys(presetName, _AutoFireEnableKeys)
     MainSaveEx()
 }
 
 MainGuiContextMenu(guiObj, ctrlObj, item, isRightClick, x, y) {
-    global gPresetContextMenu, gPresetBlankContextMenu
-    if !IsObject(ctrlObj) || ctrlObj.Name != "Preset" {
+    global gPresetContextMenu, gPresetBlankContextMenu, gKeyIntervalMenu, gKeyIntervalMenuTarget
+    if !IsObject(ctrlObj) {
+        return
+    }
+    nm := ctrlObj.Name
+    if MainIsInteractiveKeyName(nm) {
+        gKeyIntervalMenuTarget := nm
+        if (x != "" && y != "") {
+            gKeyIntervalMenu.Show(x, y)
+        } else {
+            gKeyIntervalMenu.Show()
+        }
+        return
+    }
+    if (nm != "Preset") {
         return
     }
     idx := MainPresetListIndexFromCursor(ctrlObj)
@@ -506,6 +744,57 @@ MainGuiContextMenu(guiObj, ctrlObj, item, isRightClick, x, y) {
             gPresetBlankContextMenu.Show()
         }
     }
+}
+
+MainKeyIntervalMenuEdit(*) {
+    global gKeyIntervalMenuTarget
+    key := gKeyIntervalMenuTarget
+    presetName := GetNowSelectPreset()
+    if (presetName = "" || key = "") {
+        return
+    }
+    m := LoadPresetKeyIntervalOverrides(presetName)
+    defaultTxt := m.Has(key) ? String(m[key]) : ""
+    ib := InputBox(
+        "为该键设置连发间隔 (ms)，范围 1–200。`n留空表示使用全局间隔（并清除该键的独立设置）。",
+        "按键连发间隔", "w360", defaultTxt)
+    if (ib.Result != "OK") {
+        return
+    }
+    val := Trim(ib.Value)
+    if (val = "") {
+        if m.Has(key) {
+            m.Delete(key)
+        }
+        SavePresetKeyIntervalOverrides(presetName, m)
+    } else {
+        n := Round(val + 0)
+        if (n < 1) {
+            n := 1
+        } else if (n > 200) {
+            n := 200
+        }
+        m[key] := n
+        SavePresetKeyIntervalOverrides(presetName, m)
+    }
+    MainRefreshAllKeyAppearances()
+}
+
+MainKeyIntervalMenuClear(*) {
+    global gKeyIntervalMenuTarget
+    key := gKeyIntervalMenuTarget
+    presetName := GetNowSelectPreset()
+    if (presetName = "" || key = "") {
+        return
+    }
+    m := LoadPresetKeyIntervalOverrides(presetName)
+    if !m.Has(key) {
+        MsgBox("该键未设置独立间隔。",, "Iconi")
+        return
+    }
+    m.Delete(key)
+    SavePresetKeyIntervalOverrides(presetName, m)
+    MainRefreshAllKeyAppearances()
 }
 
 MainCreatePreset(*) {
@@ -593,30 +882,36 @@ MainInitPreset(name) {
     SavePreset(name, "ComboTriggerKey", "")
     SavePreset(name, "ComboLoopMode", false)
     SavePreset(name, "ComboSkills", "")
+    SavePreset(name, "ComboProfiles", "")
+    SavePreset(name, "MainAutoFireKeyIntervals", "")
 }
 
-MainSaveQuickChangeHotKey(*) {
+QuickChangeHotKey_RegisterOnly(keyWithoutTildeDollar) {
     global __QuickSwitchHotkey
-    quickChangeHotKey := MainGetCtrl("QuickChangeHotKey").Value
-    quickChangeHotKeyConfig := LoadConfig("QuickChangeHotKey")
-    if (quickChangeHotKeyConfig = "") {
-        quickChangeHotKeyConfig := "!``"
+    if (keyWithoutTildeDollar = "") {
+        keyWithoutTildeDollar := "!``"
     }
-    try Hotkey("~$" quickChangeHotKeyConfig, "Off")
-    SaveConfig("QuickChangeHotKey", quickChangeHotKey)
-    __QuickSwitchHotkey := "~$" quickChangeHotKey
+    newHk := "~$" keyWithoutTildeDollar
+    try {
+        if (__QuickSwitchHotkey != "") {
+            Hotkey(__QuickSwitchHotkey, "Off")
+        }
+    } catch {
+    }
+    __QuickSwitchHotkey := newHk
     Hotkey(__QuickSwitchHotkey, ShowGuiQuickSwitch, "On")
 }
 
-MainLoatQuickChangeHotKey() {
-    global __QuickSwitchHotkey
-    quickChangeHotKey := LoadConfig("QuickChangeHotKey")
-    if (quickChangeHotKey = "") {
-        quickChangeHotKey := "!``"
-    }
-    __QuickSwitchHotkey := "~$" quickChangeHotKey
-    Hotkey(__QuickSwitchHotkey, ShowGuiQuickSwitch, "On")
-    MainGetCtrl("QuickChangeHotKey").Value := quickChangeHotKey
+QuickChangeHotKey_PersistAndRegister(newKey) {
+    SaveConfig("QuickChangeHotKey", newKey)
+    reg := (newKey = "") ? "!``" : newKey
+    QuickChangeHotKey_RegisterOnly(reg)
+}
+
+QuickChangeHotKey_SyncFromConfig() {
+    v := LoadConfig("QuickChangeHotKey")
+    reg := (v = "") ? "!``" : v
+    QuickChangeHotKey_RegisterOnly(reg)
 }
 
 MainPresetListIndexFromClientPoint(ctrl, x, y) {
