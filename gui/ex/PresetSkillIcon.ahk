@@ -5,17 +5,18 @@ global gPresetSkillCtrls := Map()
 global gPresetSkillPvW := 224
 global gPresetSkillPvH := 126
 
+GuiTheme_Apply(gPresetSkillGui)
+
 gPresetSkillGui.OnEvent("Escape", PresetSkillGuiEscape)
 gPresetSkillGui.OnEvent("Close", PresetSkillGuiClose)
 
 ; Picture 赋值 Value 后常会按位图重算控件尺寸，须在 PresetSkillLockPreviewFrame 里 Move 固定
-gPresetSkillCtrls["Preview"] := gPresetSkillGui.Add("Picture", "x8 y8 w224 h126 +Border")
+gPresetSkillCtrls["Preview"] := gPresetSkillGui.Add("Picture", "x8 y8 w224 h126")
 ; 预览底 y8+h126=134；说明与自动识别设置同为 w224 h44、无 +0x200，便于按宽度换行
 gPresetSkillGui.Add("Text", "x8 y138 w224 h44", "框选后按 Enter 确认，Esc 取消。不要截取到技能图标外。")
-gPresetSkillGui.Add("Button", "x8 y186 w224 h26", "框选技能图标").OnEvent("Click", PresetSkillOpenSkillRegionPick)
-gPresetSkillGui.Add("Button", "x8 y216 w108 h26", "截取图像").OnEvent("Click", PresetSkillDoUpdate)
-gPresetSkillGui.Add("Button", "x124 y216 w108 h26", "清除图像").OnEvent("Click", PresetSkillDoDelete)
-gPresetSkillGui.Add("Button", "x8 y246 w224 h28", "保存").OnEvent("Click", PresetSkillSaveClose)
+GuiTheme_FlatBtn(gPresetSkillGui, "x8 y188 w108 h28", "截取图像", PresetSkillDoUpdate, false)
+GuiTheme_FlatBtn(gPresetSkillGui, "x124 y188 w108 h28", "清除图像", PresetSkillDoDelete, false)
+GuiTheme_FlatBtn(gPresetSkillGui, "x8 y222 w224 h32", "保存", PresetSkillSaveClose, true)
 
 PresetSkillGetCtrl(name) {
     global gPresetSkillCtrls
@@ -37,7 +38,7 @@ ShowGuiPresetSkillIcon(*) {
     gPresetSkillGui.Title := "自动识别配置 - " GetNowSelectPreset()
     PresetSkillRefreshPreview()
     DisableGuiMain()
-    gPresetSkillGui.Show("w240 h282")
+    gPresetSkillGui.Show("w240 h266")
 }
 
 HideGuiPresetSkillIcon() {
@@ -68,10 +69,6 @@ PresetSkillRefreshPreview() {
             PresetSkillLockPreviewFrame(pic)
         }
     }
-}
-
-PresetSkillOpenSkillRegionPick(*) {
-    PresetRegionPickOpen("skill")
 }
 
 PresetSkillDoUpdate(*) {

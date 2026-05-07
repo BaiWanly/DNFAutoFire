@@ -34,6 +34,24 @@ LoadPreset(presetsName, type, default := ""){
     return IniRead(ConfigIniPath(), "预设:" presetsName, type, default)
 }
 
+; 预设里 0/1 开关：统一为整数 0/1（避免 ini 字符串或非数值使 CheckBox 与自绘开关不同步）
+LoadPresetBool01(presetName, key, default := 0) {
+    defStr := default ? "1" : "0"
+    raw := LoadPreset(presetName, key, defStr)
+    s := Trim(String(raw))
+    if (s = "") {
+        return default ? 1 : 0
+    }
+    if RegExMatch(s, "^-?[0-9]+$") {
+        return Integer(s) != 0 ? 1 : 0
+    }
+    sl := StrLower(s)
+    if (SubStr(sl, 1, 4) = "true" || sl = "yes" || sl = "on") {
+        return 1
+    }
+    return 0
+}
+
 ; 字符串型预设项安全读取：Trim 节名与值；缺失/空/仅空白均返回空串，不把空白当成默认值（布尔/数值仍用 LoadPreset）
 LoadPresetSafe(presetsName, type) {
     presetsName := Trim(presetsName)
@@ -91,6 +109,62 @@ LoadPresetKeys(presetsName){
         }
     }
     return keys
+}
+
+; 读取预设的主连发「按键 -> 间隔(ms)」覆盖（GUI 键名）；缺失或非法段跳过
+LoadPresetKeyIntervalOverrides(presetName) {
+    o := Map()
+    raw := LoadPresetSafe(presetName, "MainAutoFireKeyIntervals")
+    if (raw = "") {
+        return o
+    }
+    for part in StrSplit(raw, "|") {
+        part := Trim(part)
+        if (part = "") {
+            continue
+        }
+        p := InStr(part, "=")
+        if (p < 1) {
+            continue
+        }
+        k := Trim(SubStr(part, 1, p - 1))
+        if (k = "") {
+            continue
+        }
+        v := Round(Trim(SubStr(part, p + 1)) + 0)
+        if (v < 1) {
+            v := 1
+        } else if (v > 200) {
+            v := 200
+        }
+        o[k] := v
+    }
+    return o
+}
+
+; 保存主连发按键间隔覆盖（GUI 键名 -> ms）
+SavePresetKeyIntervalOverrides(presetName, intervalMap) {
+    if !IsObject(intervalMap) {
+        SavePreset(presetName, "MainAutoFireKeyIntervals", "")
+        return
+    }
+    s := ""
+    for k, v in intervalMap {
+        if (k = "") {
+            continue
+        }
+        vn := Round(v + 0)
+        if (vn < 1) {
+            vn := 1
+        } else if (vn > 200) {
+            vn := 200
+        }
+        s .= k "=" vn "|"
+    }
+    if (StrLen(s) > 0) {
+        s := SubStr(s, 1, StrLen(s) - 1)
+    }
+    SavePreset(presetName, "MainAutoFireKeyIntervals", s)
 }
 
 ; 读取所有预设（INI 节名形如 [预设:默认]，不能按裸字符串比较）
@@ -201,6 +275,8 @@ _CreateDefaultConfigIni() {
     SavePreset(DEFAULT_PRESET_NAME, "ComboTriggerKey", "")
     SavePreset(DEFAULT_PRESET_NAME, "ComboLoopMode", false)
     SavePreset(DEFAULT_PRESET_NAME, "ComboSkills", "")
+    SavePreset(DEFAULT_PRESET_NAME, "ComboProfiles", "")
+    SavePreset(DEFAULT_PRESET_NAME, "MainAutoFireKeyIntervals", "")
 }
 
 ; 以字符的方式读取所有预设

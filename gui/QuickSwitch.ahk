@@ -3,15 +3,18 @@
 global gQuickSwitchGui := Gui("-MinimizeBox -MaximizeBox -SysMenu +AlwaysOnTop -Theme +0x800000")
 global gQuickSwitchCtrls := Map()
 
+GuiTheme_Apply(gQuickSwitchGui)
+
 gQuickSwitchGui.OnEvent("Escape", QuickSwitchGuiEscape)
 gQuickSwitchGui.OnEvent("Close", QuickSwitchGuiClose)
-gQuickSwitchGui.SetFont("s18", "微软雅黑")
-gQuickSwitchCtrls["QuickSwitchList"] := gQuickSwitchGui.Add("ListBox", "vQuickSwitchList x8 y8 w240 h292")
+gQuickSwitchGui.SetFont("s12 norm", GuiTheme_Face)
+; 列表高度按行数即可，避免挤占下方说明与按钮；预设较多时显示滚动条
+gQuickSwitchCtrls["QuickSwitchList"] := GuiTheme_AddMainStyleListBox(gQuickSwitchGui, "QuickSwitchList", 12, 12, 244, 132)
 gQuickSwitchCtrls["QuickSwitchList"].OnEvent("DoubleClick", QuickSwitchChangeList)
-gQuickSwitchGui.SetFont()
-gQuickSwitchGui.Add("Button", "x8 y330 w100 h36 +Default", "切换并启动连发").OnEvent("Click", QuickSwitchStart)
-gQuickSwitchGui.Add("Button", "x150 y330 w100 h36", "停止连发").OnEvent("Click", QuickSwitchStop)
-gQuickSwitchGui.Add("Text", "x8 y300 w240 h30", "使用键盘上下键选择配置，按空格或回车快速切换，按ESC关闭窗口")
+gQuickSwitchGui.SetFont("s10 norm c334155", GuiTheme_Face)
+gQuickSwitchGui.Add("Text", "x12 y152 w244 h44", "使用键盘上下键选择配置，按空格或回车快速切换，按ESC关闭窗口")
+GuiTheme_FlatBtn(gQuickSwitchGui, "x12 y204 w118 h38", "切换并启动连发", QuickSwitchStart, true)
+GuiTheme_FlatBtn(gQuickSwitchGui, "x138 y204 w118 h38", "停止连发", QuickSwitchStop, false)
 
 QuickSwitchGetCtrl(name) {
     global gQuickSwitchCtrls
@@ -41,7 +44,7 @@ QuickSwitchStop(*) {
 ShowGuiQuickSwitch(*) {
     HideGuiMain()
     gQuickSwitchGui.Title := "快速切换"
-    gQuickSwitchGui.Show("w256 h370")
+    gQuickSwitchGui.Show("w268 h260")
     nowSelectPreset := GetNowSelectPreset()
     presetList := LoadAllPresetString()
     ctrl := QuickSwitchGetCtrl("QuickSwitchList")

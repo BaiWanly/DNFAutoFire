@@ -1,112 +1,84 @@
-global __AutoRunPressingRight := false
-global __AutoRunDoubleRight := false
-global __AutoRunRightCounter := 0
-global __AutoRunPressingLeft := false
-global __AutoRunDoubleLeft := false
-global __AutoRunLeftCounter := 0
-global __AutoRunRightPulseSend := "{Right Down}{Right Up}{Right Down}"
-global __AutoRunRightUpSend := "{Right Up}"
-global __AutoRunLeftPulseSend := "{Left Down}{Left Up}{Left Down}"
-global __AutoRunLeftUpSend := "{Left Up}"
+; 自动奔跑：主进程事件驱动。KeyRouter 监听方向键，单次负定时器发送连跑指令。
 
-ExAutoRun(){
-    global __AutoRunRightPulseSend, __AutoRunRightUpSend, __AutoRunLeftPulseSend, __AutoRunLeftUpSend
-    global __AutoRunPressingRight, __AutoRunDoubleRight, __AutoRunRightCounter
-    global __AutoRunPressingLeft, __AutoRunDoubleLeft, __AutoRunLeftCounter
-    SetStoreCapsLockMode(false)
-    SetDNFWindowClass()
-    ; 子进程入口默认会 Suspend(true)，自动奔跑依赖热键回调，需显式恢复
-    Suspend(false)
-    presetName := LoadLastPresetTrimmed()
-    if (presetName = "") {
-        return
+class ExAutoRun {
+    static _sides := Map()
+    static _registered := false
+
+    static RegisterHotkeys() {
+        this.UnregisterHotkeys()
+        if !MainCheckboxOn("AutoRun") {
+            return
+        }
+        presetName := GetNowSelectPreset()
+        if (presetName = "") {
+            return
+        }
+        leftKey := LoadPresetSafe(presetName, "AutoRunLeftKey")
+        rightKey := LoadPresetSafe(presetName, "AutoRunRightKey")
+        if (leftKey = "")
+            leftKey := "Left"
+        if (rightKey = "")
+            rightKey := "Right"
+
+        sides := Map()
+        this._addSide(sides, "R", rightKey)
+        this._addSide(sides, "L", leftKey)
+        this._sides := sides
+
+        for _, s in this._sides {
+            KeyRouter.SubscribeDown(s.scID, s.downFn)
+            KeyRouter.SubscribeUp(s.scID, s.upFn)
+        }
+        this._registered := true
     }
-    leftKey := LoadPresetSafe(presetName, "AutoRunLeftKey")
-    rightKey := LoadPresetSafe(presetName, "AutoRunRightKey")
-    if (leftKey = "" || rightKey = "") {
-        return
+
+    static _addSide(sides, tag, logicalKey) {
+        scID := AutoFireMainHotkeyIdFromOrigin(logicalKey)
+        pulseSend := "{" logicalKey " Down}{" logicalKey " Up}{" logicalKey " Down}"
+        upSend := "{" logicalKey " Up}"
+        timerFn := ObjBindMethod(ExAutoRun, "Pulse", tag)
+        sides[tag] := {
+            scID: scID,
+            pulseSend: pulseSend,
+            upSend: upSend,
+            timerFn: timerFn,
+            downFn: ObjBindMethod(ExAutoRun, "Down", tag),
+            upFn: ObjBindMethod(ExAutoRun, "Up", tag)
+        }
     }
-    __AutoRunRightPulseSend := "{" rightKey " Down}{" rightKey " Up}{" rightKey " Down}"
-    __AutoRunRightUpSend := "{" rightKey " Up}"
-    __AutoRunLeftPulseSend := "{" leftKey " Down}{" leftKey " Up}{" leftKey " Down}"
-    __AutoRunLeftUpSend := "{" leftKey " Up}"
-    __AutoRunPressingRight := false
-    __AutoRunDoubleRight := false
-    __AutoRunRightCounter := 0
-    __AutoRunPressingLeft := false
-    __AutoRunDoubleLeft := false
-    __AutoRunLeftCounter := 0
 
-    HotIfWinActive("ahk_group DNF")
-    Hotkey("~" rightKey, ExAutoRunRightDown, "On")
-    Hotkey("~" rightKey " Up", ExAutoRunRightUp, "On")
-    Hotkey("~" leftKey, ExAutoRunLeftDown, "On")
-    Hotkey("~" leftKey " Up", ExAutoRunLeftUp, "On")
-    HotIf
-
-    loop {
-        Sleep(1000)
+    static UnregisterHotkeys() {
+        for _, s in this._sides {
+            SetTimer(s.timerFn, 0)
+        }
+        this._sides := Map()
+        this._registered := false
     }
-}
 
-ExAutoRunRightDown(*) {
-    global __AutoRunPressingRight, __AutoRunDoubleRight, __AutoRunRightCounter
-    if !__AutoRunPressingRight {
-        __AutoRunPressingRight := true
-        __AutoRunDoubleRight := false
-        __AutoRunRightCounter := 0
-        SetTimer(ExAutoRunRightHoldTick, 25)
+    static Down(tag, *) {
+        s := ExAutoRun._sides.Get(tag, "")
+        if !IsObject(s) {
+            return
+        }
+        SetTimer(s.timerFn, -25)
     }
-}
 
-ExAutoRunRightUp(*) {
-    global __AutoRunPressingRight
-    global __AutoRunRightUpSend
-    __AutoRunPressingRight := false
-    SetTimer(ExAutoRunRightHoldTick, 0)
-    SendEvent(__AutoRunRightUpSend)
-}
-
-ExAutoRunRightHoldTick() {
-    global __AutoRunPressingRight, __AutoRunDoubleRight, __AutoRunRightCounter
-    global __AutoRunRightPulseSend
-    __AutoRunRightCounter++
-    if (__AutoRunPressingRight && !__AutoRunDoubleRight) {
-        SendEvent(__AutoRunRightPulseSend)
-        __AutoRunDoubleRight := true
+    static Up(tag, *) {
+        s := ExAutoRun._sides.Get(tag, "")
+        if !IsObject(s) {
+            return
+        }
+        SetTimer(s.timerFn, 0)
+        SendEvent(s.upSend)
     }
-    if (__AutoRunRightCounter >= 3) {
-        SetTimer(ExAutoRunRightHoldTick, 0)
-    }
-}
 
-ExAutoRunLeftDown(*) {
-    global __AutoRunPressingLeft, __AutoRunDoubleLeft, __AutoRunLeftCounter
-    if !__AutoRunPressingLeft {
-        __AutoRunPressingLeft := true
-        __AutoRunDoubleLeft := false
-        __AutoRunLeftCounter := 0
-        SetTimer(ExAutoRunLeftHoldTick, 25)
-    }
-}
-
-ExAutoRunLeftUp(*) {
-    global __AutoRunPressingLeft
-    global __AutoRunLeftUpSend
-    __AutoRunPressingLeft := false
-    SetTimer(ExAutoRunLeftHoldTick, 0)
-    SendEvent(__AutoRunLeftUpSend)
-}
-
-ExAutoRunLeftHoldTick() {
-    global __AutoRunPressingLeft, __AutoRunDoubleLeft, __AutoRunLeftCounter
-    global __AutoRunLeftPulseSend
-    __AutoRunLeftCounter++
-    if (__AutoRunPressingLeft && !__AutoRunDoubleLeft) {
-        SendEvent(__AutoRunLeftPulseSend)
-        __AutoRunDoubleLeft := true
-    }
-    if (__AutoRunLeftCounter >= 3) {
-        SetTimer(ExAutoRunLeftHoldTick, 0)
+    static Pulse(tag) {
+        s := ExAutoRun._sides.Get(tag, "")
+        if !IsObject(s) {
+            return
+        }
+        if WinActive("ahk_group DNF") {
+            SendEvent(s.pulseSend)
+        }
     }
 }

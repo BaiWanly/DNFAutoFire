@@ -8,32 +8,29 @@
 ;@Ahk2Exe-SetCopyright 某亚瑟
 ;@Ahk2Exe-SetLanguage 0x0804
 ;@Ahk2Exe-SetProductName DAF连发工具
-;@Ahk2Exe-SetProductVersion 0.2.7
-;@Ahk2Exe-SetVersion 0.2.7
+;@Ahk2Exe-SetProductVersion 0.2.8
+;@Ahk2Exe-SetVersion 0.2.8
 
-; 允许 SubProcessThread 启动并存子进程；Ignore 会把子进程直接拒绝掉
 #SingleInstance Off
 #WinActivateForce
 SetWorkingDir(A_ScriptDir)
+#Include ./core/SingleInstance.ahk
+SingleInstance_TryHandOffAndExit()
 A_MaxHotkeysPerInterval := 9999
-; 子进程（/Run=xxx）在 very early 阶段就隐藏图标，避免短暂闪出多个托盘图标
-if (A_Args.Length >= 1 && InStr(A_Args[1], "/Run=")) {
-    A_IconHidden := true
-}
 
-global __Version := "0.2.7"
+global __Version := "0.2.8"
 
 #Include <RunWithAdministrator>
-#Include <MultipleThread>
 #Include <Keys>
 #Include <JSON>
 #Include <Time>
 #Include <GetPressKey>
+#Include <GuiTheme>
 #Include ./core/SendIP.ahk
 #Include ./core/KeyConvert.ahk
 #Include ./core/Config.ahk
 EnsureConfigInitialized()
-#Include ./core/AutoFire.ahk
+#Include ./core/KeyRouter.ahk
 #Include ./core/Scripts.ahk
 #Include ./core/PresetRecognition.ahk
 #Include ./gui/Main.ahk
@@ -56,8 +53,13 @@ EnsureConfigInitialized()
 #Include ./gui/PresetAutoSwitch.ahk
 #Include ./gui/ex/PresetSkillIcon.ahk
 
-; 必须放在所有 #Include 之后：子进程 /Run=XXX 需要先看到 Keys.ahk 等函数定义
-SubProcessThread.ScriptStart()
+; Winmm timeBeginPeriod(1) 提升定时器精度；退出时在 CleanupOnExit 与 RestoreSystemTimeLimit 成对
+global _MainProcessTimePeriodActive := false
+try {
+    UnlockSystemTimeLimit()
+    _MainProcessTimePeriodActive := true
+} catch {
+}
 
 ;@Ahk2Exe-IgnoreBegin
 #Include <Log>
@@ -79,22 +81,29 @@ Exit(*) {
     ExitApp()
 }
 
-; 确保退出时停止连发并恢复系统计时精度（timeBeginPeriod）
+; 确保退出时停止连发并恢复系统计时精度（timeEndPeriod，与主进程 timeBeginPeriod 成对）
 OnExit(CleanupOnExit)
 CleanupOnExit(*) {
+    try SingleInstance_ReleaseMutex()
     try PresetRecognition_DisableAllHotkeys()
+    try KeyRouter.StopFocusWatcher()
     try StopAutoFire()
+    global _MainProcessTimePeriodActive
+    if (_MainProcessTimePeriodActive) {
+        try RestoreSystemTimeLimit()
+        _MainProcessTimePeriodActive := false
+    }
 }
 
-global _AutoFireThreads := []
 global _AutoFireEnableKeys := []
-global _AutoFireSingleProcessTimers := []
+global _AutoFireMainHotkeyRegs := []
 global _NowSelectPreset := LoadLastPreset()
 
 PresetRecognition_UpdateHotkeys()
 
 ShowGuiMain()
 SetDNFWindowClass()
+KeyRouter.StartFocusWatcher()
 if (_AutoStart) {
     HideGuiMain()
     StartAutoFire()

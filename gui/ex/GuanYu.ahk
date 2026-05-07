@@ -1,23 +1,28 @@
 #Requires AutoHotkey v2.0
 
-global gGuanYuGui := Gui("+ToolWindow")
+global gGuanYuGui := Gui("+ToolWindow -Theme")
 global gGuanYuCtrls := Map()
 global __GuanYuSkillKeys := []
+
+GuiTheme_Apply(gGuanYuGui)
 
 gGuanYuGui.OnEvent("Escape", GuanYuGuiEscape)
 gGuanYuGui.OnEvent("Close", GuanYuGuiClose)
 
-gGuanYuCtrls["GuanYuKeysListBox"] := gGuanYuGui.Add("ListBox", "vGuanYuKeysListBox x8 y32 w80 h172")
-gGuanYuCtrls["GuanYuShotKey"] := gGuanYuGui.Add("Edit", "vGuanYuShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
-gGuanYuCtrls["GuanYuDelay"] := gGuanYuGui.Add("Edit", "vGuanYuDelay x96 y200 w80 h20 +Number")
-gGuanYuGui.Add("Button", "x96 y40 w80 h22", "添加技能键").OnEvent("Click", GuanYuAddKey)
-gGuanYuGui.Add("Button", "x96 y70 w80 h22", "删除技能键").OnEvent("Click", GuanYuDeleteKey)
-gGuanYuGui.Add("Button", "x96 y148 w80 h22", "设置发射键").OnEvent("Click", GuanYuSetShotKey)
-gGuanYuGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加技能键")
-gGuanYuGui.Add("Text", "x96 y100 w80 h20 +0x200", "猛攻发射键")
-gGuanYuGui.Add("Text", "x96 y180 w80 h20 +0x200", "手动延迟(ms)")
-gGuanYuGui.Add("Button", "x96 y232 w80 h27", "保存").OnEvent("Click", GuanYuSave)
-gGuanYuGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", GuanYuHelp)
+; 顶区收紧；列表略缩宽为右侧标签留出完整「手动延迟(ms)」宽度
+gGuanYuGui.Add("Text", "x14 y10 w100 h18 +0x200", "已添加技能键")
+GuiTheme_FlatBtnSmall(gGuanYuGui, "x116 y10 w18 h18", "?", GuanYuHelp)
+gGuanYuCtrls["GuanYuKeysListBox"] := GuiTheme_AddMainStyleListBox(gGuanYuGui, "GuanYuKeysListBox", 14, 32, 108, 176)
+GuiTheme_FlatBtnCompact(gGuanYuGui, "x14 y214 w54 h24", "添加", GuanYuAddKey)
+GuiTheme_FlatBtnCompact(gGuanYuGui, "x76 y214 w54 h24", "删除", GuanYuDeleteKey)
+; 标签同宽 w100 容纳「手动延迟(ms)」；两枚 Edit 同 x234、同 w56，仅 y 不同
+gGuanYuGui.Add("Text", "x128 y36 w100 h24 +0x200", "猛攻发射键")
+gGuanYuCtrls["GuanYuShotKey"] := gGuanYuGui.Add("Edit", "vGuanYuShotKey x234 y36 w56 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+RegisterEditPressKeyCapture(gGuanYuCtrls["GuanYuShotKey"])
+gGuanYuGui.Add("Text", "x128 y68 w100 h24 +0x200", "手动延迟(ms)")
+gGuanYuCtrls["GuanYuDelay"] := gGuanYuGui.Add("Edit", "vGuanYuDelay x234 y68 w56 h24 +Number -E0x200 Border")
+GuiTheme_HRule(gGuanYuGui, 14, 252, 280)
+GuiTheme_FlatBtn(gGuanYuGui, "x78 y260 w152 h34", "保存", GuanYuSave, true)
 
 GuanYuGetCtrl(name) {
     global gGuanYuCtrls
@@ -30,7 +35,7 @@ ShowGuiGuanYu(*) {
         gGuanYuGui.Opt("+Owner" gMainGui.Hwnd)
     }
     gGuanYuGui.Title := "关羽自动战戟猛攻"
-    gGuanYuGui.Show("w184 h270")
+    gGuanYuGui.Show("w308 h312")
     GuanYuLoadConfig()
     DisableGuiMain()
 }
@@ -91,10 +96,6 @@ GuanYuDeleteKey(*) {
 GuanYuSave(*) {
     GuanYuSaveConfig()
     HideGuiGuanYu()
-}
-
-GuanYuSetShotKey(*) {
-    GuanYuGetCtrl("GuanYuShotKey").Text := GetPressKey()
 }
 
 GuanYuChangeListGui(keys) {

@@ -1,6 +1,7 @@
 ; 切换按键连发状态
 ChangeKeyAutoFireState(key){
     global _AutoFireEnableKeys
+    ov := LoadPresetKeyIntervalOverrides(GetNowSelectPreset())
     if(IsKeyAutoFire(key)){
         needDeleteIndex := 0
         try keyCount := _AutoFireEnableKeys.Length
@@ -19,11 +20,11 @@ ChangeKeyAutoFireState(key){
         if (needDeleteIndex > 0) {
             _AutoFireEnableKeys.Delete(needDeleteIndex)
         }
-        MainSetKeyState(key, false)
+        MainSetKeyState(key, false, ov)
         SetOriginalDirect(key)
     } else {
         _AutoFireEnableKeys.Push(key)
-        MainSetKeyState(key, true)
+        MainSetKeyState(key, true, ov)
         SetOriginalBlocking(key)
     }
 }
@@ -74,14 +75,6 @@ GetOriginKeyName(key){
         keyName := "."
     Case "Slash":
         keyName := "/"
-    Case "PrtSc":
-        keyName := "PrintScreen"
-    Case "ScrLk":
-        keyName := "ScrollLock"
-    Case "Ins":
-        keyName := "Insert"
-    Case "Del":
-        keyName := "Delete"
     Case "Num1":
         keyName := "Numpad1"
     Case "Num2":
@@ -141,25 +134,23 @@ SetTrayRunningIcon(state){
 ; 启动连发功能
 StartAutoFire(){
     global _AutoFireEnableKeys
-    global _AutoFireThreads
-    global _AutoFireSingleProcessTimers
-    global _AutoFireTimeUnlocked
-    if (!IsSet(_AutoFireTimeUnlocked)) {
-        _AutoFireTimeUnlocked := false
-    }
-    intervalMs := Round(LoadPreset(GetNowSelectPreset(), "MainAutoFireInterval", 20) + 0)
+    presetName := GetNowSelectPreset()
+    intervalMs := Round(LoadPreset(presetName, "MainAutoFireInterval", 20) + 0)
     if (intervalMs < 1) {
         intervalMs := 1
     } else if (intervalMs > 200) {
         intervalMs := 200
     }
-    ; 提升定时器精度，降低高频连发的抖动/卡顿
-    if (!_AutoFireTimeUnlocked) {
-        try UnlockSystemTimeLimit()
-        _AutoFireTimeUnlocked := true
-    }
-    _AutoFireThreads := []
-    _AutoFireSingleProcessTimers := []
+    keyIvOv := LoadPresetKeyIntervalOverrides(presetName)
+    AutoFireMainUnregisterHotkeys()
+    ZhanFaUnregisterHotkeys()
+    LvRenUnregisterHotkeys()
+    GuanYuUnregisterHotkeys()
+    PetSkillUnregisterHotkeys()
+    JianZongUnregisterHotkeys()
+    ComboUnregisterHotkeys()
+    ExAutoRun.UnregisterHotkeys()
+    KeyRouter.ClearAll()
     try enableKeyCount := _AutoFireEnableKeys.Length
     catch {
         enableKeyCount := 0
@@ -170,50 +161,43 @@ StartAutoFire(){
         }
         afKey := _AutoFireEnableKeys[A_Index]
         SetOriginalBlocking(afKey)
-        originKey := GetOriginKeyName(afKey)
-        fn := AutoFireSingleKeyTick.Bind(Key2PressKey(originKey), Key2NoVkSC(originKey))
-        _AutoFireSingleProcessTimers.Push(fn)
-        SetTimer(fn, intervalMs)
     }
+    AutoFireMainRegisterHotkeys(intervalMs, keyIvOv)
     Sleep(10)
     StartEx()
     SetTrayRunningIcon(true)
-    nowSelectPreset := GetNowSelectPreset()
-    ShowTip("连发已启动 - " . nowSelectPreset)
+    SetTimer(AppTip.Bind("连发已启动 - " . GetNowSelectPreset()), -100)
+    try PresetRecognition_UpdateHotkeys()
 }
 
 StartEx(){
-    global _AutoFireThreads
     if MainCheckboxOn("LvRen") {
-        _AutoFireThreads.Push(SubProcessThread("ExLvRen"))
+        LvRenRegisterHotkeys()
     }
     if MainCheckboxOn("GuanYu") {
-        _AutoFireThreads.Push(SubProcessThread("ExGuanYu"))
+        GuanYuRegisterHotkeys()
     }
     if MainCheckboxOn("PetSkill") {
-        _AutoFireThreads.Push(SubProcessThread("ExPetSkill"))
-    }
-    if MainCheckboxOn("ZhanFa") {
-        _AutoFireThreads.Push(SubProcessThread("ExZhanFa"))
+        PetSkillRegisterHotkeys()
     }
     if MainCheckboxOn("JianZong") {
         skillKey := LoadPreset(GetNowSelectPreset(), "JianZongSkillKey")
         SetOriginalBlocking(skillKey)
-        _AutoFireThreads.Push(SubProcessThread("ExJianZong"))
+        JianZongRegisterHotkeys()
     }
     if MainCheckboxOn("AutoRun") {
-        _AutoFireThreads.Push(SubProcessThread("ExAutoRun"))
+        ExAutoRun.RegisterHotkeys()
     }
     if MainCheckboxOn("Combo") {
-        _AutoFireThreads.Push(SubProcessThread("ExCombo"))
+        ComboRegisterHotkeys()
+    }
+    if MainCheckboxOn("ZhanFa") {
+        ZhanFaRegisterHotkeys()
     }
 }
 
 ; 停止连发功能
 StopAutoFire(){
-    global _AutoFireThreads
-    global _AutoFireSingleProcessTimers
-    global _AutoFireTimeUnlocked
     allKeys := GetAllKeys()
     try allKeyCount := allKeys.Length
     catch {
@@ -225,43 +209,119 @@ StopAutoFire(){
         }
         SetOriginalDirect(allKeys[A_Index])
     }
-    try timerCount := _AutoFireSingleProcessTimers.Length
-    catch {
-        timerCount := 0
-    }
-    loop timerCount {
-        if !_AutoFireSingleProcessTimers.Has(A_Index) {
-            continue
-        }
-        SetTimer(_AutoFireSingleProcessTimers[A_Index], 0)
-    }
-    _AutoFireSingleProcessTimers := []
-    _AutoFireThreads := []
+    AutoFireMainUnregisterHotkeys()
+    ZhanFaUnregisterHotkeys()
+    LvRenUnregisterHotkeys()
+    GuanYuUnregisterHotkeys()
+    PetSkillUnregisterHotkeys()
+    JianZongUnregisterHotkeys()
+    ComboUnregisterHotkeys()
+    ExAutoRun.UnregisterHotkeys()
+    KeyRouter.ClearAll()
     SetTrayRunningIcon(false)
-    ; 恢复系统计时精度（避免长期占用 1ms period）
-    if (IsSet(_AutoFireTimeUnlocked) && _AutoFireTimeUnlocked) {
-        try RestoreSystemTimeLimit()
-        _AutoFireTimeUnlocked := false
-    }
     try PresetRecognition_CancelPending()
+    try PresetRecognition_UpdateHotkeys()
 }
 
-; 单进程多定时器：每个键独立 tick，避免多个键串行争用
-AutoFireSingleKeyTick(pressKey, keyCode) {
-    ; 仅在游戏窗口激活时发送，避免切出游戏后仍然连发
+AutoFireMainHotkeyIdFromOrigin(originKey) {
+    try {
+        sc := GetKeySC(originKey)
+        if (sc != "") {
+            return Key2SC(originKey)
+        }
+    } catch {
+    }
+    return originKey
+}
+
+AutoFireMainOnDown(tickFn, intervalMs, *) {
+    SetTimer(tickFn, intervalMs)
+}
+
+AutoFireMainOnUp(tickFn, *) {
+    SetTimer(tickFn, 0)
+}
+
+AutoFireMainUnregisterHotkeys() {
+    global _AutoFireMainHotkeyRegs
+    if !IsSet(_AutoFireMainHotkeyRegs) {
+        return
+    }
+    if !_AutoFireMainHotkeyRegs.Length {
+        return
+    }
+    for reg in _AutoFireMainHotkeyRegs {
+        SetTimer(reg.tickFn, 0)
+    }
+    _AutoFireMainHotkeyRegs := []
+}
+
+AutoFireMainRegisterHotkeys(defaultIntervalMs, keyIvOv := unset) {
+    global _AutoFireEnableKeys, _AutoFireMainHotkeyRegs
+    AutoFireMainUnregisterHotkeys()
+    _AutoFireMainHotkeyRegs := []
+    if !IsSet(keyIvOv) || !IsObject(keyIvOv) {
+        keyIvOv := Map()
+    }
+    try enableKeyCount := _AutoFireEnableKeys.Length
+    catch {
+        enableKeyCount := 0
+    }
+    if (enableKeyCount = 0) {
+        return
+    }
+    loop enableKeyCount {
+        if !_AutoFireEnableKeys.Has(A_Index) {
+            continue
+        }
+        afKey := _AutoFireEnableKeys[A_Index]
+        effectiveMs := defaultIntervalMs
+        if keyIvOv.Has(afKey) {
+            effectiveMs := Round(keyIvOv[afKey] + 0)
+            if (effectiveMs < 1) {
+                effectiveMs := 1
+            } else if (effectiveMs > 200) {
+                effectiveMs := 200
+            }
+        }
+        originKey := GetOriginKeyName(afKey)
+        pressKey := Key2PressKey(originKey)
+        keyCode := Key2NoVkSC(originKey)
+        id := AutoFireMainHotkeyIdFromOrigin(originKey)
+        tickFn := AutoFireEventTick.Bind(pressKey, keyCode)
+        downFn := AutoFireMainOnDown.Bind(tickFn, effectiveMs)
+        upFn := AutoFireMainOnUp.Bind(tickFn)
+        KeyRouter.SubscribeDown(id, downFn)
+        KeyRouter.SubscribeUp(id, upFn)
+        _AutoFireMainHotkeyRegs.Push({ tickFn: tickFn })
+    }
+}
+
+; 按住期间由 Down 注册的定时器调用；HotIf 已限制 DNF，此处再判一次避免切出后仍发键
+AutoFireEventTick(pressKey, keyCode) {
     if !WinActive("ahk_group DNF") {
         return
     }
-    ; 定时器高频执行时可能重入；重入会破坏同键 Down/Up 配对并诱发卡键
+    ; 物理按住 Alt 时不发 Tab，避免 Alt+Tab 连切窗口
+    if (pressKey = "Tab" && (GetKeyState("LAlt", "P") || GetKeyState("RAlt", "P"))) {
+        return
+    }
     static keyBusy := Map()
     if (keyBusy.Has(pressKey) && keyBusy[pressKey]) {
         return
     }
     keyBusy[pressKey] := true
-    try if (GetKeyState(pressKey, "P")) {
-        SendIP(keyCode)
+    try {
+        if (pressKey = "CapsLock") {
+            prevCaps := GetKeyState("CapsLock", "T")
+            SendIP(keyCode)
+            SetCapsLockState(prevCaps ? "On" : "Off")
+        } else {
+            SendIP(keyCode)
+        }
+    } finally {
+        keyBusy[pressKey] := false
     }
-    finally keyBusy[pressKey] := false
 }
 
 ; 设置所有关闭连发
@@ -288,6 +348,7 @@ SetAllKeysAutoFire(keys){
     if !IsObject(keys) {
         return
     }
+    ov := LoadPresetKeyIntervalOverrides(GetNowSelectPreset())
     try keyCount := keys.Length
     catch {
         keyCount := 0
@@ -297,7 +358,10 @@ SetAllKeysAutoFire(keys){
             continue
         }
         kName := keys[A_Index]
-        MainSetKeyState(kName, true)
+        if !IsValueInArray(kName, GetAllKeys()) {
+            continue
+        }
+        MainSetKeyState(kName, true, ov)
         _AutoFireEnableKeys.Push(kName)
     }
 }
@@ -324,18 +388,14 @@ ChangePreset(presetName){
     MainLoadEx()
 }
 
-; 连发是否处于运行中（有定时器或扩展子进程）
+; 连发是否处于运行中（主连发热键已挂，或自动奔跑等扩展已注册）
 AutoFireIsRunning() {
-    global _AutoFireSingleProcessTimers, _AutoFireThreads
-    try tc := _AutoFireSingleProcessTimers.Length
+    global _AutoFireMainHotkeyRegs
+    try mr := _AutoFireMainHotkeyRegs.Length
     catch {
-        tc := 0
+        mr := 0
     }
-    try th := _AutoFireThreads.Length
-    catch {
-        th := 0
-    }
-    return tc > 0 || th > 0
+    return mr > 0 || ExAutoRun._registered
 }
 
 ; 切换预设并在此前连发已启动时自动恢复连发（用于识别快捷键等）
@@ -398,10 +458,36 @@ DeleteValueInArray(value, array){
     }
 }
 
-ShowTip(text, holdMs := 3000) {
-    ToolTip(text)
-    SetTimer(CloseTip, -holdMs)
-    ; 只尝试激活标题匹配，避免把标题当成 ahk_class
+; 将 ToolTip 放在 DNF 客户区右下角附近（找不到窗口时退回鼠标旁）
+ShowTipPlaceNearDnfBottomRight(text) {
+    hwnd := WinExist("ahk_group DNF")
+    if !hwnd {
+        ToolTip(text)
+        return
+    }
+    try WinGetClientPos(&cx, &cy, &cw, &ch, "ahk_id " hwnd)
+    catch {
+        ToolTip(text)
+        return
+    }
+    pad := 14
+    estW := Min(560, Max(140, Ceil(StrLen(text) * 10)))
+    estH := 40
+    tipX := cx + cw - estW - pad
+    tipY := cy + ch - estH - pad
+    if (tipX < cx + 8) {
+        tipX := cx + 8
+    }
+    if (tipY < cy + 8) {
+        tipY := cy + 8
+    }
+    ToolTip(text, tipX, tipY)
+}
+
+; 统一短暂提示：优先 DNF 客户区右下角，无窗口或取客户区失败则跟鼠标；固定显示 1s
+AppTip(text) {
+    ShowTipPlaceNearDnfBottomRight(text)
+    SetTimer(CloseTip, -1000)
     try WinActivate("地下城与勇士")
 }
 

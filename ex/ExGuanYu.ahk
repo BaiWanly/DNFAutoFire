@@ -1,77 +1,123 @@
-ExGuanYu(){
-    SetDNFWindowClass()
-    presetName := LoadLastPresetTrimmed()
+; 关羽：按下监听键边沿后延迟一发发射键；KeyRouter + 主进程
+
+global _GuanYuShotKeyCode := ""
+global _GuanYuDelayMs := 300
+global _GuanYuPendingTimerByPressKey := Map()
+
+GuanYuUnregisterHotkeys() {
+    global _GuanYuPendingTimerByPressKey
+    for pressKey, fn in _GuanYuPendingTimerByPressKey {
+        try SetTimer(fn, 0)
+    }
+    _GuanYuPendingTimerByPressKey := Map()
+}
+
+GuanYuRegisterHotkeys() {
+    global _GuanYuShotKeyCode, _GuanYuDelayMs
+    if !MainCheckboxOn("GuanYu") {
+        return
+    }
+    presetName := GetNowSelectPreset()
     if (presetName = "") {
         return
     }
-    if(LoadPreset(presetName, "GuanYuState", false)){
-        shotKey := LoadPresetSafe(presetName, "GuanYuShotKey")
-        delayMs := Round(LoadPreset(presetName, "GuanYuDelay", 300) + 0)
-        if (delayMs < 20) {
-            delayMs := 20
-        } else if (delayMs > 500) {
-            delayMs := 500
-        }
-        skillKeys := GuanYuLoadKeys(presetName)
-        if (skillKeys.Length = 0) {
-            return
-        }
-        if (shotKey = "") {
-            return
-        }
-        keyCode := Key2NoVkSC(shotKey)
-        pressKeys := []
-        keyDownState := Map()
-        pendingTriggerAt := Map()
-        for sk in skillKeys{
-            pressKey := Key2PressKey(sk)
-            pressKeys.Push(pressKey)
-            keyDownState[pressKey] := false
-            pendingTriggerAt[pressKey] := 0
-        }
-        loop {
-            if(WinActive("ahk_group DNF")) {
-                now := A_TickCount
-                for pressKey in pressKeys{
-                    isDown := GetKeyState(pressKey, "P")
-                    wasDown := keyDownState.Has(pressKey) ? keyDownState[pressKey] : false
+    if !LoadPreset(presetName, "GuanYuState", false) {
+        return
+    }
+    shotKey := LoadPresetSafe(presetName, "GuanYuShotKey")
+    if (shotKey = "") {
+        return
+    }
+    skillKeys := GuanYuLoadKeys(presetName)
+    skillKeys := GuanYuUniqueSkillKeysByPressKey(skillKeys)
+    if (skillKeys.Length = 0) {
+        return
+    }
+    delayMs := Round(LoadPreset(presetName, "GuanYuDelay", 300) + 0)
+    if (delayMs < 20) {
+        delayMs := 20
+    } else if (delayMs > 500) {
+        delayMs := 500
+    }
+    _GuanYuShotKeyCode := Key2NoVkSC(shotKey)
+    _GuanYuDelayMs := delayMs
 
-                    ; 只在按下边沿登记一次触发，不跟随按住连发
-                    if (isDown && !wasDown) {
-                        pendingTriggerAt[pressKey] := now + delayMs
-                    }
-
-                    ; 到达延迟时间后仅触发一次
-                    triggerAt := pendingTriggerAt.Has(pressKey) ? pendingTriggerAt[pressKey] : 0
-                    if (triggerAt > 0 && now >= triggerAt) {
-                        SendIP(keyCode)
-                        pendingTriggerAt[pressKey] := 0
-                    }
-
-                    ; 松开后允许下一次按下重新触发
-                    if (!isDown) {
-                        keyDownState[pressKey] := false
-                    } else {
-                        keyDownState[pressKey] := true
-                    }
-                }
-            } else {
-                ; 切出游戏时清空状态，避免切回后误触发
-                for pressKey in pressKeys {
-                    keyDownState[pressKey] := false
-                    pendingTriggerAt[pressKey] := 0
-                }
-            }
-            Sleep(1)
+    loop skillKeys.Length {
+        if !skillKeys.Has(A_Index) {
+            continue
         }
+        sk := skillKeys[A_Index]
+        if (sk = "") {
+            continue
+        }
+        pressKey := Key2PressKey(sk)
+        if (pressKey = "") {
+            continue
+        }
+        id := AutoFireMainHotkeyIdFromOrigin(sk)
+        KeyRouter.SubscribeDown(id, GuanYuOnSkillDown.Bind(pressKey))
+        KeyRouter.SubscribeUp(id, GuanYuOnSkillUp.Bind(pressKey))
     }
 }
 
-GuanYuLoadKeys(presetName){
+GuanYuUniqueSkillKeysByPressKey(skillKeys) {
+    seen := Map()
+    out := []
+    if !IsObject(skillKeys) {
+        return out
+    }
+    n := skillKeys is Array ? skillKeys.Length : 0
+    loop n {
+        if !skillKeys.Has(A_Index) {
+            continue
+        }
+        sk := skillKeys[A_Index]
+        if (sk = "") {
+            continue
+        }
+        pk := Key2PressKey(sk)
+        if (pk = "") || seen.Has(pk) {
+            continue
+        }
+        seen[pk] := true
+        out.Push(sk)
+    }
+    return out
+}
+
+GuanYuOnSkillDown(pressKey, *) {
+    global _GuanYuDelayMs, _GuanYuPendingTimerByPressKey
+    fn := GuanYuExecuteDelayed.Bind(pressKey)
+    _GuanYuPendingTimerByPressKey[pressKey] := fn
+    SetTimer(fn, -_GuanYuDelayMs)
+}
+
+GuanYuOnSkillUp(pressKey, *) {
+    global _GuanYuPendingTimerByPressKey
+    if _GuanYuPendingTimerByPressKey.Has(pressKey) {
+        try SetTimer(_GuanYuPendingTimerByPressKey[pressKey], 0)
+        _GuanYuPendingTimerByPressKey.Delete(pressKey)
+    }
+}
+
+GuanYuExecuteDelayed(pressKey, *) {
+    global _GuanYuShotKeyCode, _GuanYuPendingTimerByPressKey
+    if _GuanYuPendingTimerByPressKey.Has(pressKey) {
+        _GuanYuPendingTimerByPressKey.Delete(pressKey)
+    }
+    if !WinActive("ahk_group DNF") {
+        return
+    }
+    try {
+        SendIP(_GuanYuShotKeyCode)
+    } catch {
+    }
+}
+
+GuanYuLoadKeys(presetName) {
     skillKeysConfig := LoadPresetSafe(presetName, "GuanYuSkillKeys")
     keys := []
-    for item in StrSplit(skillKeysConfig, "|")
-    {
+    for item in StrSplit(skillKeysConfig, "|") {
         item := Trim(item)
         if (item != "") {
             keys.Push(item)
