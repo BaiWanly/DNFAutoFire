@@ -34,8 +34,8 @@ class ExAutoRun {
 
     static _addSide(sides, tag, logicalKey) {
         scID := AutoFireMainHotkeyIdFromOrigin(logicalKey)
-        pulseSend := "{" logicalKey " Down}{" logicalKey " Up}{" logicalKey " Down}"
-        upSend := "{" logicalKey " Up}"
+        pulseSend := "{Blind}{" logicalKey " Down}{" logicalKey " Up}{" logicalKey " Down}"
+        upSend := "{Blind}{" logicalKey " Up}"
         timerFn := ObjBindMethod(ExAutoRun, "Pulse", tag)
         sides[tag] := {
             scID: scID,

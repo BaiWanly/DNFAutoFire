@@ -312,13 +312,7 @@ AutoFireEventTick(pressKey, keyCode) {
     }
     keyBusy[pressKey] := true
     try {
-        if (pressKey = "CapsLock") {
-            prevCaps := GetKeyState("CapsLock", "T")
-            SendIP(keyCode)
-            SetCapsLockState(prevCaps ? "On" : "Off")
-        } else {
-            SendIP(keyCode)
-        }
+        SendIP(keyCode)
     } finally {
         keyBusy[pressKey] := false
     }

@@ -25,9 +25,9 @@ Key2VK(key){
 ; 按键转换为检测按下的物理按键（供 GetKeyState(..., "P") 等）
 Key2PressKey(key){
     ; 左右修饰键用原名最稳，与文档中 GetKeyState("LAlt", "P") 等一致（含自动宠物技能触发键）
-    ; Tab/CapsLock 亦用原名，供主连发 tick 内 GetKeyState / SetCapsLockState 判断
+    ; Tab 亦用原名，供主连发 tick 内 Alt+Tab 判断
     switch key {
-        case "LAlt", "RAlt", "LCtrl", "RCtrl", "LShift", "RShift", "Tab", "CapsLock":
+        case "LAlt", "RAlt", "LCtrl", "RCtrl", "LShift", "RShift", "Tab":
             return key
     }
     newKey := Key2SC(key)
