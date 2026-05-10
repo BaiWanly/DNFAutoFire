@@ -1,4 +1,5 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
+#Include ./ExWindowHost.ahk
 
 global COMBO_PROFILE_RS := Chr(30)
 global COMBO_PROFILE_US := Chr(31)
@@ -29,23 +30,23 @@ OnMessage(0x0201, ComboListOnLButtonDown)
 OnMessage(0x0202, ComboListOnLButtonUp)
 OnMessage(0x0200, ComboListOnMouseMove)
 
-gComboCtrls["ComboProfilesListBox"] := GuiTheme_AddMainStyleListBox(gComboGui, "ComboProfilesListBox", 12, 34, 196, 210)
+gComboCtrls["ComboProfilesListBox"] := GuiTheme_AddListBox(gComboGui, "ComboProfilesListBox", 16, 38, 196, 210)
 gComboCtrls["ComboProfilesListBox"].OnEvent("Change", ComboProfileListChange)
-gComboGui.Add("Text", "x12 y12 w196 h22 +0x200", "连招方案")
-GuiTheme_FlatBtn(gComboGui, "x12 y252 w94 h26", "新建", ComboAddProfile, false)
-GuiTheme_FlatBtn(gComboGui, "x114 y252 w94 h26", "删除", ComboRemoveProfile, false)
-gComboCtrls["ComboSkillsListBox"] := GuiTheme_AddMainStyleListBox(gComboGui, "ComboSkillsListBox", 224, 34, 364, 210)
+gComboGui.Add("Text", "x16 y16 w196 h22 +0x200", ExText.ComboProfilesLabel())
+GuiTheme_FlatBtn(gComboGui, "x16 y256 w94 h26", ExText.ComboAddProfile(), ComboAddProfile, false)
+GuiTheme_FlatBtn(gComboGui, "x118 y256 w94 h26", ExText.ComboRemoveProfile(), ComboRemoveProfile, false)
+gComboCtrls["ComboSkillsListBox"] := GuiTheme_AddListBox(gComboGui, "ComboSkillsListBox", 228, 38, 364, 210)
 gComboCtrls["ComboSkillsListBox"].OnEvent("DoubleClick", ComboEditSkill)
-gComboGui.Add("Text", "x224 y12 w344 h22 +0x200", "连招顺序（双击可修改）")
-GuiTheme_FlatBtnSmall(gComboGui, "x574 y10 w22 h22", "?", ComboHelp)
-GuiTheme_FlatBtn(gComboGui, "x224 y252 w112 h26", "添加技能", ComboAddSkill, false)
-GuiTheme_FlatBtn(gComboGui, "x344 y252 w112 h26", "删除技能", ComboDeleteSkill, false)
-gComboGui.Add("Text", "x224 y294 w44 h22 +0x200", "触发键")
-gComboCtrls["ComboTriggerKey"] := gComboGui.Add("Edit", "vComboTriggerKey x272 y292 w232 h24 +ReadOnly -WantCtrlA -E0x200 Border")
-RegisterEditPressKeyCapture(gComboCtrls["ComboTriggerKey"])
-gComboCtrls["ComboLoopMode"] := gComboGui.Add("CheckBox", "vComboLoopMode x512 y294 h22", "循环触发")
-GuiTheme_FlatBtn(gComboGui, "x160 y348 w140 h32", "应用方案", ComboApplyProfile, false)
-GuiTheme_FlatBtn(gComboGui, "x316 y348 w140 h32", "保存", ComboSaveAndClose, true)
+gComboGui.Add("Text", "x228 y16 w344 h22 +0x200", ExText.ComboSequenceLabel())
+GuiTheme_FlatBtnSmall(gComboGui, "x570 y16 w22 h22", GuiText.HelpButton(), ComboHelp)
+GuiTheme_FlatBtn(gComboGui, "x228 y256 w112 h26", ExText.ComboAddSkill(), ComboAddSkill, false)
+GuiTheme_FlatBtn(gComboGui, "x348 y256 w112 h26", ExText.ComboDeleteSkill(), ComboDeleteSkill, false)
+gComboGui.Add("Text", "x228 y298 w44 h22 +0x200", ExText.ComboTriggerLabel())
+gComboCtrls["ComboTriggerKey"] := gComboGui.Add("Edit", "vComboTriggerKey x276 y296 w232 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+RegisterEditPressKeyCapture(gComboCtrls["ComboTriggerKey"], GetKeycode.AfterCaptureEdit.Bind(gComboCtrls["ComboTriggerKey"]))
+gComboCtrls["ComboLoopMode"] := gComboGui.Add("CheckBox", "vComboLoopMode x512 y298 h22", ExText.ComboLoopMode())
+GuiTheme_FlatBtn(gComboGui, "x160 y360 w140 h32", ExText.ComboApplyProfile(), ComboApplyProfile, false)
+GuiTheme_FlatBtn(gComboGui, "x316 y360 w140 h32", ExText.SaveButton(), ComboSaveAndClose, true)
 
 ComboGetCtrl(name) {
     global gComboCtrls
@@ -53,19 +54,13 @@ ComboGetCtrl(name) {
 }
 
 ShowGuiCombo(*) {
-    global gMainGui, gComboGui
-    if IsObject(gMainGui) {
-        gComboGui.Opt("+Owner" gMainGui.Hwnd)
-    }
-    gComboGui.Title := "一键连招设置"
-    gComboGui.Show("w608 h408")
+    gComboGui.Title := ExText.ComboTitle()
+    ExWindowHost.ShowOwnedFit(gComboGui, gComboGui.Title)
     ComboLoadConfig()
-    DisableGuiMain()
 }
 
 HideGuiCombo() {
-    gComboGui.Hide()
-    EnableGuiMain()
+    ExWindowHost.HideOwned(gComboGui)
 }
 
 ComboGuiEscape(*) {
@@ -77,7 +72,7 @@ ComboGuiClose(*) {
 }
 
 ComboHelp(*) {
-    MsgBox("1、添加技能默认延迟 20ms`n2、双击列表项可修改技能键和延迟`n3、拖动列表可调整连招顺序`n4、多套方案须使用不同触发键`n5、「应用方案」写入当前预设但不关窗口；「保存并关闭」写入后关闭`n6、未设置触发键或没有技能时该套不生效`n`n循环开启：按住触发键会持续循环连招`n循环关闭：每次按下只执行一轮连招", "一键连招说明", "Iconi")
+    MsgBox(ExText.ComboHelp(), ExText.ComboHelpTitle(), "Icon!")
 }
 
 ComboNormalizeDelay(raw) {
@@ -117,12 +112,15 @@ ComboRefreshList() {
 
 ComboAddSkill(*) {
     global __ComboSkillItems
-    key := GetPressKey()
+    raw := GetPressKey()
+    key := GetKeycode.CanonMainKey(raw)
     if (key = "") {
+        if (raw != "") {
+            MsgBox(ExText.ComboInvalidSkillKey(),, "Icon!")
+        }
         return
     }
-    delay := 20
-    __ComboSkillItems.Push({ key: key, delay: delay })
+    __ComboSkillItems.Push({ key: key, delay: 20 })
     ComboRefreshList()
 }
 
@@ -182,6 +180,10 @@ ComboParseSkills(raw) {
         if (key = "") {
             continue
         }
+        key := GetKeycode.CanonMainKey(key)
+        if (key = "") {
+            continue
+        }
         delayRaw := parts.Length >= 2 ? parts[2] : 20
         items.Push({ key: key, delay: ComboNormalizeDelay(delayRaw) })
     }
@@ -194,11 +196,10 @@ ComboProfileSummary(p) {
     }
     t := Trim(p.trigger)
     if (t = "") {
-        t := "(未设触发)"
+        t := ExText.ComboProfileUnsetTrigger()
     }
     skills := IsObject(p.skills) ? p.skills : []
-    n := skills.Length
-    return t " · " n " 个技能"
+    return ExText.ComboProfileSummary(t, skills.Length)
 }
 
 ComboCloneSkillItems(items) {
@@ -266,7 +267,7 @@ ComboParseProfiles(raw) {
         if (parts.Length < 2) {
             continue
         }
-        trigger := parts[1]
+        trigger := GetKeycode.CanonMainKey(Trim(parts[1]))
         loopOn := (parts.Length >= 2 && Trim(parts[2]) = "1")
         skillsRaw := parts.Length >= 3 ? parts[3] : ""
         out.Push({ trigger: trigger, loop: loopOn, skills: ComboParseSkills(skillsRaw) })
@@ -279,7 +280,7 @@ ComboLoadProfilesFromPreset(presetName) {
     if (raw != "") {
         return ComboParseProfiles(raw)
     }
-    trigger := LoadPresetSafe(presetName, "ComboTriggerKey")
+    trigger := GetKeycode.CanonMainKey(LoadPresetSafe(presetName, "ComboTriggerKey"))
     skills := ComboParseSkills(LoadPresetSafe(presetName, "ComboSkills"))
     loopOn := LoadPreset(presetName, "ComboLoopMode", false)
     return [{ trigger: trigger, loop: loopOn, skills: skills }]
@@ -352,7 +353,7 @@ ComboAddProfile(*) {
     global __ComboProfiles, __ComboProfileIndex, COMBO_PROFILE_MAX
     ComboFlushEditorToProfileAt(__ComboProfileIndex)
     if (__ComboProfiles.Length >= COMBO_PROFILE_MAX) {
-        MsgBox("最多 " COMBO_PROFILE_MAX " 套连招方案",, "Icon!")
+        MsgBox(ExText.ComboProfileMax(COMBO_PROFILE_MAX),, "Icon!")
         return
     }
     __ComboProfiles.Push({ trigger: "", loop: false, skills: [] })
@@ -364,7 +365,7 @@ ComboAddProfile(*) {
 ComboRemoveProfile(*) {
     global __ComboProfiles, __ComboProfileIndex
     if (__ComboProfiles.Length <= 1) {
-        MsgBox("至少保留一套方案",, "Icon!")
+        MsgBox(ExText.ComboKeepOneProfile(),, "Icon!")
         return
     }
     ComboFlushEditorToProfileAt(__ComboProfileIndex)
@@ -404,16 +405,16 @@ ComboSaveConfig() {
         if (t = "") {
             continue
         }
-        try {
-            id := AutoFireMainHotkeyIdFromOrigin(t)
-        } catch {
-            id := t
+        c := GetKeycode.CanonMainKey(t)
+        if (c = "") {
+            continue
         }
+        id := GetKeycode.ToRouterId(c)
         if (id = "") {
             continue
         }
         if seen.Has(id) {
-            MsgBox("多套方案的触发键不能相同（冲突键：" t "）",, "Icon!")
+            MsgBox(ExText.ComboDuplicateTrigger(t), ExText.ComboTitle(), "Icon!")
             return false
         }
         seen[id] := true
@@ -449,26 +450,33 @@ ComboShowEditDialog(item) {
         GuiTheme_Apply(gComboEditGui)
         gComboEditGui.OnEvent("Escape", ComboEditCancel)
         gComboEditGui.OnEvent("Close", ComboEditCancel)
-        gComboEditCtrls["ComboEditCurrentKey"] := gComboEditGui.Add("Edit", "x12 y32 w120 h24 +ReadOnly -WantCtrlA -E0x200 Border")
-        GuiTheme_FlatBtn(gComboEditGui, "x12 y62 w120 h28", "修改按键", ComboEditChangeKey, false)
-        gComboEditGui.Add("Text", "x12 y10 w120 h22 +0x200", "当前技能键")
-        gComboEditGui.Add("Text", "x144 y10 w100 h22 +0x200", "技能后延迟(ms)")
-        gComboEditCtrls["ComboEditDelay"] := gComboEditGui.Add("Edit", "x144 y32 w100 h24 +Number -E0x200 Border")
-        GuiTheme_FlatBtn(gComboEditGui, "x144 y62 w48 h28", "保存", ComboEditSave, true)
-        GuiTheme_FlatBtn(gComboEditGui, "x196 y62 w48 h28", "取消", ComboEditCancel, false)
+        gComboEditCtrls["ComboEditCurrentKey"] := gComboEditGui.Add("Edit", "x16 y38 w120 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+        GuiTheme_FlatBtn(gComboEditGui, "x16 y68 w120 h28", ExText.ComboEditChangeKey(), ComboEditChangeKey, false)
+        gComboEditGui.Add("Text", "x16 y16 w120 h22 +0x200", ExText.ComboCurrentKeyLabel())
+        gComboEditGui.Add("Text", "x148 y16 w100 h22 +0x200", ExText.ComboDelayLabel())
+        gComboEditCtrls["ComboEditDelay"] := gComboEditGui.Add("Edit", "x148 y38 w100 h24 +Number -E0x200 Border")
+        GuiTheme_FlatBtn(gComboEditGui, "x148 y68 w48 h28", ExText.SaveButton(), ComboEditSave, true)
+        GuiTheme_FlatBtn(gComboEditGui, "x200 y68 w48 h28", ExText.CancelButton(), ComboEditCancel, false)
     }
     gComboEditCtrls["ComboEditCurrentKey"].Text := gComboEditKey
     gComboEditCtrls["ComboEditDelay"].Text := ComboNormalizeDelay(item.delay)
     if IsObject(gComboGui) {
         gComboEditGui.Opt("+Owner" gComboGui.Hwnd)
     }
-    gComboEditGui.Title := "修改连招项"
-    gComboEditGui.Show("w256 h104")
+    gComboEditGui.Title := ExText.ComboEditTitle()
+    GuiTheme_ShowFit(gComboEditGui)
 }
 
 ComboEditChangeKey(*) {
     global gComboEditCtrls, gComboEditKey
-    key := GetPressKey()
+    raw := GetPressKey()
+    key := GetKeycode.CanonMainKey(raw)
+    if (key = "") {
+        if (raw != "") {
+            MsgBox(ExText.ComboInvalidSkillKey(),, "Icon!")
+        }
+        return
+    }
     gComboEditKey := key
     gComboEditCtrls["ComboEditCurrentKey"].Text := key
 }

@@ -1,22 +1,22 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
+#Include ./ExWindowHost.ahk
 
-global gPresetSkillGui := Gui("-MinimizeBox -MaximizeBox -Theme +Owner", "自动识别配置")
+global gPresetSkillGui := Gui("-MinimizeBox -MaximizeBox -Theme +Owner", ExText.PresetSkillIconTitle(""))
 global gPresetSkillCtrls := Map()
 global gPresetSkillPvW := 224
 global gPresetSkillPvH := 126
+global gPresetSkillTargetPreset := ""
 
 GuiTheme_Apply(gPresetSkillGui)
 
 gPresetSkillGui.OnEvent("Escape", PresetSkillGuiEscape)
 gPresetSkillGui.OnEvent("Close", PresetSkillGuiClose)
 
-; Picture 赋值 Value 后常会按位图重算控件尺寸，须在 PresetSkillLockPreviewFrame 里 Move 固定
-gPresetSkillCtrls["Preview"] := gPresetSkillGui.Add("Picture", "x8 y8 w224 h126")
-; 预览底 y8+h126=134；说明与自动识别设置同为 w224 h44、无 +0x200，便于按宽度换行
-gPresetSkillGui.Add("Text", "x8 y138 w224 h44", "框选后按 Enter 确认，Esc 取消。不要截取到技能图标外。")
-GuiTheme_FlatBtn(gPresetSkillGui, "x8 y188 w108 h28", "截取图像", PresetSkillDoUpdate, false)
-GuiTheme_FlatBtn(gPresetSkillGui, "x124 y188 w108 h28", "清除图像", PresetSkillDoDelete, false)
-GuiTheme_FlatBtn(gPresetSkillGui, "x8 y222 w224 h32", "保存", PresetSkillSaveClose, true)
+gPresetSkillCtrls["Preview"] := gPresetSkillGui.Add("Picture", "x16 y16 w224 h126")
+gPresetSkillGui.Add("Text", "x16 y146 w224 h44", ExText.PresetSkillIconHint())
+GuiTheme_FlatBtn(gPresetSkillGui, "x16 y196 w108 h28", ExText.PresetSkillIconCapture(), PresetSkillDoUpdate, false)
+GuiTheme_FlatBtn(gPresetSkillGui, "x132 y196 w108 h28", ExText.PresetSkillIconDelete(), PresetSkillDoDelete, false)
+GuiTheme_FlatBtn(gPresetSkillGui, "x16 y230 w224 h32", ExText.SaveButton(), PresetSkillSaveClose, true)
 
 PresetSkillGetCtrl(name) {
     global gPresetSkillCtrls
@@ -26,26 +26,28 @@ PresetSkillGetCtrl(name) {
 PresetSkillLockPreviewFrame(pic) {
     global gPresetSkillPvW, gPresetSkillPvH
     if IsObject(pic) {
-        pic.Move(8, 8, gPresetSkillPvW, gPresetSkillPvH)
+        pic.Move(16, 16, gPresetSkillPvW, gPresetSkillPvH)
     }
 }
 
-ShowGuiPresetSkillIcon(*) {
-    global gMainGui, gPresetSkillGui
-    if IsObject(gMainGui) {
-        gPresetSkillGui.Opt("+Owner" gMainGui.Hwnd)
-    }
-    gPresetSkillGui.Title := "自动识别配置 - " GetNowSelectPreset()
+ShowGuiPresetSkillIcon(presetName := "") {
+    global gPresetSkillTargetPreset
+    gPresetSkillTargetPreset := Trim(presetName)
+    gPresetSkillGui.Title := ExText.PresetSkillIconTitle(PresetSkillTargetPreset())
     PresetSkillRefreshPreview()
-    DisableGuiMain()
-    gPresetSkillGui.Show("w240 h266")
+    ExWindowHost.ShowOwnedFit(gPresetSkillGui, gPresetSkillGui.Title)
 }
 
 HideGuiPresetSkillIcon() {
-    global gPresetSkillGui
+    global gPresetSkillGui, gPresetSkillTargetPreset
     PresetRegionPickCancelIfOpen()
-    gPresetSkillGui.Hide()
-    EnableGuiMain()
+    gPresetSkillTargetPreset := ""
+    ExWindowHost.HideOwned(gPresetSkillGui)
+}
+
+PresetSkillTargetPreset() {
+    global gPresetSkillTargetPreset
+    return (gPresetSkillTargetPreset != "") ? gPresetSkillTargetPreset : GetNowSelectPreset()
 }
 
 PresetSkillGuiEscape(*) {
@@ -59,7 +61,7 @@ PresetSkillGuiClose(*) {
 PresetSkillRefreshPreview() {
     global gPresetSkillPvW, gPresetSkillPvH
     pic := PresetSkillGetCtrl("Preview")
-    path := PresetSkillIconPath(GetNowSelectPreset())
+    path := PresetSkillIconPath(PresetSkillTargetPreset())
     pic.Value := ""
     PresetSkillLockPreviewFrame(pic)
     if FileExist(path) {
@@ -75,7 +77,7 @@ PresetSkillDoUpdate(*) {
     global gPresetSkillPvW, gPresetSkillPvH
     PresetRegionPickCommitSkillRegionIfOpen()
     try {
-        path := PresetSkillIcon_UpdateCurrent()
+        path := PresetSkillIcon_UpdateForPreset(PresetSkillTargetPreset())
         pic := PresetSkillGetCtrl("Preview")
         pic.Value := ""
         PresetSkillLockPreviewFrame(pic)
@@ -90,7 +92,7 @@ PresetSkillDoUpdate(*) {
 }
 
 PresetSkillDoDelete(*) {
-    name := GetNowSelectPreset()
+    name := PresetSkillTargetPreset()
     if (name = "") {
         return
     }
@@ -101,7 +103,6 @@ PresetSkillDoDelete(*) {
     PresetSkillRefreshPreview()
 }
 
-; 更新/删除均已立即写盘；框选未按 Enter 时点「保存」也会提交当前框选
 PresetSkillSaveClose(*) {
     PresetRegionPickCommitIfOpen()
     HideGuiPresetSkillIcon()
