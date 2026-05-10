@@ -8,8 +8,8 @@
 ;@Ahk2Exe-SetCopyright 木亚瑟
 ;@Ahk2Exe-SetLanguage 0x0804
 ;@Ahk2Exe-SetProductName DAF连发工具
-;@Ahk2Exe-SetProductVersion 0.2.8
-;@Ahk2Exe-SetVersion 0.2.8
+;@Ahk2Exe-SetProductVersion 0.2.9
+;@Ahk2Exe-SetVersion 0.2.9
 
 #SingleInstance Off
 #WinActivateForce
@@ -17,8 +17,6 @@ SetWorkingDir(A_ScriptDir)
 #Include ./core/SingleInstance.ahk
 SingleInstance_TryHandOffAndExit()
 A_MaxHotkeysPerInterval := 9999
-
-global __Version := "0.2.8"
 
 #Include <RunWithAdministrator>
 ; UAC 判定完成后，把最终驻留进程提升到高优先级。
@@ -30,6 +28,7 @@ try ProcessSetPriority("High")
 #Include <GdiPlusSession>
 #Include <GuiTheme>
 #Include ./gui/GuiText.ahk
+global __Version := GuiText.AppVersion()
 #Include ./core/SendIP.ahk
 #Include ./core/GetKeycode.ahk
 #Include ./core/Config.ahk

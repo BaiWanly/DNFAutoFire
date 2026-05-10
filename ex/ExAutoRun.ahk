@@ -60,8 +60,8 @@ class ExAutoRun {
         seq := "{Blind}{" kc " Down}{" kc " Up}{" kc " Down}"
         sides[tag] := {
             scID: scID,
+            probeKey: logicalKey,
             seq: seq,
-            held: false,
             timerFn: ObjBindMethod(ExAutoRun, "Pulse", tag),
             downFn: ObjBindMethod(ExAutoRun, "Down", tag),
             upFn: ObjBindMethod(ExAutoRun, "Up", tag),
@@ -85,7 +85,6 @@ class ExAutoRun {
         if !IsObject(s) {
             return
         }
-        s.held := true
         SetTimer(s.timerFn, -30)
     }
 
@@ -94,13 +93,15 @@ class ExAutoRun {
         if !IsObject(s) {
             return
         }
-        s.held := false
         SetTimer(s.timerFn, 0)
     }
 
     static Pulse(tag) {
         s := ExAutoRun._sides.Get(tag, "")
-        if !IsObject(s) || !s.held {
+        if !IsObject(s) {
+            return
+        }
+        if !GetKeyState(s.probeKey, "P") {
             return
         }
         if !GameContext.IsActiveNow() {

@@ -13,7 +13,7 @@ class PresetAutoCtrl {
             gPresetAutoGui.Opt("+Owner" gMainGui.Hwnd)
         }
         gPresetAutoGui.Title := GuiText.PresetAutoTitle()
-        this.RefreshCalibratePreview()
+        this.RefreshPreviews()
         GuiTheme_ShowFit(gPresetAutoGui)
     }
 
@@ -28,17 +28,8 @@ class PresetAutoCtrl {
         this.Hide()
     }
 
-    static DeleteCalibrateIcon(*) {
-        path := PresetCalibrateIconGlobalPath()
-        if !FileExist(path) {
-            return
-        }
-        try FileDelete(path)
-        this.RefreshCalibratePreview()
-    }
-
     static RefreshCalibratePreview() {
-        global gPresetAutoPvW, gPresetAutoPvH
+        global gPresetAutoCalPvW, gPresetAutoCalPvH
         pic := PresetAutoGetCtrl("CalPreview")
         if !IsObject(pic) {
             return
@@ -52,7 +43,7 @@ class PresetAutoCtrl {
         }
         if FileExist(cpath) {
             tmp := A_Temp "\DAF_cal_fit_preview.png"
-            if PresetSkillIcon_RenderFitPreviewToFile(cpath, gPresetAutoPvW, gPresetAutoPvH, tmp) && FileExist(tmp) {
+            if PresetSkillIcon_RenderFitPreviewToFile(cpath, gPresetAutoCalPvW, gPresetAutoCalPvH, tmp) && FileExist(tmp) {
                 pic.Value := tmp
             } else {
                 pic.Value := cpath
@@ -61,10 +52,35 @@ class PresetAutoCtrl {
         }
     }
 
+    static RefreshBackstepPreview() {
+        global gPresetAutoBackstepPvW, gPresetAutoBackstepPvH
+        pic := PresetAutoGetCtrl("BackstepPreview")
+        if !IsObject(pic) {
+            return
+        }
+        path := PresetBackstepIconGlobalPath()
+        pic.Value := ""
+        PresetAutoLockBackstepPreviewFrame(pic)
+        if FileExist(path) {
+            tmp := A_Temp "\DAF_backstep_fit_preview.png"
+            if PresetSkillIcon_RenderFitPreviewToFile(path, gPresetAutoBackstepPvW, gPresetAutoBackstepPvH, tmp) && FileExist(tmp) {
+                pic.Value := tmp
+            } else {
+                pic.Value := path
+            }
+            PresetAutoLockBackstepPreviewFrame(pic)
+        }
+    }
+
+    static RefreshPreviews() {
+        this.RefreshCalibratePreview()
+        this.RefreshBackstepPreview()
+    }
+
     static RefreshCalibratePreviewIfVisible() {
         global gPresetAutoGui
         if IsObject(gPresetAutoGui) && WinExist("ahk_id " gPresetAutoGui.Hwnd) {
-            this.RefreshCalibratePreview()
+            this.RefreshPreviews()
         }
     }
 
@@ -72,7 +88,17 @@ class PresetAutoCtrl {
         PresetRegionPickCommitCalibrateRegionIfOpen()
         try {
             PresetCalibrateIcon_UpdateCurrent()
-            this.RefreshCalibratePreview()
+            this.RefreshPreviews()
+        } catch Error as e {
+            MsgBox(e.Message,, "Icon!")
+        }
+    }
+
+    static UpdateBackstepIcon(*) {
+        PresetRegionPickCommitBackstepRegionIfOpen()
+        try {
+            PresetBackstepIcon_UpdateCurrent()
+            this.RefreshPreviews()
         } catch Error as e {
             MsgBox(e.Message,, "Icon!")
         }

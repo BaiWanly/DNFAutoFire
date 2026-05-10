@@ -55,6 +55,12 @@ PresetCalibrateIconGlobalPath() {
     return PresetCalibrateIconDir() "\calibrate.png"
 }
 
+PresetBackstepIconDir() => PresetRecognitionAssetDir() "\backstep"
+
+PresetBackstepIconGlobalPath() {
+    return PresetBackstepIconDir() "\backstep.png"
+}
+
 ParseAutoPresetCalibrateRegion() {
     raw := Trim(LoadConfig("AutoPresetCalibrateRegion", ""))
     out := Map()
@@ -87,12 +93,52 @@ SaveAutoPresetCalibrateRegion(x, y, w, h) {
     SaveConfig("AutoPresetCalibrateRegion", x "|" y "|" w "|" h)
 }
 
+ParseAutoPresetBackstepRegion() {
+    raw := Trim(LoadConfig("AutoPresetBackstepRegion", ""))
+    out := Map()
+    if (raw = "") {
+        return out
+    }
+    parts := StrSplit(raw, "|")
+    if (parts.Length < 4) {
+        return out
+    }
+    try {
+        x := Integer(parts[1])
+        y := Integer(parts[2])
+        w := Integer(parts[3])
+        h := Integer(parts[4])
+    } catch {
+        return out
+    }
+    if (w < 1 || h < 1) {
+        return out
+    }
+    out["x"] := x
+    out["y"] := y
+    out["w"] := w
+    out["h"] := h
+    return out
+}
+
+SaveAutoPresetBackstepRegion(x, y, w, h) {
+    SaveConfig("AutoPresetBackstepRegion", x "|" y "|" w "|" h)
+}
+
 PresetRecognition_HasAnyCalibratePng() {
     return FileExist(PresetCalibrateIconGlobalPath())
 }
 
 PresetRecognition_UseCalibratePass() {
     return ParseAutoPresetCalibrateRegion().Has("w") && PresetRecognition_HasAnyCalibratePng()
+}
+
+PresetRecognition_HasAnyBackstepPng() {
+    return FileExist(PresetBackstepIconGlobalPath())
+}
+
+PresetRecognition_UseBackstepPass() {
+    return ParseAutoPresetBackstepRegion().Has("w") && PresetRecognition_HasAnyBackstepPng()
 }
 
 PresetRecognition_FirstPresetName() {
@@ -295,6 +341,16 @@ PresetCalibrateIcon_UpdateCurrent() {
     return path
 }
 
+PresetBackstepIcon_UpdateCurrent() {
+    r := ParseAutoPresetBackstepRegion()
+    if !r.Has("w") {
+        throw Error("请先选择后跳区域，再更新后跳截图。")
+    }
+    path := PresetBackstepIconGlobalPath()
+    PresetCaptureRegionToPng(path, r["x"], r["y"], r["w"], r["h"])
+    return path
+}
+
 ; 在校准区域内匹配全局参考图，成功后才继续识别技能图标。
 CalibrateIconMatches() {
     r := ParseAutoPresetCalibrateRegion()
@@ -302,6 +358,36 @@ CalibrateIconMatches() {
         return false
     }
     path := PresetCalibrateIconGlobalPath()
+    if !FileExist(path) {
+        return false
+    }
+    x1 := r["x"]
+    y1 := r["y"]
+    x2 := x1 + r["w"] - 1
+    y2 := y1 + r["h"] - 1
+    variation := LoadAutoPresetImageVariation()
+    optPrefix := "*" variation " "
+    needle := optPrefix . path
+    prevPixel := CoordMode("Pixel", "Screen")
+    try {
+        try {
+            if ImageSearch(&_icx, &_icy, x1, y1, x2, y2, needle) {
+                return true
+            }
+        } catch TargetError {
+        }
+        return false
+    } finally {
+        CoordMode "Pixel", prevPixel
+    }
+}
+
+BackstepIconMatches() {
+    r := ParseAutoPresetBackstepRegion()
+    if !r.Has("w") {
+        return false
+    }
+    path := PresetBackstepIconGlobalPath()
     if !FileExist(path) {
         return false
     }
@@ -513,6 +599,10 @@ PresetRecognition_RunAttempt(attemptIdx) {
             fn := PresetRecognition_RunAttempt.Bind(attemptIdx + 1)
             PresetRecognition._retryTimer := fn
             SetTimer(fn, -PresetRecognition.RetryIntervalMs)
+            return
+        }
+        if PresetRecognition_UseBackstepPass() && BackstepIconMatches() {
+            PresetRecognition_ClearRetryTimer()
             return
         }
         skillFound := FindPresetBySkillIcon()

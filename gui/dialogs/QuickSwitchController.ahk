@@ -15,6 +15,9 @@ class QuickSwitchController {
 
     static Show(*) {
         global gQuickSwitchGui
+        if !GameContext.IsActiveNow() {
+            return
+        }
         HideGuiMain()
         gQuickSwitchGui.Title := GuiText.QuickSwitchTitle()
         GuiTheme_ShowFit(gQuickSwitchGui, "", 12, 18)

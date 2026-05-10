@@ -1,6 +1,13 @@
 ﻿#Requires AutoHotkey v2.0
 
+global gAppVersion := "0.2.9"
+
 class GuiText {
+    static AppVersion() {
+        global gAppVersion
+        return gAppVersion
+    }
+
     static TrayMainSettings() {
         return "连发设置"
     }
@@ -58,7 +65,7 @@ class GuiText {
     }
 
     static SettingAutoPresetHelp() {
-        return "1. 未识别到自动切换到首个配置`n2. 游戏窗口位置、大小、分辨率变化，都需要重新截取识别图像。（或调整回原来的窗口大小和位置）"
+        return "1. 血条识别成功后会优先识别后跳，识别到后跳时保持当前配置`n2. 未识别到技能会自动切换到首个配置`n3. 游戏窗口位置、大小、分辨率变化，都需要重新截取识别图像。（或调整回原来的窗口大小和位置）"
     }
 
     static AutoPresetSettingsTitle() {
@@ -122,11 +129,23 @@ class GuiText {
     }
 
     static PresetAutoUpdateCalibrate() {
-        return "更新血条识别图像"
+        return "更新血条图像"
     }
 
     static PresetAutoDeleteCalibrate() {
         return "删除血条识别图像"
+    }
+
+    static PresetAutoPickBackstepRegion() {
+        return "选择后跳识别区域"
+    }
+
+    static PresetAutoUpdateBackstep() {
+        return "更新后跳图像"
+    }
+
+    static PresetAutoDeleteBackstep() {
+        return "删除后跳识别图像"
     }
 
     static PresetAutoPreviewHint() {

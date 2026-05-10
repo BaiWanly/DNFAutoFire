@@ -14,6 +14,64 @@ PresetRegionPickReadClientScreen(hwnd) {
     return Map("x", NumGet(pt, 0, "int"), "y", NumGet(pt, 4, "int"), "w", cw, "h", ch)
 }
 
+PresetRegionPickPaintClient(hdc, hwnd) {
+    rc := Buffer(16, 0)
+    if !DllCall("user32\GetClientRect", "ptr", hwnd, "ptr", rc) {
+        return
+    }
+    w := NumGet(rc, 8, "int") - NumGet(rc, 0, "int")
+    h := NumGet(rc, 12, "int") - NumGet(rc, 4, "int")
+    if (w < 1 || h < 1) {
+        return
+    }
+
+    whiteBrush := DllCall("gdi32\CreateSolidBrush", "uint", 0x00FFFFFF, "ptr")
+    if whiteBrush {
+        try DllCall("user32\FillRect", "ptr", hdc, "ptr", rc, "ptr", whiteBrush)
+        finally DllCall("gdi32\DeleteObject", "ptr", whiteBrush)
+    }
+
+    pen := DllCall("gdi32\CreatePen", "int", 0, "int", 2, "uint", 0x00B8B8B8, "ptr")
+    if !pen {
+        return
+    }
+    oldPen := DllCall("gdi32\SelectObject", "ptr", hdc, "ptr", pen, "ptr")
+    try {
+        step := 18
+        x := -h
+        while (x < w + h) {
+            DllCall("gdi32\MoveToEx", "ptr", hdc, "int", x, "int", h, "ptr", 0)
+            DllCall("gdi32\LineTo", "ptr", hdc, "int", x + h, "int", 0)
+            x += step
+        }
+    } finally {
+        DllCall("gdi32\SelectObject", "ptr", hdc, "ptr", oldPen, "ptr")
+        DllCall("gdi32\DeleteObject", "ptr", pen)
+    }
+}
+
+PresetRegionPickPaint(wParam, lParam, msg, hwnd) {
+    global gRegionPickGui
+    if !IsObject(gRegionPickGui) || (hwnd != gRegionPickGui.Hwnd) {
+        return
+    }
+    ps := Buffer(A_PtrSize = 8 ? 72 : 64, 0)
+    hdc := DllCall("user32\BeginPaint", "ptr", hwnd, "ptr", ps, "ptr")
+    if hdc {
+        try PresetRegionPickPaintClient(hdc, hwnd)
+        finally DllCall("user32\EndPaint", "ptr", hwnd, "ptr", ps)
+    }
+    return 0
+}
+
+PresetRegionPickEraseBkgnd(wParam, lParam, msg, hwnd) {
+    global gRegionPickGui
+    if !IsObject(gRegionPickGui) || (hwnd != gRegionPickGui.Hwnd) {
+        return
+    }
+    return 1
+}
+
 PresetRegionPickApplyDwmStyle(hwnd) {
     val := Buffer(4, 0)
 
@@ -51,38 +109,9 @@ PresetRegionPickNCCalcSize(wParam, lParam, msg, hwnd) {
 }
 
 PresetRegionPickSetOuterFromClientScreen(hwnd, sx, sy, cw, ch) {
-    style := DllCall("user32\GetWindowLong", "ptr", hwnd, "int", -16, "uint")
-    ex := DllCall("user32\GetWindowLong", "ptr", hwnd, "int", -20, "uint")
-    rc := Buffer(16, 0)
-    NumPut("int", 0, rc, 0)
-    NumPut("int", 0, rc, 4)
-    NumPut("int", cw, rc, 8)
-    NumPut("int", ch, rc, 12)
-    adjusted := false
-    try {
-        dpi := DllCall("user32\GetDpiForWindow", "ptr", hwnd, "uint")
-        if (dpi) {
-            adjusted := DllCall("user32\AdjustWindowRectExForDpi", "ptr", rc, "uint", style, "int", 0, "uint", ex, "uint", dpi, "int")
-        }
-    } catch {
-        adjusted := false
-    }
-    if !adjusted {
-        NumPut("int", 0, rc, 0)
-        NumPut("int", 0, rc, 4)
-        NumPut("int", cw, rc, 8)
-        NumPut("int", ch, rc, 12)
-        DllCall("user32\AdjustWindowRectEx", "ptr", rc, "uint", style, "int", 0, "uint", ex)
-    }
-    l := NumGet(rc, 0, "int")
-    t := NumGet(rc, 4, "int")
-    rr := NumGet(rc, 8, "int")
-    b := NumGet(rc, 12, "int")
-    ow := rr - l
-    oh := b - t
-    ox := sx + l
-    oy := sy + t
-    DllCall("user32\SetWindowPos", "ptr", hwnd, "ptr", 0, "int", ox, "int", oy, "int", ow, "int", oh, "uint", 0x0044)
+    ; 该截图框通过 WM_NCCALCSIZE 把客户区扩展成整窗区域，
+    ; 因此保存下来的客户区尺寸本身就是最终显示尺寸，不能再额外套一次窗口边框换算。
+    DllCall("user32\SetWindowPos", "ptr", hwnd, "ptr", 0, "int", sx, "int", sy, "int", cw, "int", ch, "uint", 0x0044)
 }
 
 PresetRegionPickCommitSkillRegionIfOpen() {
@@ -115,6 +144,17 @@ PresetRegionPickCommitCalibrateRegionIfOpen() {
     PresetRegionPickOk()
 }
 
+PresetRegionPickCommitBackstepRegionIfOpen() {
+    global gRegionPickGui, gRegionPickKind
+    if !IsObject(gRegionPickGui) || !WinExist("ahk_id " gRegionPickGui.Hwnd) {
+        return
+    }
+    if (gRegionPickKind != "backstep") {
+        return
+    }
+    PresetRegionPickOk()
+}
+
 PresetRegionPickCancelIfOpen() {
     global gRegionPickGui
     if IsObject(gRegionPickGui) && WinExist("ahk_id " gRegionPickGui.Hwnd) {
@@ -124,6 +164,8 @@ PresetRegionPickCancelIfOpen() {
 
 PresetRegionPickOpen(kind := "skill") {
     global gRegionPickGui, gRegionPickKeyHook, gRegionPickNCHook, gRegionPickNCCalcHook, gRegionPickKind
+    static paintHooked := false
+    static eraseHooked := false
     gRegionPickKind := kind
     if IsObject(gRegionPickGui) {
         try gRegionPickGui.Destroy()
@@ -136,7 +178,13 @@ PresetRegionPickOpen(kind := "skill") {
     gRegionPickGui.OnEvent("Close", PresetRegionPickCancel)
     gRegionPickGui.Show("Hide w200 h90")
     hwnd := gRegionPickGui.Hwnd
-    r := (kind = "calibrate") ? ParseAutoPresetCalibrateRegion() : ParseAutoPresetRegion()
+    if (kind = "calibrate") {
+        r := ParseAutoPresetCalibrateRegion()
+    } else if (kind = "backstep") {
+        r := ParseAutoPresetBackstepRegion()
+    } else {
+        r := ParseAutoPresetRegion()
+    }
     if r.Has("w") {
         PresetRegionPickSetOuterFromClientScreen(hwnd, r["x"], r["y"], r["w"], r["h"])
     } else {
@@ -159,6 +207,14 @@ PresetRegionPickOpen(kind := "skill") {
     if !gRegionPickNCCalcHook {
         OnMessage(0x0083, PresetRegionPickNCCalcSize)
         gRegionPickNCCalcHook := true
+    }
+    if !paintHooked {
+        OnMessage(0x000F, PresetRegionPickPaint)
+        paintHooked := true
+    }
+    if !eraseHooked {
+        OnMessage(0x0014, PresetRegionPickEraseBkgnd)
+        eraseHooked := true
     }
     DllCall("user32\SetWindowPos", "ptr", hwnd, "ptr", 0, "int", 0, "int", 0, "int", 0, "int", 0, "uint", 0x0027)
 }
@@ -250,6 +306,8 @@ PresetRegionPickOk(*) {
     if (kind = "calibrate") {
         SaveAutoPresetCalibrateRegion(x, y, w, h)
         PresetAutoRefreshCalibratePreviewIfVisible()
+    } else if (kind = "backstep") {
+        SaveAutoPresetBackstepRegion(x, y, w, h)
     } else {
         SaveAutoPresetRegion(x, y, w, h)
     }

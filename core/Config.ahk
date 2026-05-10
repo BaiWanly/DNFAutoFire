@@ -231,6 +231,7 @@ class ConfigStore {
         this.SaveSetting("AutoPresetHotkey", "")
         this.SaveSetting("AutoPresetRegion", "")
         this.SaveSetting("AutoPresetCalibrateRegion", "")
+        this.SaveSetting("AutoPresetBackstepRegion", "")
         this.SaveSetting("AutoPresetImageVariation", 80)
         this.SaveLastPreset(dn)
         this.SavePresetField(dn, "keys", "")
