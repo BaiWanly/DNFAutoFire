@@ -1,48 +1,23 @@
-﻿; 关羽：按下监听键边沿后延迟一发发射键；KeyRouter + 主进程
-
-global _GuanYuShotKeyCode := ""
-global _GuanYuDelayMs := 300
-global _GuanYuPendingTimerByPressKey := Map()
-global _GuanYuHotkeySubs := []
-
-GuanYuUnregisterHotkeys() {
-    global _GuanYuPendingTimerByPressKey, _GuanYuHotkeySubs
-    for pressKey, fn in _GuanYuPendingTimerByPressKey {
-        try SetTimer(fn, 0)
-    }
-    _GuanYuPendingTimerByPressKey := Map()
-    for sub in _GuanYuHotkeySubs {
-        KeyRouter.UnsubscribeDown(sub.id, sub.downFn)
-        KeyRouter.UnsubscribeUp(sub.id, sub.upFn)
-    }
-    _GuanYuHotkeySubs := []
-}
+; 关羽：子进程轮询监听键边沿；按下后登记延时，到点必发一次，提前松开不取消。
 
 GuanYuRegisterHotkeys() {
-    global _GuanYuShotKeyCode, _GuanYuDelayMs, _GuanYuHotkeySubs
-    GuanYuUnregisterHotkeys()
-    if !PresetExFeatures.IsOn("GuanYu") {
-        return
-    }
-    presetName := GetNowSelectPreset()
-    if (presetName = "") {
-        return
-    }
-    if !LoadPreset(presetName, "GuanYuState", false) {
+    return
+}
+
+GuanYuUnregisterHotkeys() {
+    return
+}
+
+ExGuanYu_Run() {
+    presetName := LoadLastPresetTrimmed()
+    if (presetName = "" || !LoadPreset(presetName, "GuanYuState", false)) {
         return
     }
     shotKey := GetKeycode.CanonMainKey(LoadPresetSafe(presetName, "GuanYuShotKey"))
     if (shotKey = "") {
         return
     }
-    skillKeys := []
-    for sk in GuanYuLoadKeys(presetName) {
-        c := GetKeycode.CanonMainKey(sk)
-        if (c != "") {
-            skillKeys.Push(c)
-        }
-    }
-    skillKeys := GuanYuUniqueSkillKeysByPressKey(skillKeys)
+    skillKeys := GuanYuUniqueSkillKeysByPressKey(GuanYuLoadKeys(presetName))
     if (skillKeys.Length = 0) {
         return
     }
@@ -52,35 +27,45 @@ GuanYuRegisterHotkeys() {
     } else if (delayMs > 500) {
         delayMs := 500
     }
-    _GuanYuShotKeyCode := GetKeycode.ToSendToken(shotKey)
-    if (_GuanYuShotKeyCode = "") {
+    shotToken := GetKeycode.ToSendToken(shotKey)
+    if (shotToken = "") {
         return
     }
-    _GuanYuDelayMs := delayMs
-
-    loop skillKeys.Length {
-        if !skillKeys.Has(A_Index) {
-            continue
-        }
-        sk := skillKeys[A_Index]
-        if (sk = "") {
-            continue
-        }
-        pressKey := GetKeycode.ToProbeKey(sk)
+    pressKeys := []
+    keyDownState := Map()
+    pendingTriggerAt := Map()
+    for sk in skillKeys {
+        pressKey := GetKeycode.ToProbeKey(GetKeycode.CanonMainKey(sk))
         if (pressKey = "") {
             continue
         }
-        id := GetKeycode.ToRouterId(sk)
-        downFn := GuanYuOnSkillDown.Bind(pressKey)
-        upFn := GuanYuOnSkillUp.Bind(pressKey)
-        if !KeyRouter.SubscribeDown(id, downFn) {
-            continue
+        pressKeys.Push(pressKey)
+        keyDownState[pressKey] := false
+        pendingTriggerAt[pressKey] := 0
+    }
+    loop {
+        if WinActive("ahk_group DNF") {
+            now := A_TickCount
+            for pressKey in pressKeys {
+                isDown := GetKeyState(pressKey, "P")
+                wasDown := keyDownState.Get(pressKey, false)
+                if (isDown && !wasDown) {
+                    pendingTriggerAt[pressKey] := now + delayMs
+                }
+                triggerAt := pendingTriggerAt.Get(pressKey, 0)
+                if (triggerAt > 0 && now >= triggerAt) {
+                    SendIP(shotToken)
+                    pendingTriggerAt[pressKey] := 0
+                }
+                keyDownState[pressKey] := isDown
+            }
+        } else {
+            for pressKey in pressKeys {
+                keyDownState[pressKey] := false
+                pendingTriggerAt[pressKey] := 0
+            }
         }
-        if !KeyRouter.SubscribeUp(id, upFn) {
-            KeyRouter.UnsubscribeDown(id, downFn)
-            continue
-        }
-        _GuanYuHotkeySubs.Push({ id: id, downFn: downFn, upFn: upFn })
+        Sleep(1)
     }
 }
 
@@ -90,52 +75,19 @@ GuanYuUniqueSkillKeysByPressKey(skillKeys) {
     if !IsObject(skillKeys) {
         return out
     }
-    n := skillKeys is Array ? skillKeys.Length : 0
-    loop n {
-        if !skillKeys.Has(A_Index) {
+    for sk in skillKeys {
+        canon := GetKeycode.CanonMainKey(sk)
+        if (canon = "") {
             continue
         }
-        sk := skillKeys[A_Index]
-        if (sk = "") {
+        probeKey := GetKeycode.ToProbeKey(canon)
+        if (probeKey = "" || seen.Has(probeKey)) {
             continue
         }
-        pk := GetKeycode.ToProbeKey(sk)
-        if (pk = "") || seen.Has(pk) {
-            continue
-        }
-        seen[pk] := true
-        out.Push(sk)
+        seen[probeKey] := true
+        out.Push(canon)
     }
     return out
-}
-
-GuanYuOnSkillDown(pressKey, *) {
-    global _GuanYuDelayMs, _GuanYuPendingTimerByPressKey
-    fn := GuanYuExecuteDelayed.Bind(pressKey)
-    _GuanYuPendingTimerByPressKey[pressKey] := fn
-    SetTimer(fn, -_GuanYuDelayMs)
-}
-
-GuanYuOnSkillUp(pressKey, *) {
-    global _GuanYuPendingTimerByPressKey
-    if _GuanYuPendingTimerByPressKey.Has(pressKey) {
-        try SetTimer(_GuanYuPendingTimerByPressKey[pressKey], 0)
-        _GuanYuPendingTimerByPressKey.Delete(pressKey)
-    }
-}
-
-GuanYuExecuteDelayed(pressKey, *) {
-    global _GuanYuShotKeyCode, _GuanYuPendingTimerByPressKey
-    if _GuanYuPendingTimerByPressKey.Has(pressKey) {
-        _GuanYuPendingTimerByPressKey.Delete(pressKey)
-    }
-    if !GameContext.IsActiveNow() {
-        return
-    }
-    try {
-        SendIP(_GuanYuShotKeyCode)
-    } catch {
-    }
 }
 
 GuanYuLoadKeys(presetName) {

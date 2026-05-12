@@ -1,10 +1,6 @@
 ﻿#Requires AutoHotkey v2.0
 #Include ./ExWindowHost.ahk
 
-global COMBO_PROFILE_RS := Chr(30)
-global COMBO_PROFILE_US := Chr(31)
-global COMBO_PROFILE_MAX := 16
-
 global gComboGui := Gui("+ToolWindow -Theme")
 global gComboCtrls := Map()
 global __ComboSkillItems := []
@@ -220,14 +216,28 @@ ComboCloneSkillItems(items) {
     return out
 }
 
+ComboProfileRecordSeparator() {
+    static rs := Chr(30)
+    return rs
+}
+
+ComboProfileUnitSeparator() {
+    static us := Chr(31)
+    return us
+}
+
+ComboProfileMaxCount() {
+    static maxCount := 16
+    return maxCount
+}
+
 ComboSerializeProfiles(profiles) {
-    global COMBO_PROFILE_RS, COMBO_PROFILE_US
     out := ""
     if !IsObject(profiles) {
         return out
     }
-    rs := COMBO_PROFILE_RS
-    us := COMBO_PROFILE_US
+    rs := ComboProfileRecordSeparator()
+    us := ComboProfileUnitSeparator()
     loop profiles.Length {
         if !profiles.Has(A_Index) {
             continue
@@ -250,14 +260,13 @@ ComboSerializeProfiles(profiles) {
 }
 
 ComboParseProfiles(raw) {
-    global COMBO_PROFILE_RS, COMBO_PROFILE_US
     out := []
     raw := Trim(raw)
     if (raw = "") {
         return out
     }
-    rs := COMBO_PROFILE_RS
-    us := COMBO_PROFILE_US
+    rs := ComboProfileRecordSeparator()
+    us := ComboProfileUnitSeparator()
     for rec in StrSplit(raw, rs) {
         rec := Trim(rec)
         if (rec = "") {
@@ -350,10 +359,11 @@ ComboProfileListChange(ctrl, *) {
 }
 
 ComboAddProfile(*) {
-    global __ComboProfiles, __ComboProfileIndex, COMBO_PROFILE_MAX
+    global __ComboProfiles, __ComboProfileIndex
     ComboFlushEditorToProfileAt(__ComboProfileIndex)
-    if (__ComboProfiles.Length >= COMBO_PROFILE_MAX) {
-        MsgBox(ExText.ComboProfileMax(COMBO_PROFILE_MAX),, "Icon!")
+    maxCount := ComboProfileMaxCount()
+    if (__ComboProfiles.Length >= maxCount) {
+        MsgBox(ExText.ComboProfileMax(maxCount),, "Icon!")
         return
     }
     __ComboProfiles.Push({ trigger: "", loop: false, skills: [] })

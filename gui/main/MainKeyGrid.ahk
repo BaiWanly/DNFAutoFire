@@ -81,6 +81,9 @@ class MainKeyGrid {
 class MainKeyCap {
     static _all := []
     static _timerOn := false
+    ctrl := 0
+    labelCtrl := 0
+    auxLabelCtrl := 0
 
     __New(gui, name, pos, label, locked := false) {
         GdiPlusSession.EnsureStarted()

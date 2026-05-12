@@ -1,115 +1,145 @@
-﻿; 自动奔跑：须持续按住满 30ms 才 SendEvent 一串 Down-Up-Down（未满则抬起取消）；Critical 包裹发送。
+; 自动奔跑：子进程内注册方向键热键，持续按住满 30ms 后发送方向脉冲。
 
 class ExAutoRun {
     static _sides := Map()
-    static _registered := false
+    static _wasActive := false
 
     static RegisterHotkeys() {
-        this.UnregisterHotkeys()
-        if !PresetExFeatures.IsOn("AutoRun") {
-            return
-        }
-        presetName := GetNowSelectPreset()
-        if (presetName = "") {
+        return
+    }
+
+    static UnregisterHotkeys() {
+        this._DisableHooks()
+    }
+
+    static Run() {
+        presetName := LoadLastPresetTrimmed()
+        if (presetName = "" || !LoadPreset(presetName, "AutoRunState", false)) {
             return
         }
         leftKey := LoadPresetSafe(presetName, "AutoRunLeftKey")
         rightKey := LoadPresetSafe(presetName, "AutoRunRightKey")
-        if (leftKey = "")
+        if (leftKey = "") {
             leftKey := "Left"
-        if (rightKey = "")
+        }
+        if (rightKey = "") {
             rightKey := "Right"
+        }
         lCanon := GetKeycode.CanonMainKey(leftKey)
-        if (lCanon = "")
+        if (lCanon = "") {
             lCanon := "Left"
+        }
         rCanon := GetKeycode.CanonMainKey(rightKey)
-        if (rCanon = "")
+        if (rCanon = "") {
             rCanon := "Right"
-
-        sides := Map()
-        this._addSide(sides, "R", rCanon)
-        this._addSide(sides, "L", lCanon)
-
-        subscribed := []
-        for _, s in sides {
-            if !KeyRouter.SubscribeDown(s.scID, s.downFn) {
-                ExAutoRun._rollbackSubs(subscribed)
-                return
-            }
-            if !KeyRouter.SubscribeUp(s.scID, s.upFn) {
-                KeyRouter.UnsubscribeDown(s.scID, s.downFn)
-                ExAutoRun._rollbackSubs(subscribed)
-                return
-            }
-            subscribed.Push(s)
         }
-        this._sides := sides
-        this._registered := true
-    }
-
-    static _rollbackSubs(subscribed) {
-        for s in subscribed {
-            KeyRouter.UnsubscribeDown(s.scID, s.downFn)
-            KeyRouter.UnsubscribeUp(s.scID, s.upFn)
+        this._sides := Map()
+        this._AddSide("R", rCanon)
+        this._AddSide("L", lCanon)
+        this._wasActive := WinActive("ahk_group DNF") != 0
+        this._EnableHooks()
+        Suspend(false)
+        loop {
+            this._WatchFocusLoss()
+            Sleep(50)
         }
     }
 
-    static _addSide(sides, tag, logicalKey) {
+    static _AddSide(tag, logicalKey) {
         scID := GetKeycode.ToRouterId(logicalKey)
-        kc := GetKeycode.ToSendToken(logicalKey)
-        seq := "{Blind}{" kc " Down}{" kc " Up}{" kc " Down}"
-        sides[tag] := {
+        sendToken := GetKeycode.ToSendToken(logicalKey)
+        probeKey := GetKeycode.ToProbeKey(logicalKey)
+        if (scID = "" || sendToken = "" || probeKey = "") {
+            return
+        }
+        this._sides[tag] := {
             scID: scID,
-            probeKey: logicalKey,
-            seq: seq,
+            probeKey: probeKey,
+            seq: "{Blind}{" sendToken " Down}{" sendToken " Up}{" sendToken " Down}",
+            upSeq: "{Blind}{" sendToken " Up}",
+            heldFromEdge: false,
             timerFn: ObjBindMethod(ExAutoRun, "Pulse", tag),
             downFn: ObjBindMethod(ExAutoRun, "Down", tag),
-            upFn: ObjBindMethod(ExAutoRun, "Up", tag),
+            upFn: ObjBindMethod(ExAutoRun, "Up", tag)
         }
     }
 
-    static UnregisterHotkeys() {
-        for _, s in this._sides {
-            SetTimer(s.timerFn, 0)
-            if IsObject(s) {
-                KeyRouter.UnsubscribeDown(s.scID, s.downFn)
-                KeyRouter.UnsubscribeUp(s.scID, s.upFn)
+    static _EnableHooks() {
+        for _, side in this._sides {
+            HotIfWinActive("ahk_group DNF")
+            Hotkey("~$" side.scID, side.downFn, "On")
+            Hotkey("~$" side.scID " up", side.upFn, "On")
+            HotIf()
+        }
+    }
+
+    static _DisableHooks() {
+        for _, side in this._sides {
+            try SetTimer(side.timerFn, 0)
+            try {
+                HotIfWinActive("ahk_group DNF")
+                try Hotkey("~$" side.scID, "Off")
+                try Hotkey("~$" side.scID " up", "Off")
+                HotIf()
+            } catch {
+                try HotIf()
             }
         }
         this._sides := Map()
-        this._registered := false
     }
 
     static Down(tag, *) {
-        s := ExAutoRun._sides.Get(tag, "")
-        if !IsObject(s) {
+        side := this._sides.Get(tag, "")
+        if !IsObject(side) {
             return
         }
-        SetTimer(s.timerFn, -30)
+        if side.heldFromEdge {
+            return
+        }
+        side.heldFromEdge := true
+        SetTimer(side.timerFn, -30)
     }
 
     static Up(tag, *) {
-        s := ExAutoRun._sides.Get(tag, "")
-        if !IsObject(s) {
+        side := this._sides.Get(tag, "")
+        if !IsObject(side) {
             return
         }
-        SetTimer(s.timerFn, 0)
+        side.heldFromEdge := false
+        SetTimer(side.timerFn, 0)
+        try SendEvent(side.upSeq)
+    }
+
+    static _WatchFocusLoss() {
+        isActive := WinActive("ahk_group DNF") != 0
+        if (this._wasActive && !isActive) {
+            this._FlushHeldSides()
+        }
+        this._wasActive := isActive
+    }
+
+    static _FlushHeldSides() {
+        for _, side in this._sides {
+            if !side.heldFromEdge {
+                continue
+            }
+            side.heldFromEdge := false
+            try SetTimer(side.timerFn, 0)
+            try SendEvent(side.upSeq)
+        }
     }
 
     static Pulse(tag) {
-        s := ExAutoRun._sides.Get(tag, "")
-        if !IsObject(s) {
+        side := this._sides.Get(tag, "")
+        if !IsObject(side) {
             return
         }
-        if !GetKeyState(s.probeKey, "P") {
-            return
-        }
-        if !GameContext.IsActiveNow() {
+        if !GetKeyState(side.probeKey, "P") || !WinActive("ahk_group DNF") {
             return
         }
         Critical("On")
         try {
-            SendEvent(s.seq)
+            SendEvent(side.seq)
         } finally {
             Critical("Off")
         }

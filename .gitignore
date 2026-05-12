@@ -1,5 +1,13 @@
-﻿.vscode
+.vscode
 .idea
+.codex
 
-preset_calibrate_icons/
-preset_skill_icons/
+
+DAF_0.27/
+DNFAutoFire-0/
+
+DNFAutoFire.exe
+任务达人.txt
+
+assets\preset-recognition/
+config.ini

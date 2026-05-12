@@ -31,7 +31,6 @@ class AppBootstrap {
         try SingleInstance_ReleaseMutex()
         try GdiPlusSession.Shutdown()
         try PresetRecognition_DisableAllHotkeys()
-        try KeyRouter.StopFocusWatcher()
         try AutoFireController.Stop()
         try GameContext.Shutdown()
         global _MainProcessTimePeriodActive
@@ -47,7 +46,6 @@ class AppBootstrap {
         GameContext.Init()
         PresetRecognition_UpdateHotkeys()
         ShowGuiMain()
-        KeyRouter.StartFocusWatcher()
         if (_AutoStart) {
             HideGuiMain()
             AutoFireController.Start()

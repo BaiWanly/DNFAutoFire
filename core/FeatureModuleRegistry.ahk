@@ -1,53 +1,45 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 class FeatureModuleRegistry {
+    static FeatureOrder := ["LvRen", "GuanYu", "PetSkill", "JianZong", "AutoRun", "Combo", "ZhanFa"]
+
     static StartEnabledModules(presetName := unset) {
         if !IsSet(presetName) {
             presetName := SessionState.GetCurrentPreset()
         }
-
-        if PresetExFeatures.IsOn("LvRen", presetName) {
-            LvRenRegisterHotkeys()
-        }
-        if PresetExFeatures.IsOn("GuanYu", presetName) {
-            GuanYuRegisterHotkeys()
-        }
-        if PresetExFeatures.IsOn("PetSkill", presetName) {
-            PetSkillRegisterHotkeys()
-        }
-        if PresetExFeatures.IsOn("JianZong", presetName) {
-            this._PrepareJianZong(presetName)
-            JianZongRegisterHotkeys()
-        }
-        if PresetExFeatures.IsOn("AutoRun", presetName) {
-            ExAutoRun.RegisterHotkeys()
-        }
-        if PresetExFeatures.IsOn("Combo", presetName) {
-            ComboRegisterHotkeys()
-        }
-        if PresetExFeatures.IsOn("ZhanFa", presetName) {
-            ZhanFaRegisterHotkeys()
+        for featureName in this.EnabledFeatures(presetName) {
+            this._PrepareFeature(featureName, presetName)
+            MultipleThread.StartFeatureThread(featureName)
         }
     }
 
     static StopAllModules() {
-        ZhanFaUnregisterHotkeys()
-        LvRenUnregisterHotkeys()
-        GuanYuUnregisterHotkeys()
-        PetSkillUnregisterHotkeys()
-        JianZongUnregisterHotkeys()
-        ComboUnregisterHotkeys()
-        ExAutoRun.UnregisterHotkeys()
+        MultipleThread.StopAllThreads()
     }
 
     static AnyModuleRunning() {
-        return ExAutoRun._registered
+        return MultipleThread.AnyThreadRunning()
     }
 
-    static _PrepareJianZong(presetName) {
-        skillKey := LoadPreset(presetName, "JianZongSkillKey")
-        if (skillKey != "") {
-            AutoFireController.UseBlockingOriginalKeyMode(skillKey)
+    static EnabledFeatures(presetName := unset) {
+        if !IsSet(presetName) {
+            presetName := SessionState.GetCurrentPreset()
+        }
+        enabled := []
+        for featureName in this.FeatureOrder {
+            if PresetExFeatures.IsOn(featureName, presetName) {
+                enabled.Push(featureName)
+            }
+        }
+        return enabled
+    }
+
+    static _PrepareFeature(featureName, presetName) {
+        if (featureName = "JianZong") {
+            skillKey := LoadPreset(presetName, "JianZongSkillKey")
+            if (skillKey != "") {
+                AutoFireController.UseBlockingOriginalKeyMode(skillKey)
+            }
         }
     }
 }
