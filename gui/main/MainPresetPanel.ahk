@@ -125,7 +125,6 @@ class MainPresetPanel {
         if (presetName = "") {
             return
         }
-        MainController.FlushPendingTimingCommits()
         MainGetCtrl("PresetNameEdit").Text := presetName
         AutoFireController.ChangePreset(presetName)
     }

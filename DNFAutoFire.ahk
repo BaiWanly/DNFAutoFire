@@ -5,15 +5,13 @@
 ;@Ahk2Exe-AddResource assets\icons\icon_red.ico, 207
 
 ;@Ahk2Exe-SetDescription DAF连发工具
-;@Ahk2Exe-SetCopyright 木亚瑟
+;@Ahk2Exe-SetCopyright 某亚瑟
 ;@Ahk2Exe-SetLanguage 0x0804
 ;@Ahk2Exe-SetProductName DAF连发工具
-;@Ahk2Exe-SetProductVersion 0.2.9
-;@Ahk2Exe-SetVersion 0.2.9
-
 #SingleInstance Off
 #WinActivateForce
 SetWorkingDir(A_ScriptDir)
+#Include ./Version.ahk
 #Include ./core/SingleInstance.ahk
 SingleInstance_TryHandOffAndExit()
 A_MaxHotkeysPerInterval := 9999
@@ -74,6 +72,5 @@ AppBootstrap.EnableHighTimerResolution()
 ;@Ahk2Exe-IgnoreEnd
 
 AppBootstrap.Run()
-
 
 

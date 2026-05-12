@@ -1,7 +1,5 @@
 ﻿#Requires AutoHotkey v2.0
 
-global gAppVersion := "0.2.9"
-
 class GuiText {
     static AppVersion() {
         global gAppVersion

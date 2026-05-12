@@ -58,12 +58,10 @@ class ExAutoRun {
         scID := GetKeycode.ToRouterId(logicalKey)
         kc := GetKeycode.ToSendToken(logicalKey)
         seq := "{Blind}{" kc " Down}{" kc " Up}{" kc " Down}"
-        upSeq := "{Blind}{" kc " Up}"
         sides[tag] := {
             scID: scID,
+            probeKey: logicalKey,
             seq: seq,
-            upSeq: upSeq,
-            held: false,
             timerFn: ObjBindMethod(ExAutoRun, "Pulse", tag),
             downFn: ObjBindMethod(ExAutoRun, "Down", tag),
             upFn: ObjBindMethod(ExAutoRun, "Up", tag),
@@ -87,7 +85,6 @@ class ExAutoRun {
         if !IsObject(s) {
             return
         }
-        s.held := true
         SetTimer(s.timerFn, -30)
     }
 
@@ -96,16 +93,15 @@ class ExAutoRun {
         if !IsObject(s) {
             return
         }
-        s.held := false
         SetTimer(s.timerFn, 0)
-        if GameContext.IsActiveNow() {
-            try SendEvent(s.upSeq)
-        }
     }
 
     static Pulse(tag) {
         s := ExAutoRun._sides.Get(tag, "")
-        if !IsObject(s) || !s.held {
+        if !IsObject(s) {
+            return
+        }
+        if !GetKeyState(s.probeKey, "P") {
             return
         }
         if !GameContext.IsActiveNow() {
