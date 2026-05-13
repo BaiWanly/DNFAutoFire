@@ -27,7 +27,7 @@ class MainWindow {
             return _singleton
         }
         global gMainGui, gMainCtrls, gMainExSwitchUi, gMainKeyCaps
-        gMainGui := Gui("-MinimizeBox -MaximizeBox -Theme +OwnDialogs")
+        gMainGui := Gui("-MaximizeBox -Theme +OwnDialogs")
         gMainCtrls := Map()
         gMainExSwitchUi := Map()
         gMainKeyCaps := Map()

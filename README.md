@@ -1,5 +1,9 @@
 ﻿# DAF AutoFire
 
+## 自动识别说明
+- 血条识别成功后会继续进行城镇识别与技能识别，城镇识别命中后不会中断后续技能识别。
+
+
 ## 项目结构
 
 ### 根目录
@@ -58,9 +62,6 @@
 - [gui/dialogs/SettingController.ahk](D:/06Code/DNFAutoFire/gui/dialogs/SettingController.ahk)：设置弹窗行为与保存逻辑。
 - [gui/dialogs/QuickSwitch.ahk](D:/06Code/DNFAutoFire/gui/dialogs/QuickSwitch.ahk)：快速切换预设弹窗视图。
 - [gui/dialogs/QuickSwitchController.ahk](D:/06Code/DNFAutoFire/gui/dialogs/QuickSwitchController.ahk)：快速切换弹窗行为。
-- [gui/dialogs/PresetAutoSwitch.ahk](D:/06Code/DNFAutoFire/gui/dialogs/PresetAutoSwitch.ahk)：自动切换预设弹窗视图。
-- [gui/dialogs/PresetAutoSwitchController.ahk](D:/06Code/DNFAutoFire/gui/dialogs/PresetAutoSwitchController.ahk)：自动切换预设行为。
-- [gui/dialogs/PresetRegionPicker.ahk](D:/06Code/DNFAutoFire/gui/dialogs/PresetRegionPicker.ahk)：截图框选与识别区域拾取。
 
 ### `gui/ex/` 扩展功能配置窗口
 
@@ -72,7 +73,11 @@
 - [gui/ex/JianZong.ahk](D:/06Code/DNFAutoFire/gui/ex/JianZong.ahk)：剑宗配置窗口。
 - [gui/ex/AutoRun.ahk](D:/06Code/DNFAutoFire/gui/ex/AutoRun.ahk)：自动跑图配置窗口。
 - [gui/ex/Combo.ahk](D:/06Code/DNFAutoFire/gui/ex/Combo.ahk)：一键连招配置窗口。
-- [gui/ex/PresetSkillIcon.ahk](D:/06Code/DNFAutoFire/gui/ex/PresetSkillIcon.ahk)：预设技能识别图配置窗口。
+- [gui/ex/autoPreset/AutoPresetSettings.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/AutoPresetSettings.ahk)：自动识别设置窗口，统一展示开关、帮助、当前预设识别图与识别区域设置入口。
+- [gui/ex/autoPreset/AutoPresetSettingsCtrl.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/AutoPresetSettingsCtrl.ahk)：自动识别设置窗口行为、开关绘制和识别图预览刷新。
+- [gui/ex/autoPreset/PresetAutoSwitch.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/PresetAutoSwitch.ahk)：识别区域设置窗口，展示技能区、血条和城镇识别区域预览与操作。
+- [gui/ex/autoPreset/PresetAutoCtrl.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/PresetAutoCtrl.ahk)：识别区域设置窗口行为与识别区域预览刷新。
+- [gui/ex/autoPreset/PresetRegionPicker.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/PresetRegionPicker.ahk)：截图框选与识别区域拾取。
 
 ### `ex/` 扩展功能实现
 

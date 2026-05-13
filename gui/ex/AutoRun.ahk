@@ -15,9 +15,8 @@ RegisterEditPressKeyCapture(gAutoRunCtrls["AutoRunLeftKey"], GetKeycode.AfterCap
 gAutoRunGui.Add("Text", "x16 y94 w72 h26 +0x200", ExText.AutoRunRightLabel())
 gAutoRunCtrls["AutoRunRightKey"] := gAutoRunGui.Add("Edit", "vAutoRunRightKey x96 y94 w168 h24 +ReadOnly -WantCtrlA -E0x200 Border")
 RegisterEditPressKeyCapture(gAutoRunCtrls["AutoRunRightKey"], GetKeycode.AfterCaptureEdit.Bind(gAutoRunCtrls["AutoRunRightKey"]))
-GuiTheme_HRule(gAutoRunGui, 16, 138, 358)
-GuiTheme_FlatBtn(gAutoRunGui, "x16 y144 w358 h36", ExText.SaveButton(), AutoRunSave, true)
-GuiTheme_FlatBtnSmall(gAutoRunGui, "x348 y16 w26 h26", GuiText.HelpButton(), AutoRunHelp)
+ExWindowHost.AddAutoFooter(gAutoRunGui, 138, ExText.SaveButton(), AutoRunSave, 16, 6, 36)
+ExWindowHost.AddInlineHeaderLeft(gAutoRunGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.AutoRunTitle()), AutoRunHelp, 120, 26, 6)
 
 AutoRunGetCtrl(name) {
     global gAutoRunCtrls
@@ -42,7 +41,7 @@ AutoRunGuiClose(*) {
 }
 
 AutoRunHelp(*) {
-    MsgBox(ExText.AutoRunHelp(), ExText.AutoRunHelpTitle(), "Icon!")
+    ExWindowHost.ShowHelp(ExText.AutoRunHelp(), ExText.AutoRunHelpTitle(), gAutoRunGui)
 }
 
 AutoRunSave(*) {

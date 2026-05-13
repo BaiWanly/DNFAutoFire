@@ -14,9 +14,8 @@ gJianZongCtrls["JianZongDelay"] := gJianZongGui.Add("Edit", "vJianZongDelay x128
 gJianZongGui.Add("Text", "x16 y86 w110 h24 +0x200", ExText.JianZongSkillKeyLabel())
 gJianZongCtrls["JianZongSkillKey"] := gJianZongGui.Add("Edit", "vJianZongSkillKey x128 y86 w72 h24 +ReadOnly -WantCtrlA -E0x200 Border")
 RegisterEditPressKeyCapture(gJianZongCtrls["JianZongSkillKey"], GetKeycode.AfterCaptureEdit.Bind(gJianZongCtrls["JianZongSkillKey"]))
-GuiTheme_HRule(gJianZongGui, 16, 124, 298)
-GuiTheme_FlatBtn(gJianZongGui, "x89 y138 w152 h34", ExText.SaveButton(), JianZongSave, true)
-GuiTheme_FlatBtnSmall(gJianZongGui, "x288 y16 w26 h26", GuiText.HelpButton(), JianZongHelp)
+ExWindowHost.AddAutoFooter(gJianZongGui, 124, ExText.SaveButton(), JianZongSave)
+ExWindowHost.AddInlineHeaderLeft(gJianZongGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.JianZongTitle()), JianZongHelp, 120, 26, 6)
 
 JianZongGetCtrl(name) {
     global gJianZongCtrls
@@ -41,7 +40,7 @@ JianZongGuiClose(*) {
 }
 
 JianZongHelp(*) {
-    MsgBox(ExText.JianZongHelp(), ExText.JianZongHelpTitle(), "Icon!")
+    ExWindowHost.ShowHelp(ExText.JianZongHelp(), ExText.JianZongHelpTitle(), gJianZongGui)
 }
 
 JianZongSave(*) {
@@ -72,4 +71,3 @@ JianZongLoadConfig() {
     }
     JianZongGetCtrl("JianZongDelay").Text := delay
 }
-

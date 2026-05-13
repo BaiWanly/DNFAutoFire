@@ -63,7 +63,7 @@ class GuiText {
     }
 
     static SettingAutoPresetHelp() {
-        return "1. 血条识别成功后会优先识别后跳，识别到后跳时保持当前配置`n2. 未识别到技能会自动切换到首个配置`n3. 游戏窗口位置、大小、分辨率变化，都需要重新截取识别图像。（或调整回原来的窗口大小和位置）"
+        return "1. 血条识别成功后会优先识别城镇，识别到城镇后会继续识别技能`n2. 未识别到技能会自动切换到首个配置`n3. 游戏窗口位置、大小、分辨率变化，都需要重新截取识别图像。（或调整回原来的窗口大小和位置）"
     }
 
     static AutoPresetSettingsTitle() {
@@ -110,12 +110,16 @@ class GuiText {
         return "停止连发"
     }
 
-    static PresetAutoTitle() {
+    static PresetAutoHeaderTitle() {
+        return "识别区域设置"
+    }
+
+    static PresetAutoHelpTitle() {
         return "识别区域设置"
     }
 
     static PresetAutoHotkeyLabel() {
-        return "自动切换触发热键"
+        return "触发按键"
     }
 
     static PresetAutoPickSkillRegion() {
@@ -135,15 +139,15 @@ class GuiText {
     }
 
     static PresetAutoPickBackstepRegion() {
-        return "选择后跳识别区域"
+        return "选择城镇识别区域"
     }
 
     static PresetAutoUpdateBackstep() {
-        return "更新后跳图像"
+        return "更新城镇图像"
     }
 
     static PresetAutoDeleteBackstep() {
-        return "删除后跳识别图像"
+        return "删除城镇识别图像"
     }
 
     static PresetAutoPreviewHint() {

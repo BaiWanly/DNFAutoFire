@@ -30,12 +30,12 @@ GetUserInputKeyCore() {
 
 global __PressKeyEditHwndMap := Map()
 global __PressKeyEditAfterMap := Map()
+global __PressKeyEditClickMap := Map()
 
 ; Edit 控件不支持 OnEvent("Click")，改为监听 WM_LBUTTONDOWN（仅限脚本 GUI），延迟执行以免挡住默认焦点处理
 ; afterCapture：捕获结束後调用，参数为键名字符串（含 Esc 清空时的 ""）
 RegisterEditPressKeyCapture(edit, afterCapture := unset) {
     global __PressKeyEditHwndMap, __PressKeyEditAfterMap
-    static installed := false
     if !IsObject(edit) {
         return
     }
@@ -47,24 +47,44 @@ RegisterEditPressKeyCapture(edit, afterCapture := unset) {
         ; v2 Map.Delete 在键不存在时会抛错
         __PressKeyEditAfterMap.Delete(edit.Hwnd)
     }
+    RegisterEditClickHandler(edit, __PressKeyEdit_DefaultClick.Bind(edit.Hwnd))
+}
+
+RegisterEditClickHandler(edit, clickHandler) {
+    global __PressKeyEditHwndMap, __PressKeyEditClickMap
+    static installed := false
+    if !IsObject(edit) {
+        return
+    }
+    try GuiTheme_RegisterHandCursor(edit)
+    __PressKeyEditHwndMap[edit.Hwnd] := edit
+    __PressKeyEditClickMap[edit.Hwnd] := clickHandler
     if !installed {
         installed := true
         OnMessage(0x0201, __PressKeyEdit_OnLButtonDown)
     }
 }
 
-__PressKeyEdit_OnLButtonDown(wParam, lParam, msg, hwnd) {
+__PressKeyEdit_DefaultClick(hwnd) {
     global __PressKeyEditHwndMap, __PressKeyEditAfterMap
     if !__PressKeyEditHwndMap.Has(hwnd) {
         return
     }
     edit := __PressKeyEditHwndMap[hwnd]
     if __PressKeyEditAfterMap.Has(hwnd) {
-        after := __PressKeyEditAfterMap[hwnd]
-        SetTimer(() => GetPressKeyIntoEdit(edit, after), -1)
+        GetPressKeyIntoEdit(edit, __PressKeyEditAfterMap[hwnd])
     } else {
-        SetTimer(() => GetPressKeyIntoEdit(edit), -1)
+        GetPressKeyIntoEdit(edit)
     }
+}
+
+__PressKeyEdit_OnLButtonDown(wParam, lParam, msg, hwnd) {
+    global __PressKeyEditClickMap
+    if !__PressKeyEditClickMap.Has(hwnd) {
+        return
+    }
+    clickHandler := __PressKeyEditClickMap[hwnd]
+    SetTimer(() => clickHandler.Call(), -1)
 }
 
 ; 只读键位框：框内提示并用 InputHook 捕获下一键（无 ToolTip）

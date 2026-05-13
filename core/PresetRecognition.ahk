@@ -344,7 +344,7 @@ PresetCalibrateIcon_UpdateCurrent() {
 PresetBackstepIcon_UpdateCurrent() {
     r := ParseAutoPresetBackstepRegion()
     if !r.Has("w") {
-        throw Error("请先选择后跳区域，再更新后跳截图。")
+        throw Error("请先选择城镇区域，再更新城镇截图。")
     }
     path := PresetBackstepIconGlobalPath()
     PresetCaptureRegionToPng(path, r["x"], r["y"], r["w"], r["h"])
@@ -568,7 +568,7 @@ PresetRecognition_IsEnabled() {
     return Trim(LoadConfig("SettingAutoPresetSwitch", "0")) = "1"
 }
 
-; 启用校准时，先匹配校准图，再匹配技能图标。
+; 启用校准时，先匹配校准图，再继续识别城镇图与技能图标。
 PresetRecognition_RunAttempt(attemptIdx) {
     if !PresetRecognition_IsEnabled() {
         PresetRecognition_ClearRetryTimer()
@@ -601,9 +601,8 @@ PresetRecognition_RunAttempt(attemptIdx) {
             SetTimer(fn, -PresetRecognition.RetryIntervalMs)
             return
         }
-        if PresetRecognition_UseBackstepPass() && BackstepIconMatches() {
-            PresetRecognition_ClearRetryTimer()
-            return
+        if (PresetRecognition_UseBackstepPass() && BackstepIconMatches()) {
+            ; 城镇识别命中后继续执行技能识别。
         }
         skillFound := FindPresetBySkillIcon()
         current := GetNowSelectPreset()

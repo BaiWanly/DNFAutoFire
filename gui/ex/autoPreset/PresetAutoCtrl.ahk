@@ -12,14 +12,14 @@ class PresetAutoCtrl {
         } else if IsObject(gMainGui) {
             gPresetAutoGui.Opt("+Owner" gMainGui.Hwnd)
         }
-        gPresetAutoGui.Title := GuiText.PresetAutoTitle()
+        gPresetAutoGui.Title := GuiText.AutoPresetSettingsTitle()
         this.RefreshPreviews()
         GuiTheme_ShowFit(gPresetAutoGui)
     }
 
     static Hide() {
         global gPresetAutoGui
-        PresetRegionPickCancelIfOpen()
+        PresetRegionPickCommitIfOpen()
         gPresetAutoGui.Hide()
     }
 
@@ -85,7 +85,7 @@ class PresetAutoCtrl {
     }
 
     static UpdateCalibrateIcon(*) {
-        PresetRegionPickCommitCalibrateRegionIfOpen()
+        PresetRegionPickCommitIfOpen()
         try {
             PresetCalibrateIcon_UpdateCurrent()
             this.RefreshPreviews()
@@ -95,7 +95,7 @@ class PresetAutoCtrl {
     }
 
     static UpdateBackstepIcon(*) {
-        PresetRegionPickCommitBackstepRegionIfOpen()
+        PresetRegionPickCommitIfOpen()
         try {
             PresetBackstepIcon_UpdateCurrent()
             this.RefreshPreviews()

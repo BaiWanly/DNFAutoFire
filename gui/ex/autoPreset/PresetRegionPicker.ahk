@@ -114,42 +114,20 @@ PresetRegionPickSetOuterFromClientScreen(hwnd, sx, sy, cw, ch) {
     DllCall("user32\SetWindowPos", "ptr", hwnd, "ptr", 0, "int", sx, "int", sy, "int", cw, "int", ch, "uint", 0x0044)
 }
 
-PresetRegionPickCommitSkillRegionIfOpen() {
-    global gRegionPickGui, gRegionPickKind
-    if !IsObject(gRegionPickGui) || !WinExist("ahk_id " gRegionPickGui.Hwnd) {
+PresetRegionPickLayoutHint(guiObj, minMax := 0, width := 0, height := 0) {
+    global gRegionPickHintText
+    if !IsObject(guiObj) || !IsObject(gRegionPickHintText) {
         return
     }
-    if (gRegionPickKind != "skill") {
+    if (width < 1 || height < 1) {
         return
     }
-    PresetRegionPickOk()
+    gRegionPickHintText.Move(0, 0, width, height)
 }
 
 PresetRegionPickCommitIfOpen() {
     global gRegionPickGui
     if !IsObject(gRegionPickGui) || !WinExist("ahk_id " gRegionPickGui.Hwnd) {
-        return
-    }
-    PresetRegionPickOk()
-}
-
-PresetRegionPickCommitCalibrateRegionIfOpen() {
-    global gRegionPickGui, gRegionPickKind
-    if !IsObject(gRegionPickGui) || !WinExist("ahk_id " gRegionPickGui.Hwnd) {
-        return
-    }
-    if (gRegionPickKind != "calibrate") {
-        return
-    }
-    PresetRegionPickOk()
-}
-
-PresetRegionPickCommitBackstepRegionIfOpen() {
-    global gRegionPickGui, gRegionPickKind
-    if !IsObject(gRegionPickGui) || !WinExist("ahk_id " gRegionPickGui.Hwnd) {
-        return
-    }
-    if (gRegionPickKind != "backstep") {
         return
     }
     PresetRegionPickOk()
@@ -163,9 +141,12 @@ PresetRegionPickCancelIfOpen() {
 }
 
 PresetRegionPickOpen(kind := "skill") {
-    global gRegionPickGui, gRegionPickKeyHook, gRegionPickNCHook, gRegionPickNCCalcHook, gRegionPickKind
+    global gRegionPickGui, gRegionPickHintText, gRegionPickKeyHook, gRegionPickNCHook, gRegionPickNCCalcHook, gRegionPickKind
     static paintHooked := false
     static eraseHooked := false
+    if IsObject(gRegionPickGui) && WinExist("ahk_id " gRegionPickGui.Hwnd) {
+        PresetRegionPickOk()
+    }
     gRegionPickKind := kind
     if IsObject(gRegionPickGui) {
         try gRegionPickGui.Destroy()
@@ -176,7 +157,11 @@ PresetRegionPickOpen(kind := "skill") {
     gRegionPickGui.MarginY := 0
     gRegionPickGui.BackColor := "FFFFFF"
     gRegionPickGui.OnEvent("Close", PresetRegionPickCancel)
+    gRegionPickGui.OnEvent("Size", PresetRegionPickLayoutHint)
+    gRegionPickGui.SetFont("s10", "Microsoft YaHei UI")
+    gRegionPickHintText := gRegionPickGui.Add("Text", "x0 y0 w200 h90 BackgroundTrans +Center 0x200", "Enter确认，Esc取消")
     gRegionPickGui.Show("Hide w200 h90")
+    PresetRegionPickLayoutHint(gRegionPickGui, 0, 200, 90)
     hwnd := gRegionPickGui.Hwnd
     if (kind = "calibrate") {
         r := ParseAutoPresetCalibrateRegion()
@@ -319,9 +304,10 @@ PresetRegionPickCancel(*) {
 }
 
 PresetRegionPickClose() {
-    global gRegionPickGui
+    global gRegionPickGui, gRegionPickHintText
     if IsObject(gRegionPickGui) {
         try gRegionPickGui.Destroy()
     }
     gRegionPickGui := false
+    gRegionPickHintText := false
 }

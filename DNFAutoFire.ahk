@@ -72,7 +72,6 @@ SessionState.InitFromLastPreset()
 #Include ./gui/ex/AutoRun.ahk
 #Include ./gui/ex/Combo.ahk
 #Include ./gui/ex/autoPreset/PresetAutoSwitch.ahk
-#Include ./gui/ex/PresetSkillIcon.ahk
 #Include ./core/AppBootstrap.ahk
 
 AppBootstrap.EnableHighTimerResolution()

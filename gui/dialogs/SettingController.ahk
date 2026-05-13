@@ -5,6 +5,35 @@ class SettingController {
         return 0
     }
 
+    static ToggleSwitch(name) {
+        ctrl := SettingGetCtrl(name)
+        if !IsObject(ctrl) {
+            return
+        }
+        ctrl.Value := !ctrl.Value
+        this.PaintSwitch(name)
+    }
+
+    static PaintSwitch(name) {
+        global gSettingSwitchUi
+        if !gSettingSwitchUi.Has(name) {
+            return
+        }
+        ctrl := SettingGetCtrl(name)
+        ui := gSettingSwitchUi[name]
+        if !IsObject(ctrl) || !IsObject(ui) {
+            return
+        }
+        ui.Draw(Integer(ctrl.Value) = 1)
+    }
+
+    static PaintAllSwitches() {
+        global gSettingSwitchUi
+        for name, ui in gSettingSwitchUi {
+            this.PaintSwitch(name)
+        }
+    }
+
     static ShowPage(page) {
         global __SettingGeneralCtrls, __SettingAboutCtrls
         if (page != 1 && page != 2) {
@@ -37,7 +66,6 @@ class SettingController {
         GuiTheme_ShowFit(gSettingGui)
         this.Load()
         this.ShowPage(page)
-        GuiTheme_FlatChromeHwnd(SettingGetCtrl("SettingQuickChangeHotKey").Hwnd)
     }
 
     static Hide() {
@@ -59,7 +87,7 @@ class SettingController {
         _OnSystemStart := settingOnSystemStart
         _BlockWin := settingBlockWin
 
-        QuickChangeHotKey_PersistAndRegister(SettingGetCtrl("SettingQuickChangeHotKey").Value)
+        QuickChangeHotKey_PersistAndRegister(SettingGetCtrl("SettingQuickChangeHotKeyCapture").Value)
         this.ApplyNow()
         this.Hide()
     }
@@ -74,16 +102,34 @@ class SettingController {
             qhk := "!``"
         }
         gSettingSuppressQuickKeyChange := true
-        SettingGetCtrl("SettingQuickChangeHotKey").Value := qhk
+        SettingGetCtrl("SettingQuickChangeHotKeyCapture").Value := qhk
+        SettingGetCtrl("SettingQuickChangeHotKey").Text := qhk
         gSettingSuppressQuickKeyChange := false
+        this.PaintAllSwitches()
     }
 
-    static OnQuickChangeHotKeyChanged(*) {
+    static BeginQuickChangeHotKeyCapture() {
+        ctrl := SettingGetCtrl("SettingQuickChangeHotKey")
+        captureCtrl := SettingGetCtrl("SettingQuickChangeHotKeyCapture")
+        if !IsObject(ctrl) || !IsObject(captureCtrl) {
+            return
+        }
+        ctrl.Text := "请按键..."
+        try captureCtrl.Focus()
+    }
+
+    static OnQuickChangeHotKeyCaptureChanged(*) {
         global gSettingSuppressQuickKeyChange
         if (gSettingSuppressQuickKeyChange) {
             return
         }
-        QuickChangeHotKey_PersistAndRegister(SettingGetCtrl("SettingQuickChangeHotKey").Value)
+        captureCtrl := SettingGetCtrl("SettingQuickChangeHotKeyCapture")
+        displayCtrl := SettingGetCtrl("SettingQuickChangeHotKey")
+        if !IsObject(captureCtrl) || !IsObject(displayCtrl) {
+            return
+        }
+        displayCtrl.Text := captureCtrl.Value
+        QuickChangeHotKey_PersistAndRegister(captureCtrl.Value)
     }
 
     static ApplyNow() {

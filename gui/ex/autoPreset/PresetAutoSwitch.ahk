@@ -2,15 +2,16 @@
 
 #Include ./PresetAutoCtrl.ahk
 
-global gPresetAutoGui := Gui("-MinimizeBox -MaximizeBox -Theme", GuiText.PresetAutoTitle())
+global gPresetAutoGui := Gui("-MinimizeBox -MaximizeBox -Theme", GuiText.AutoPresetSettingsTitle())
 global gPresetAutoCtrls := Map()
+global gPresetAutoHeaderY := 16
 global gPresetAutoCalPvW := 160
 global gPresetAutoCalPvH := 160
 global gPresetAutoBackstepPvW := 80
 global gPresetAutoBackstepPvH := 160
 global gPresetAutoPreviewGap := 12
 global gPresetAutoPreviewX := 16
-global gPresetAutoPreviewY := 16
+global gPresetAutoPreviewY := 48
 global gPresetAutoBackstepPvX := gPresetAutoPreviewX + gPresetAutoCalPvW + gPresetAutoPreviewGap
 global gPresetAutoBackstepPvY := gPresetAutoPreviewY
 global gPresetAutoHintY := gPresetAutoPreviewY + gPresetAutoCalPvH + 10
@@ -32,6 +33,7 @@ gPresetAutoGui.OnEvent("Close", PresetAutoGuiClose)
 
 PresetSkillOpenSkillRegionPick(*) => PresetAutoCtrl.OpenSkillRegionPick()
 
+ExWindowHost.AddInlineHeaderLeft(gPresetAutoGui, 16, gPresetAutoHeaderY, GuiText.PresetAutoHeaderTitle(), PresetAutoHelp, 120)
 gPresetAutoCtrls["CalPreview"] := gPresetAutoGui.Add("Picture", "x" gPresetAutoPreviewX " y" gPresetAutoPreviewY " w" gPresetAutoCalPvW " h" gPresetAutoCalPvH, "")
 gPresetAutoCtrls["BackstepPreview"] := gPresetAutoGui.Add("Picture", "x" gPresetAutoBackstepPvX " y" gPresetAutoBackstepPvY " w" gPresetAutoBackstepPvW " h" gPresetAutoBackstepPvH, "")
 gPresetAutoCtrls["CalHint"] := gPresetAutoGui.Add("Text", "x" gPresetAutoPreviewX " y" gPresetAutoHintY " w" gPresetAutoActionW " h44", "")
@@ -40,7 +42,7 @@ GuiTheme_FlatBtn(gPresetAutoGui, "x" gPresetAutoPreviewX " y" (gPresetAutoAction
 GuiTheme_FlatBtn(gPresetAutoGui, "x" gPresetAutoPreviewX " y" (gPresetAutoActionY + 64) " w" gPresetAutoActionW " h28", GuiText.PresetAutoPickBackstepRegion(), (*) => PresetRegionPickOpen("backstep"), false)
 GuiTheme_FlatBtn(gPresetAutoGui, "x" gPresetAutoPreviewX " y" (gPresetAutoActionY + 96) " w" gPresetAutoHalfBtnW " h28", GuiText.PresetAutoUpdateCalibrate(), PresetAutoUpdateCalibrateIcon, false)
 GuiTheme_FlatBtn(gPresetAutoGui, "x" gPresetAutoHalfBtnRightX " y" (gPresetAutoActionY + 96) " w" gPresetAutoHalfBtnW " h28", GuiText.PresetAutoUpdateBackstep(), PresetAutoUpdateBackstepIcon, false)
-GuiTheme_FlatBtn(gPresetAutoGui, "x" gPresetAutoPreviewX " y" (gPresetAutoActionY + 132) " w" gPresetAutoActionW " h32", GuiText.SaveButton(), PresetAutoSaveClose, true)
+ExWindowHost.AddAutoFooter(gPresetAutoGui, gPresetAutoActionY + 122, GuiText.SaveButton(), PresetAutoSaveClose)
 
 PresetAutoGetCtrl(name) {
     global gPresetAutoCtrls
@@ -70,5 +72,6 @@ PresetAutoRefreshCalibratePreview() => PresetAutoCtrl.RefreshCalibratePreview()
 PresetAutoRefreshCalibratePreviewIfVisible() => PresetAutoCtrl.RefreshCalibratePreviewIfVisible()
 PresetAutoUpdateCalibrateIcon(*) => PresetAutoCtrl.UpdateCalibrateIcon()
 PresetAutoUpdateBackstepIcon(*) => PresetAutoCtrl.UpdateBackstepIcon()
+PresetAutoHelp(*) => ExWindowHost.ShowHelp(GuiText.SettingAutoPresetHelp(), GuiText.PresetAutoHelpTitle(), gPresetAutoGui)
 
 #Include ./PresetRegionPicker.ahk

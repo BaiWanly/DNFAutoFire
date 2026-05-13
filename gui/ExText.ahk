@@ -34,7 +34,7 @@ class ExText {
     }
 
     static LvRenShotKeyLabel() {
-        return "流星发射键"
+        return "触发按键"
     }
 
     static LvRenHelp() {
@@ -54,7 +54,7 @@ class ExText {
     }
 
     static GuanYuShotKeyLabel() {
-        return "猛攻发射键"
+        return "触发按键"
     }
 
     static GuanYuDelayLabel() {
@@ -78,7 +78,7 @@ class ExText {
     }
 
     static PetSkillShotKeyLabel() {
-        return "宠物快捷键"
+        return "触发按键"
     }
 
     static PetSkillHelp() {
@@ -98,7 +98,7 @@ class ExText {
     }
 
     static ZhanFaShotKeyLabel() {
-        return "炫纹发射键"
+        return "触发按键"
     }
 
     static ZhanFaHelp() {
@@ -178,7 +178,7 @@ class ExText {
     }
 
     static ComboTriggerLabel() {
-        return "触发键"
+        return "触发按键"
     }
 
     static ComboLoopMode() {

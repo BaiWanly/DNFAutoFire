@@ -15,7 +15,12 @@ class AutoPresetSettingsCtrl {
 
     static Hide(*) {
         global gAutoPresetSettingsGui
+        PresetRegionPickCommitIfOpen()
         gAutoPresetSettingsGui.Hide()
+    }
+
+    static SaveAndClose(*) {
+        this.Hide()
     }
 
     static Load() {
@@ -28,6 +33,8 @@ class AutoPresetSettingsCtrl {
             hotkeyCtrl.Text := Trim(LoadConfig("AutoPresetHotkey", ""))
         }
         this.SyncPresetList()
+        this.PaintSwitch()
+        this.RefreshSkillPreview()
     }
 
     static ToggleEnabled(*) {
@@ -35,6 +42,8 @@ class AutoPresetSettingsCtrl {
         if !IsObject(ctrl) {
             return
         }
+        ctrl.Value := ctrl.Value ? 0 : 1
+        this.PaintSwitch()
         SaveConfig("SettingAutoPresetSwitch", ctrl.Value ? 1 : 0)
         PresetRecognition_UpdateHotkeys()
     }
@@ -49,9 +58,13 @@ class AutoPresetSettingsCtrl {
         ShowGuiPresetAutoSwitch()
     }
 
-    static OpenPresetSkillSettings(*) {
-        this.SyncPresetList()
-        ShowGuiPresetSkillIcon(this.GetSelectedPreset())
+    static PaintSwitch() {
+        global gAutoPresetSettingsSwitchUi
+        ctrl := AutoPresetSettingsGetCtrl("SettingAutoPresetSwitch")
+        if !IsObject(ctrl) || !IsObject(gAutoPresetSettingsSwitchUi) {
+            return
+        }
+        gAutoPresetSettingsSwitchUi.Draw(Integer(ctrl.Value) = 1)
     }
 
     static ResolveSelectedPreset() {
@@ -126,11 +139,58 @@ class AutoPresetSettingsCtrl {
         if IsObject(nameCtrl) {
             nameCtrl.Text := presetName
         }
+        this.RefreshSkillPreview()
     }
 
     static GetSelectedPreset() {
         global gAutoPresetSelectedPreset
         gAutoPresetSelectedPreset := this.ResolveSelectedPreset()
         return gAutoPresetSelectedPreset
+    }
+
+    static OpenHelp(*) {
+        ExWindowHost.ShowHelp(GuiText.SettingAutoPresetHelp(), GuiText.PresetAutoHelpTitle(), gAutoPresetSettingsGui)
+    }
+
+    static RefreshSkillPreview() {
+        global gAutoPresetSettingsSkillPvW, gAutoPresetSettingsSkillPvH
+        pic := AutoPresetSettingsGetCtrl("SkillPreview")
+        if !IsObject(pic) {
+            return
+        }
+        path := PresetSkillIconPath(this.GetSelectedPreset())
+        pic.Value := ""
+        AutoPresetSettingsLockSkillPreviewFrame(pic)
+        if FileExist(path) {
+            tmp := PresetSkillIcon_FitPreviewTempPath()
+            if PresetSkillIcon_RenderFitPreviewToFile(path, gAutoPresetSettingsSkillPvW, gAutoPresetSettingsSkillPvH, tmp) && FileExist(tmp) {
+                pic.Value := tmp
+            } else {
+                pic.Value := path
+            }
+            AutoPresetSettingsLockSkillPreviewFrame(pic)
+        }
+    }
+
+    static UpdateSkillIcon(*) {
+        PresetRegionPickCommitIfOpen()
+        try {
+            PresetSkillIcon_UpdateForPreset(this.GetSelectedPreset())
+            this.RefreshSkillPreview()
+        } catch Error as e {
+            MsgBox(e.Message,, "Icon!")
+        }
+    }
+
+    static DeleteSkillIcon(*) {
+        name := this.GetSelectedPreset()
+        if (name = "") {
+            return
+        }
+        if !FileExist(PresetSkillIconPath(name)) {
+            return
+        }
+        PresetSkillIcon_DeleteForPreset(name)
+        this.RefreshSkillPreview()
     }
 }

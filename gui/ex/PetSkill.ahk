@@ -4,22 +4,30 @@
 global gPetSkillGui := Gui("+ToolWindow -Theme")
 global gPetSkillCtrls := Map()
 global __PetSkillSkillKeys := []
+global gPetSkillColX := 16
+global gPetSkillColW := 136
+global gPetSkillColGap := 16
+global gPetSkillRightX := gPetSkillColX + gPetSkillColW + gPetSkillColGap
+global gPetSkillBtnGap := 8
+global gPetSkillBtnW := (gPetSkillColW - gPetSkillBtnGap) // 2
+global gPetSkillTriggerLabelW := 60
+global gPetSkillTriggerEditX := gPetSkillRightX + gPetSkillTriggerLabelW + 6
+global gPetSkillTriggerEditW := gPetSkillColW - gPetSkillTriggerLabelW - 6
 
 GuiTheme_Apply(gPetSkillGui)
 
 gPetSkillGui.OnEvent("Escape", PetSkillGuiEscape)
 gPetSkillGui.OnEvent("Close", PetSkillGuiClose)
 
-gPetSkillGui.Add("Text", "x16 y16 w100 h18 +0x200", ExText.PetSkillListLabel())
-GuiTheme_FlatBtnSmall(gPetSkillGui, "x118 y16 w18 h18", GuiText.HelpButton(), PetSkillHelp)
-gPetSkillCtrls["PetSkillKeysListBox"] := GuiTheme_AddListBox(gPetSkillGui, "PetSkillKeysListBox", 16, 38, 108, 176)
-GuiTheme_FlatBtnCompact(gPetSkillGui, "x16 y220 w54 h24", ExText.AddButton(), PetSkillAddKey)
-GuiTheme_FlatBtnCompact(gPetSkillGui, "x78 y220 w54 h24", ExText.DeleteButton(), PetSkillDeleteKey)
-gPetSkillGui.Add("Text", "x130 y42 w100 h24 +0x200", ExText.PetSkillShotKeyLabel())
-gPetSkillCtrls["PetSkillShotKey"] := gPetSkillGui.Add("Edit", "vPetSkillShotKey x236 y42 w56 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+ExWindowHost.AddInlineHeaderLeft(gPetSkillGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.PetSkillTitle()), PetSkillHelp, 116, 18, 6)
+gPetSkillGui.Add("Text", "x" gPetSkillColX " y52 w" gPetSkillColW " h18 +0x200", ExText.PetSkillListLabel())
+gPetSkillCtrls["PetSkillKeysListBox"] := GuiTheme_AddListBox(gPetSkillGui, "PetSkillKeysListBox", gPetSkillColX, 74, gPetSkillColW, 176)
+GuiTheme_FlatBtnCompact(gPetSkillGui, "x" gPetSkillColX " y256 w" gPetSkillBtnW " h24", ExText.AddButton(), PetSkillAddKey)
+GuiTheme_FlatBtnCompact(gPetSkillGui, "x" (gPetSkillColX + gPetSkillBtnW + gPetSkillBtnGap) " y256 w" gPetSkillBtnW " h24", ExText.DeleteButton(), PetSkillDeleteKey)
+gPetSkillGui.Add("Text", "x" gPetSkillRightX " y78 w" gPetSkillTriggerLabelW " h24 +0x200", ExText.PetSkillShotKeyLabel())
+gPetSkillCtrls["PetSkillShotKey"] := gPetSkillGui.Add("Edit", "vPetSkillShotKey x" gPetSkillTriggerEditX " y78 w" gPetSkillTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
 RegisterEditPressKeyCapture(gPetSkillCtrls["PetSkillShotKey"], GetKeycode.AfterCaptureEdit.Bind(gPetSkillCtrls["PetSkillShotKey"]))
-GuiTheme_HRule(gPetSkillGui, 16, 254, 276)
-GuiTheme_FlatBtn(gPetSkillGui, "x78 y262 w152 h34", ExText.SaveButton(), PetSkillSave, true)
+ExWindowHost.AddAutoFooter(gPetSkillGui, 290, ExText.SaveButton(), PetSkillSave)
 
 PetSkillGetCtrl(name) {
     global gPetSkillCtrls
@@ -44,7 +52,7 @@ PetSkillGuiClose(*) {
 }
 
 PetSkillHelp(*) {
-    MsgBox(ExText.PetSkillHelp(), ExText.PetSkillHelpTitle(), "Icon!")
+    ExWindowHost.ShowHelp(ExText.PetSkillHelp(), ExText.PetSkillHelpTitle(), gPetSkillGui)
 }
 
 PetSkillAddKey(*) {

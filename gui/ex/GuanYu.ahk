@@ -4,24 +4,35 @@
 global gGuanYuGui := Gui("+ToolWindow -Theme")
 global gGuanYuCtrls := Map()
 global __GuanYuSkillKeys := []
+global gGuanYuColX := 16
+global gGuanYuColW := 136
+global gGuanYuColGap := 16
+global gGuanYuRightX := gGuanYuColX + gGuanYuColW + gGuanYuColGap
+global gGuanYuBtnGap := 8
+global gGuanYuBtnW := (gGuanYuColW - gGuanYuBtnGap) // 2
+global gGuanYuTriggerLabelW := 60
+global gGuanYuTriggerEditX := gGuanYuRightX + gGuanYuTriggerLabelW + 6
+global gGuanYuTriggerEditW := gGuanYuColW - gGuanYuTriggerLabelW - 6
+global gGuanYuDelayLabelW := 78
+global gGuanYuDelayEditX := gGuanYuRightX + gGuanYuDelayLabelW + 6
+global gGuanYuDelayEditW := gGuanYuColW - gGuanYuDelayLabelW - 6
 
 GuiTheme_Apply(gGuanYuGui)
 
 gGuanYuGui.OnEvent("Escape", GuanYuGuiEscape)
 gGuanYuGui.OnEvent("Close", GuanYuGuiClose)
 
-gGuanYuGui.Add("Text", "x16 y16 w100 h18 +0x200", ExText.GuanYuListLabel())
-GuiTheme_FlatBtnSmall(gGuanYuGui, "x118 y16 w18 h18", GuiText.HelpButton(), GuanYuHelp)
-gGuanYuCtrls["GuanYuKeysListBox"] := GuiTheme_AddListBox(gGuanYuGui, "GuanYuKeysListBox", 16, 38, 108, 176)
-GuiTheme_FlatBtnCompact(gGuanYuGui, "x16 y220 w54 h24", ExText.AddButton(), GuanYuAddKey)
-GuiTheme_FlatBtnCompact(gGuanYuGui, "x78 y220 w54 h24", ExText.DeleteButton(), GuanYuDeleteKey)
-gGuanYuGui.Add("Text", "x130 y42 w100 h24 +0x200", ExText.GuanYuShotKeyLabel())
-gGuanYuCtrls["GuanYuShotKey"] := gGuanYuGui.Add("Edit", "vGuanYuShotKey x236 y42 w56 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+ExWindowHost.AddInlineHeaderLeft(gGuanYuGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.GuanYuTitle()), GuanYuHelp, 116, 18, 6)
+gGuanYuGui.Add("Text", "x" gGuanYuColX " y52 w" gGuanYuColW " h18 +0x200", ExText.GuanYuListLabel())
+gGuanYuCtrls["GuanYuKeysListBox"] := GuiTheme_AddListBox(gGuanYuGui, "GuanYuKeysListBox", gGuanYuColX, 74, gGuanYuColW, 176)
+GuiTheme_FlatBtnCompact(gGuanYuGui, "x" gGuanYuColX " y256 w" gGuanYuBtnW " h24", ExText.AddButton(), GuanYuAddKey)
+GuiTheme_FlatBtnCompact(gGuanYuGui, "x" (gGuanYuColX + gGuanYuBtnW + gGuanYuBtnGap) " y256 w" gGuanYuBtnW " h24", ExText.DeleteButton(), GuanYuDeleteKey)
+gGuanYuGui.Add("Text", "x" gGuanYuRightX " y78 w" gGuanYuTriggerLabelW " h24 +0x200", ExText.GuanYuShotKeyLabel())
+gGuanYuCtrls["GuanYuShotKey"] := gGuanYuGui.Add("Edit", "vGuanYuShotKey x" gGuanYuTriggerEditX " y78 w" gGuanYuTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
 RegisterEditPressKeyCapture(gGuanYuCtrls["GuanYuShotKey"], GetKeycode.AfterCaptureEdit.Bind(gGuanYuCtrls["GuanYuShotKey"]))
-gGuanYuGui.Add("Text", "x130 y74 w100 h24 +0x200", ExText.GuanYuDelayLabel())
-gGuanYuCtrls["GuanYuDelay"] := gGuanYuGui.Add("Edit", "vGuanYuDelay x236 y74 w56 h24 +Number -E0x200 Border")
-GuiTheme_HRule(gGuanYuGui, 16, 254, 276)
-GuiTheme_FlatBtn(gGuanYuGui, "x78 y262 w152 h34", ExText.SaveButton(), GuanYuSave, true)
+gGuanYuGui.Add("Text", "x" gGuanYuRightX " y110 w" gGuanYuDelayLabelW " h24 +0x200", ExText.GuanYuDelayLabel())
+gGuanYuCtrls["GuanYuDelay"] := gGuanYuGui.Add("Edit", "vGuanYuDelay x" gGuanYuDelayEditX " y110 w" gGuanYuDelayEditW " h24 +Number -E0x200 Border")
+ExWindowHost.AddAutoFooter(gGuanYuGui, 290, ExText.SaveButton(), GuanYuSave)
 
 GuanYuGetCtrl(name) {
     global gGuanYuCtrls
@@ -46,7 +57,7 @@ GuanYuGuiClose(*) {
 }
 
 GuanYuHelp(*) {
-    MsgBox(ExText.GuanYuHelp(), ExText.GuanYuHelpTitle(), "Icon!")
+    ExWindowHost.ShowHelp(ExText.GuanYuHelp(), ExText.GuanYuHelpTitle(), gGuanYuGui)
 }
 
 GuanYuAddKey(*) {
