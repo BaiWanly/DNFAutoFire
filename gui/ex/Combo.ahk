@@ -1,7 +1,7 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #Include ./ExWindowHost.ahk
 
-global gComboGui := Gui("+ToolWindow -Theme")
+global gComboGui := 0
 global gComboCtrls := Map()
 global __ComboSkillItems := []
 global __ComboProfiles := []
@@ -18,44 +18,74 @@ global gComboDragPreviewing := false
 global gComboDragPreviewList := []
 global gComboDragCurrentFromIndex := 0
 
-GuiTheme_Apply(gComboGui)
+GuiRegistry.Define("Combo", ComboBuildGui)
+GuiRegistry.Define("ComboEdit", ComboBuildEditGui)
 
-gComboGui.OnEvent("Escape", ComboGuiEscape)
-gComboGui.OnEvent("Close", ComboGuiClose)
-OnMessage(0x0201, ComboListOnLButtonDown)
-OnMessage(0x0202, ComboListOnLButtonUp)
-OnMessage(0x0200, ComboListOnMouseMove)
+ComboBuildGui() {
+    global gComboGui, gComboCtrls
+    gComboGui := Gui("+ToolWindow -Theme")
+    gComboCtrls := Map()
+    GuiTheme_Apply(gComboGui)
+    gComboGui.OnEvent("Escape", ComboGuiEscape)
+    gComboGui.OnEvent("Close", ComboGuiClose)
+    OnMessage(0x0201, ComboListOnLButtonDown)
+    OnMessage(0x0202, ComboListOnLButtonUp)
+    OnMessage(0x0200, ComboListOnMouseMove)
+    ExWindowHost.AddInlineHeaderLeft(gComboGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.ComboTitle()), ComboHelp, 128)
+    gComboCtrls["ComboProfilesListBox"] := GuiTheme_AddListBox(gComboGui, "ComboProfilesListBox", 16, 74, 196, 210)
+    gComboCtrls["ComboProfilesListBox"].OnEvent("Change", ComboProfileListChange)
+    gComboGui.Add("Text", "x16 y52 w196 h22 +0x200", ExText.ComboProfilesLabel())
+    GuiTheme_FlatBtn(gComboGui, "x16 y292 w94 h26", ExText.ComboAddProfile(), ComboAddProfile, false)
+    GuiTheme_FlatBtn(gComboGui, "x118 y292 w94 h26", ExText.ComboRemoveProfile(), ComboRemoveProfile, false)
+    gComboCtrls["ComboSkillsListBox"] := GuiTheme_AddListBox(gComboGui, "ComboSkillsListBox", 228, 74, 364, 210)
+    gComboCtrls["ComboSkillsListBox"].OnEvent("DoubleClick", ComboEditSkill)
+    gComboGui.Add("Text", "x228 y52 w344 h22 +0x200", ExText.ComboSequenceLabel())
+    GuiTheme_FlatBtn(gComboGui, "x228 y292 w112 h26", ExText.ComboAddSkill(), ComboAddSkill, false)
+    GuiTheme_FlatBtn(gComboGui, "x348 y292 w112 h26", ExText.ComboDeleteSkill(), ComboDeleteSkill, false)
+    gComboGui.Add("Text", "x228 y334 w44 h22 +0x200", ExText.ComboTriggerLabel())
+    gComboCtrls["ComboTriggerKey"] := gComboGui.Add("Edit", "vComboTriggerKey x276 y332 w232 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+    RegisterEditPressKeyCapture(gComboCtrls["ComboTriggerKey"], GetKeycode.AfterCaptureEdit.Bind(gComboCtrls["ComboTriggerKey"]))
+    gComboCtrls["ComboLoopMode"] := gComboGui.Add("CheckBox", "vComboLoopMode x512 y334 h22", ExText.ComboLoopMode())
+    GuiTheme_FlatBtn(gComboGui, "x160 y396 w140 h32", ExText.ComboApplyProfile(), ComboApplyProfile, false)
+    GuiTheme_FlatBtn(gComboGui, "x316 y396 w140 h32", ExText.SaveButton(), ComboSaveAndClose, true)
+    return gComboGui
+}
 
-ExWindowHost.AddInlineHeaderLeft(gComboGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.ComboTitle()), ComboHelp, 128)
-gComboCtrls["ComboProfilesListBox"] := GuiTheme_AddListBox(gComboGui, "ComboProfilesListBox", 16, 74, 196, 210)
-gComboCtrls["ComboProfilesListBox"].OnEvent("Change", ComboProfileListChange)
-gComboGui.Add("Text", "x16 y52 w196 h22 +0x200", ExText.ComboProfilesLabel())
-GuiTheme_FlatBtn(gComboGui, "x16 y292 w94 h26", ExText.ComboAddProfile(), ComboAddProfile, false)
-GuiTheme_FlatBtn(gComboGui, "x118 y292 w94 h26", ExText.ComboRemoveProfile(), ComboRemoveProfile, false)
-gComboCtrls["ComboSkillsListBox"] := GuiTheme_AddListBox(gComboGui, "ComboSkillsListBox", 228, 74, 364, 210)
-gComboCtrls["ComboSkillsListBox"].OnEvent("DoubleClick", ComboEditSkill)
-gComboGui.Add("Text", "x228 y52 w344 h22 +0x200", ExText.ComboSequenceLabel())
-GuiTheme_FlatBtn(gComboGui, "x228 y292 w112 h26", ExText.ComboAddSkill(), ComboAddSkill, false)
-GuiTheme_FlatBtn(gComboGui, "x348 y292 w112 h26", ExText.ComboDeleteSkill(), ComboDeleteSkill, false)
-gComboGui.Add("Text", "x228 y334 w44 h22 +0x200", ExText.ComboTriggerLabel())
-gComboCtrls["ComboTriggerKey"] := gComboGui.Add("Edit", "vComboTriggerKey x276 y332 w232 h24 +ReadOnly -WantCtrlA -E0x200 Border")
-RegisterEditPressKeyCapture(gComboCtrls["ComboTriggerKey"], GetKeycode.AfterCaptureEdit.Bind(gComboCtrls["ComboTriggerKey"]))
-gComboCtrls["ComboLoopMode"] := gComboGui.Add("CheckBox", "vComboLoopMode x512 y334 h22", ExText.ComboLoopMode())
-GuiTheme_FlatBtn(gComboGui, "x160 y396 w140 h32", ExText.ComboApplyProfile(), ComboApplyProfile, false)
-GuiTheme_FlatBtn(gComboGui, "x316 y396 w140 h32", ExText.SaveButton(), ComboSaveAndClose, true)
+ComboBuildEditGui() {
+    global gComboEditGui, gComboEditCtrls
+    gComboEditGui := Gui("+ToolWindow -Theme")
+    gComboEditCtrls := Map()
+    GuiTheme_Apply(gComboEditGui)
+    gComboEditGui.OnEvent("Escape", ComboEditCancel)
+    gComboEditGui.OnEvent("Close", ComboEditCancel)
+    gComboEditCtrls["ComboEditCurrentKey"] := gComboEditGui.Add("Edit", "x16 y38 w120 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+    GuiTheme_FlatBtn(gComboEditGui, "x16 y68 w120 h28", ExText.ComboEditChangeKey(), ComboEditChangeKey, false)
+    gComboEditGui.Add("Text", "x16 y16 w120 h22 +0x200", ExText.ComboCurrentKeyLabel())
+    gComboEditGui.Add("Text", "x148 y16 w100 h22 +0x200", ExText.ComboDelayLabel())
+    gComboEditCtrls["ComboEditDelay"] := gComboEditGui.Add("Edit", "x148 y38 w100 h24 +Number -E0x200 Border")
+    GuiTheme_FlatBtn(gComboEditGui, "x148 y68 w48 h28", ExText.SaveButton(), ComboEditSave, true)
+    GuiTheme_FlatBtn(gComboEditGui, "x200 y68 w48 h28", ExText.CancelButton(), ComboEditCancel, false)
+    return gComboEditGui
+}
 
 ComboGetCtrl(name) {
     global gComboCtrls
+    GuiRegistry.Ensure("Combo")
     return gComboCtrls.Has(name) ? gComboCtrls[name] : ""
 }
 
 ShowGuiCombo(*) {
+    global gComboGui
+    gComboGui := GuiRegistry.Ensure("Combo")
     gComboGui.Title := ExText.ComboTitle()
     ExWindowHost.ShowOwnedFit(gComboGui, gComboGui.Title)
     ComboLoadConfig()
 }
 
 HideGuiCombo() {
+    if !GuiRegistry.IsBuilt("Combo") {
+        return
+    }
     ExWindowHost.HideOwned(gComboGui)
 }
 
@@ -454,20 +484,7 @@ ComboShowEditDialog(item) {
         return
     }
     gComboEditKey := item.key
-    if !IsObject(gComboEditGui) {
-        gComboEditGui := Gui("+ToolWindow -Theme")
-        gComboEditCtrls := Map()
-        GuiTheme_Apply(gComboEditGui)
-        gComboEditGui.OnEvent("Escape", ComboEditCancel)
-        gComboEditGui.OnEvent("Close", ComboEditCancel)
-        gComboEditCtrls["ComboEditCurrentKey"] := gComboEditGui.Add("Edit", "x16 y38 w120 h24 +ReadOnly -WantCtrlA -E0x200 Border")
-        GuiTheme_FlatBtn(gComboEditGui, "x16 y68 w120 h28", ExText.ComboEditChangeKey(), ComboEditChangeKey, false)
-        gComboEditGui.Add("Text", "x16 y16 w120 h22 +0x200", ExText.ComboCurrentKeyLabel())
-        gComboEditGui.Add("Text", "x148 y16 w100 h22 +0x200", ExText.ComboDelayLabel())
-        gComboEditCtrls["ComboEditDelay"] := gComboEditGui.Add("Edit", "x148 y38 w100 h24 +Number -E0x200 Border")
-        GuiTheme_FlatBtn(gComboEditGui, "x148 y68 w48 h28", ExText.SaveButton(), ComboEditSave, true)
-        GuiTheme_FlatBtn(gComboEditGui, "x200 y68 w48 h28", ExText.CancelButton(), ComboEditCancel, false)
-    }
+    gComboEditGui := GuiRegistry.Ensure("ComboEdit")
     gComboEditCtrls["ComboEditCurrentKey"].Text := gComboEditKey
     gComboEditCtrls["ComboEditDelay"].Text := ComboNormalizeDelay(item.delay)
     if IsObject(gComboGui) {
@@ -511,7 +528,7 @@ ComboEditCancel(*) {
     global gComboEditGui, gComboEditIndex, gComboEditKey
     gComboEditIndex := 0
     gComboEditKey := ""
-    if IsObject(gComboEditGui) {
+    if GuiRegistry.IsBuilt("ComboEdit") {
         gComboEditGui.Hide()
     }
 }

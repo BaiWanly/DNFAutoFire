@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 ; 主连发与扩展模块共用的按键规范转换工具。
 class GetKeycode {

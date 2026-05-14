@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 #Include ./layout/MainLayout.ahk
 #Include ./layout/MainKeyLayoutData.ahk

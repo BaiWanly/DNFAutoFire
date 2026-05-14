@@ -1,4 +1,4 @@
-﻿; 始终使用主脚本目录下的 config.ini（勿用裸 "config.ini"，否则 CWD 非脚本目录时读写不一致、列表为空）
+; 始终使用主脚本目录下的 config.ini（勿用裸 "config.ini"，否则 CWD 非脚本目录时读写不一致、列表为空）
 
 class ConfigStore {
     static IniPath => A_ScriptDir "\config.ini"
@@ -231,8 +231,7 @@ class ConfigStore {
         this.SaveSetting("AutoPresetHotkey", "")
         this.SaveSetting("AutoPresetRegion", "")
         this.SaveSetting("AutoPresetCalibrateRegion", "")
-        this.SaveSetting("AutoPresetBackstepRegion", "")
-        this.SaveSetting("AutoPresetImageVariation", 80)
+        this.SaveSetting("AutoPresetTownRegion", "")
         this.SaveLastPreset(dn)
         this.SavePresetField(dn, "keys", "")
         this.SavePresetField(dn, "LvRenState", false)

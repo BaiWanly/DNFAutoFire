@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 ; 扩展功能是否启用：与主界面写入 INI 的字段一致（不读 GUI 控件）
 

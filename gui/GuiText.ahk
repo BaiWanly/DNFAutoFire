@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 class GuiText {
     static AppVersion() {
@@ -6,12 +6,8 @@ class GuiText {
         return gAppVersion
     }
 
-    static TrayMainSettings() {
-        return "连发设置"
-    }
-
-    static TrayAppSettings() {
-        return "软件设置"
+    static TrayStopAutoFire() {
+        return "停止连发"
     }
 
     static TrayExit() {
@@ -63,7 +59,7 @@ class GuiText {
     }
 
     static SettingAutoPresetHelp() {
-        return "1. 血条识别成功后会优先识别城镇，识别到城镇后会继续识别技能`n2. 未识别到技能会自动切换到首个配置`n3. 游戏窗口位置、大小、分辨率变化，都需要重新截取识别图像。（或调整回原来的窗口大小和位置）"
+        return "1. 血条会先识别，再识别城镇和技能；从未设置过识别区域时会自动使用默认框，城镇和血条没有识别图时也会按未匹配处理`n2. 未识别到血条会自动重试，城镇未命中会停止，未识别到技能会自动切换到首个配置`n3. 游戏窗口位置、大小、分辨率变化，都需要重新截取识别图像。（或调整回原来的窗口大小和位置）"
     }
 
     static AutoPresetSettingsTitle() {
@@ -138,15 +134,15 @@ class GuiText {
         return "删除血条识别图像"
     }
 
-    static PresetAutoPickBackstepRegion() {
+    static PresetAutoPickTownRegion() {
         return "选择城镇识别区域"
     }
 
-    static PresetAutoUpdateBackstep() {
+    static PresetAutoUpdateTown() {
         return "更新城镇图像"
     }
 
-    static PresetAutoDeleteBackstep() {
+    static PresetAutoDeleteTown() {
         return "删除城镇识别图像"
     }
 

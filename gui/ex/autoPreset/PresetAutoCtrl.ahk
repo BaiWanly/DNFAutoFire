@@ -7,6 +7,7 @@ class PresetAutoCtrl {
 
     static Show(*) {
         global gMainGui, gSettingGui, gPresetAutoGui
+        gPresetAutoGui := GuiRegistry.Ensure("PresetAuto")
         if IsObject(gSettingGui) && WinExist("ahk_id " gSettingGui.Hwnd) {
             gPresetAutoGui.Opt("+Owner" gSettingGui.Hwnd)
         } else if IsObject(gMainGui) {
@@ -18,7 +19,9 @@ class PresetAutoCtrl {
     }
 
     static Hide() {
-        global gPresetAutoGui
+        if !GuiRegistry.IsBuilt("PresetAuto") {
+            return
+        }
         PresetRegionPickCommitIfOpen()
         gPresetAutoGui.Hide()
     }
@@ -52,29 +55,29 @@ class PresetAutoCtrl {
         }
     }
 
-    static RefreshBackstepPreview() {
-        global gPresetAutoBackstepPvW, gPresetAutoBackstepPvH
-        pic := PresetAutoGetCtrl("BackstepPreview")
+    static RefreshTownPreview() {
+        global gPresetAutoTownPvW, gPresetAutoTownPvH
+        pic := PresetAutoGetCtrl("TownPreview")
         if !IsObject(pic) {
             return
         }
-        path := PresetBackstepIconGlobalPath()
+        path := PresetTownIconGlobalPath()
         pic.Value := ""
-        PresetAutoLockBackstepPreviewFrame(pic)
+        PresetAutoLockTownPreviewFrame(pic)
         if FileExist(path) {
-            tmp := A_Temp "\DAF_backstep_fit_preview.png"
-            if PresetSkillIcon_RenderFitPreviewToFile(path, gPresetAutoBackstepPvW, gPresetAutoBackstepPvH, tmp) && FileExist(tmp) {
+            tmp := A_Temp "\DAF_town_fit_preview.png"
+            if PresetSkillIcon_RenderFitPreviewToFile(path, gPresetAutoTownPvW, gPresetAutoTownPvH, tmp) && FileExist(tmp) {
                 pic.Value := tmp
             } else {
                 pic.Value := path
             }
-            PresetAutoLockBackstepPreviewFrame(pic)
+            PresetAutoLockTownPreviewFrame(pic)
         }
     }
 
     static RefreshPreviews() {
         this.RefreshCalibratePreview()
-        this.RefreshBackstepPreview()
+        this.RefreshTownPreview()
     }
 
     static RefreshCalibratePreviewIfVisible() {
@@ -94,10 +97,10 @@ class PresetAutoCtrl {
         }
     }
 
-    static UpdateBackstepIcon(*) {
+    static UpdateTownIcon(*) {
         PresetRegionPickCommitIfOpen()
         try {
-            PresetBackstepIcon_UpdateCurrent()
+            PresetTownIcon_UpdateCurrent()
             this.RefreshPreviews()
         } catch Error as e {
             MsgBox(e.Message,, "Icon!")

@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 ;@Ahk2Exe-SetMainIcon assets\icons\icon_main.ico
 ;@Ahk2Exe-AddResource assets\icons\icon_alert.ico, 160
 ;@Ahk2Exe-AddResource assets\icons\icon_green.ico, 206
@@ -52,6 +52,7 @@ if MultipleThread.ScriptStart() {
 #Include <GdiPlusSession>
 #Include <GuiTheme>
 #Include ./gui/GuiText.ahk
+#Include ./gui/GuiRegistry.ahk
 global __Version := GuiText.AppVersion()
 #Include ./core/SessionState.ahk
 SessionState.InitFromLastPreset()

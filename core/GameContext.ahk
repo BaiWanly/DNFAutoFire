@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 ; 管理 DNF 窗口组、前台状态缓存和失焦回调。
 class GameContext {

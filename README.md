@@ -1,10 +1,19 @@
-﻿# DAF AutoFire
+# DAF AutoFire
 
 ## 自动识别说明
-- 血条识别成功后会继续进行城镇识别与技能识别，城镇识别命中后不会中断后续技能识别。
+- 自动识别现在只保留一条固定流程：流程按“血条 -> 城镇 -> 技能”执行；
+- 血条未命中时会按重试间隔持续重试；城镇未命中时会直接停止本次自动识别；未识别到技能时会自动切换到首个配置。
+
+
+## 改动功能说明
+- 托盘退出、手动切换配置、自动识别切换配置现在共用同一套子进程清理流程
+- 次级窗口统一改为通过 `gui/GuiRegistry.ahk` 按需创建，首次打开才建窗，减少主程序首开卡顿。
+- 重复启动接管旧实例时，优先等待旧进程真实退出，拿不到进程句柄时再退回短轮询，减少开关软件时的停顿感。
 
 
 ## 项目结构
+注：.ahk脚本为utf-8，.ini配置文件为utf-16LE
+
 
 ### 根目录
 
@@ -31,6 +40,7 @@
 ### `gui/` 通用 GUI 文案
 
 - [gui/GuiText.ahk](D:/06Code/DNFAutoFire/gui/GuiText.ahk)：通用窗口、通用短标签、系统级文本。
+- [gui/GuiRegistry.ahk](D:/06Code/DNFAutoFire/gui/GuiRegistry.ahk)：次级窗口注册与懒加载收口。
 - [gui/MainWindowText.ahk](D:/06Code/DNFAutoFire/gui/MainWindowText.ahk)：主窗口独有文案。
 - [gui/ExText.ahk](D:/06Code/DNFAutoFire/gui/ExText.ahk)：EX 功能配置窗口文案。
 

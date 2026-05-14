@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 class GdipUiHelpers {
     static PixelFormat32bppARGB := 0x26200A

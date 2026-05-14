@@ -165,8 +165,8 @@ PresetRegionPickOpen(kind := "skill") {
     hwnd := gRegionPickGui.Hwnd
     if (kind = "calibrate") {
         r := ParseAutoPresetCalibrateRegion()
-    } else if (kind = "backstep") {
-        r := ParseAutoPresetBackstepRegion()
+    } else if (kind = "town") {
+        r := ParseAutoPresetTownRegion()
     } else {
         r := ParseAutoPresetRegion()
     }
@@ -291,8 +291,8 @@ PresetRegionPickOk(*) {
     if (kind = "calibrate") {
         SaveAutoPresetCalibrateRegion(x, y, w, h)
         PresetAutoRefreshCalibratePreviewIfVisible()
-    } else if (kind = "backstep") {
-        SaveAutoPresetBackstepRegion(x, y, w, h)
+    } else if (kind = "town") {
+        SaveAutoPresetTownRegion(x, y, w, h)
     } else {
         SaveAutoPresetRegion(x, y, w, h)
     }

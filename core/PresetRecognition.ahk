@@ -1,8 +1,11 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 class PresetRecognition {
     static RetryIntervalMs := 500
     static MaxRetryAttempts := 240
+    static SkillImageVariation := 80
+    static CalibrateImageVariation := 80
+    static TownImageVariation := 20
     static _retryTimer := false
     static _startDelayTimer := false
     static _mainStartTimer := false
@@ -55,10 +58,20 @@ PresetCalibrateIconGlobalPath() {
     return PresetCalibrateIconDir() "\calibrate.png"
 }
 
-PresetBackstepIconDir() => PresetRecognitionAssetDir() "\backstep"
+PresetTownIconDir() => PresetRecognitionAssetDir() "\town"
 
-PresetBackstepIconGlobalPath() {
-    return PresetBackstepIconDir() "\backstep.png"
+PresetTownIconGlobalPath() {
+    return PresetTownIconDir() "\town.png"
+}
+
+PresetRecognition_DefaultRegion() {
+    w := 200
+    h := 90
+    return Map("x", (A_ScreenWidth - w) // 2, "y", (A_ScreenHeight - h) // 2, "w", w, "h", h)
+}
+
+PresetRecognition_ResolveRegion(region) {
+    return region.Has("w") ? region : PresetRecognition_DefaultRegion()
 }
 
 ParseAutoPresetCalibrateRegion() {
@@ -93,8 +106,8 @@ SaveAutoPresetCalibrateRegion(x, y, w, h) {
     SaveConfig("AutoPresetCalibrateRegion", x "|" y "|" w "|" h)
 }
 
-ParseAutoPresetBackstepRegion() {
-    raw := Trim(LoadConfig("AutoPresetBackstepRegion", ""))
+ParseAutoPresetTownRegion() {
+    raw := Trim(LoadConfig("AutoPresetTownRegion", ""))
     out := Map()
     if (raw = "") {
         return out
@@ -121,8 +134,8 @@ ParseAutoPresetBackstepRegion() {
     return out
 }
 
-SaveAutoPresetBackstepRegion(x, y, w, h) {
-    SaveConfig("AutoPresetBackstepRegion", x "|" y "|" w "|" h)
+SaveAutoPresetTownRegion(x, y, w, h) {
+    SaveConfig("AutoPresetTownRegion", x "|" y "|" w "|" h)
 }
 
 PresetRecognition_HasAnyCalibratePng() {
@@ -133,12 +146,12 @@ PresetRecognition_UseCalibratePass() {
     return ParseAutoPresetCalibrateRegion().Has("w") && PresetRecognition_HasAnyCalibratePng()
 }
 
-PresetRecognition_HasAnyBackstepPng() {
-    return FileExist(PresetBackstepIconGlobalPath())
+PresetRecognition_HasAnyTownPng() {
+    return FileExist(PresetTownIconGlobalPath())
 }
 
-PresetRecognition_UseBackstepPass() {
-    return ParseAutoPresetBackstepRegion().Has("w") && PresetRecognition_HasAnyBackstepPng()
+PresetRecognition_UseTownPass() {
+    return ParseAutoPresetTownRegion().Has("w") && PresetRecognition_HasAnyTownPng()
 }
 
 PresetRecognition_FirstPresetName() {
@@ -181,16 +194,6 @@ ParseAutoPresetRegion() {
 
 SaveAutoPresetRegion(x, y, w, h) {
     SaveConfig("AutoPresetRegion", x "|" y "|" w "|" h)
-}
-
-LoadAutoPresetImageVariation() {
-    variation := Round(LoadConfig("AutoPresetImageVariation", 80) + 0)
-    if (variation < 0) {
-        variation := 0
-    } else if (variation > 255) {
-        variation := 255
-    }
-    return variation
 }
 
 ; 截图指定区域并保存为 PNG。
@@ -332,31 +335,22 @@ PresetSkillIcon_RenderFitPreviewToFile(srcPath, boxW, boxH, destPath) {
 
 ; 更新全局校准参考图。
 PresetCalibrateIcon_UpdateCurrent() {
-    r := ParseAutoPresetCalibrateRegion()
-    if !r.Has("w") {
-        throw Error("请先选择校准区域，再更新校准截图。")
-    }
+    r := PresetRecognition_ResolveRegion(ParseAutoPresetCalibrateRegion())
     path := PresetCalibrateIconGlobalPath()
     PresetCaptureRegionToPng(path, r["x"], r["y"], r["w"], r["h"])
     return path
 }
 
-PresetBackstepIcon_UpdateCurrent() {
-    r := ParseAutoPresetBackstepRegion()
-    if !r.Has("w") {
-        throw Error("请先选择城镇区域，再更新城镇截图。")
-    }
-    path := PresetBackstepIconGlobalPath()
+PresetTownIcon_UpdateCurrent() {
+    r := PresetRecognition_ResolveRegion(ParseAutoPresetTownRegion())
+    path := PresetTownIconGlobalPath()
     PresetCaptureRegionToPng(path, r["x"], r["y"], r["w"], r["h"])
     return path
 }
 
 ; 在校准区域内匹配全局参考图，成功后才继续识别技能图标。
 CalibrateIconMatches() {
-    r := ParseAutoPresetCalibrateRegion()
-    if !r.Has("w") {
-        return false
-    }
+    r := PresetRecognition_ResolveRegion(ParseAutoPresetCalibrateRegion())
     path := PresetCalibrateIconGlobalPath()
     if !FileExist(path) {
         return false
@@ -365,7 +359,7 @@ CalibrateIconMatches() {
     y1 := r["y"]
     x2 := x1 + r["w"] - 1
     y2 := y1 + r["h"] - 1
-    variation := LoadAutoPresetImageVariation()
+    variation := PresetRecognition.CalibrateImageVariation
     optPrefix := "*" variation " "
     needle := optPrefix . path
     prevPixel := CoordMode("Pixel", "Screen")
@@ -382,12 +376,9 @@ CalibrateIconMatches() {
     }
 }
 
-BackstepIconMatches() {
-    r := ParseAutoPresetBackstepRegion()
-    if !r.Has("w") {
-        return false
-    }
-    path := PresetBackstepIconGlobalPath()
+TownIconMatches() {
+    r := PresetRecognition_ResolveRegion(ParseAutoPresetTownRegion())
+    path := PresetTownIconGlobalPath()
     if !FileExist(path) {
         return false
     }
@@ -395,7 +386,7 @@ BackstepIconMatches() {
     y1 := r["y"]
     x2 := x1 + r["w"] - 1
     y2 := y1 + r["h"] - 1
-    variation := LoadAutoPresetImageVariation()
+    variation := PresetRecognition.TownImageVariation
     optPrefix := "*" variation " "
     needle := optPrefix . path
     prevPixel := CoordMode("Pixel", "Screen")
@@ -418,10 +409,7 @@ PresetSkillIcon_UpdateCurrent() {
 }
 
 PresetSkillIcon_UpdateForPreset(presetName) {
-    r := ParseAutoPresetRegion()
-    if !r.Has("w") {
-        throw Error("请先选择技能图标区域，再截取技能图标。")
-    }
+    r := PresetRecognition_ResolveRegion(ParseAutoPresetRegion())
     name := Trim(presetName)
     if (name = "") {
         throw Error("当前没有选中的配置。")
@@ -432,15 +420,12 @@ PresetSkillIcon_UpdateForPreset(presetName) {
 }
 
 FindPresetBySkillIcon() {
-    r := ParseAutoPresetRegion()
-    if !r.Has("w") {
-        return ""
-    }
+    r := PresetRecognition_ResolveRegion(ParseAutoPresetRegion())
     x1 := r["x"]
     y1 := r["y"]
     x2 := x1 + r["w"] - 1
     y2 := y1 + r["h"] - 1
-    variation := LoadAutoPresetImageVariation()
+    variation := PresetRecognition.SkillImageVariation
     ; 选项与路径必须放在同一字符串里，且使用屏幕坐标搜索。
     optPrefix := "*" variation " "
     prevPixel := CoordMode("Pixel", "Screen")
@@ -568,7 +553,7 @@ PresetRecognition_IsEnabled() {
     return Trim(LoadConfig("SettingAutoPresetSwitch", "0")) = "1"
 }
 
-; 启用校准时，先匹配校准图，再继续识别城镇图与技能图标。
+; 单一识别流程：没有设置区域时使用默认框；先匹配血条，再匹配城镇，缺少识别图时也按失败处理。
 PresetRecognition_RunAttempt(attemptIdx) {
     if !PresetRecognition_IsEnabled() {
         PresetRecognition_ClearRetryTimer()
@@ -582,85 +567,38 @@ PresetRecognition_RunAttempt(attemptIdx) {
         PresetRecognition_ClearRetryTimer()
         return
     }
-    r := ParseAutoPresetRegion()
-    if !r.Has("w") {
-        PresetRecognition_ClearRetryTimer()
-        AppTip("请先在自动识别设置中截取技能图标区域。")
-        return
-    }
-
-    if PresetRecognition_UseCalibratePass() {
-        if !CalibrateIconMatches() {
-            if (attemptIdx >= PresetRecognition.MaxRetryAttempts) {
-                PresetRecognition_ClearRetryTimer()
-                AppTip("校准区域未匹配，自动识别已停止。")
-                return
-            }
-            fn := PresetRecognition_RunAttempt.Bind(attemptIdx + 1)
-            PresetRecognition._retryTimer := fn
-            SetTimer(fn, -PresetRecognition.RetryIntervalMs)
+    if !PresetRecognition_HasAnyCalibratePng() || !CalibrateIconMatches() {
+        if (attemptIdx >= PresetRecognition.MaxRetryAttempts) {
+            PresetRecognition_ClearRetryTimer()
             return
         }
-        if (PresetRecognition_UseBackstepPass() && BackstepIconMatches()) {
-            ; 城镇识别命中后继续执行技能识别。
-        }
-        skillFound := FindPresetBySkillIcon()
-        current := GetNowSelectPreset()
-        PresetRecognition_ClearRetryTimer()
-        if (skillFound != "" && skillFound != current) {
-            AutoFireController.ChangePresetAndResumeAutoFire(skillFound)
-            AppTip("已切换到配置: " skillFound)
-        } else if (skillFound = "") {
-            firstN := PresetRecognition_FirstPresetName()
-            if (firstN != "" && firstN != current) {
-                AutoFireController.ChangePresetAndResumeAutoFire(firstN)
-                AppTip("已切换到配置: " firstN)
-            }
-        }
+        fn := PresetRecognition_RunAttempt.Bind(attemptIdx + 1)
+        PresetRecognition._retryTimer := fn
+        SetTimer(fn, -PresetRecognition.RetryIntervalMs)
         return
     }
 
-    PresetRecognition_SkillOnlyAttempt(attemptIdx)
-}
+    if !PresetRecognition_HasAnyTownPng() || !TownIconMatches() {
+        PresetRecognition_ClearRetryTimer()
+        return
+    }
 
-; 仅按技能图标匹配，失败时继续重试。
-PresetRecognition_SkillOnlyAttempt(attemptIdx) {
-    if !PresetRecognition_IsEnabled() {
-        PresetRecognition_ClearRetryTimer()
-        return
-    }
-    if !AutoFireController.IsRunning() {
-        PresetRecognition_ClearRetryTimer()
-        return
-    }
-    if !PresetRecognition_GameActive() {
-        PresetRecognition_ClearRetryTimer()
-        return
-    }
     found := FindPresetBySkillIcon()
     current := GetNowSelectPreset()
+    PresetRecognition_ClearRetryTimer()
     if (found != "" && found != current) {
-        AutoFireController.ChangePresetAndResumeAutoFire(found)
-        PresetRecognition_ClearRetryTimer()
+        AutoFireController.ChangePreset(found, true)
         AppTip("已切换到配置: " found)
         return
     }
     if (found != "" && found = current) {
-        PresetRecognition_ClearRetryTimer()
         return
     }
-    if (attemptIdx >= PresetRecognition.MaxRetryAttempts) {
-        PresetRecognition_ClearRetryTimer()
-        firstN := PresetRecognition_FirstPresetName()
-        if (firstN != "" && firstN != current) {
-            AutoFireController.ChangePresetAndResumeAutoFire(firstN)
-            AppTip("已切换到配置: " firstN)
-        }
-        return
+    firstN := PresetRecognition_FirstPresetName()
+    if (firstN != "" && firstN != current) {
+        AutoFireController.ChangePreset(firstN, true)
+        AppTip("已切换到配置: " firstN)
     }
-    fn := PresetRecognition_RunAttempt.Bind(attemptIdx + 1)
-    PresetRecognition._retryTimer := fn
-    SetTimer(fn, -PresetRecognition.RetryIntervalMs)
 }
 
 PresetRecognition_IsEscHotkeyStr(hk) {

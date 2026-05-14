@@ -102,28 +102,24 @@ class AutoFireService {
         }
     }
 
-    static SwitchPreset(presetName) {
+    static SwitchPreset(presetName, resumeIfRunning := false) {
+        presetName := Trim(presetName)
+        if (presetName = "") {
+            return
+        }
+        wasRunning := this.IsSessionRunning()
         this.StopSession()
         presetKeys := LoadPresetKeys(presetName)
         PresetManager.Select(presetName, true)
         this.ApplyAutoFireKeys(presetKeys, presetName)
         MainLoadEx()
+        if (resumeIfRunning && wasRunning) {
+            this.StartSession()
+        }
     }
 
     static IsSessionRunning() {
         return MultipleThread.AnyThreadRunning()
-    }
-
-    static SwitchPresetKeepingRunState(presetName) {
-        presetName := Trim(presetName)
-        if (presetName = "" || presetName = SessionState.GetCurrentPreset()) {
-            return
-        }
-        wasRunning := this.IsSessionRunning()
-        this.SwitchPreset(presetName)
-        if wasRunning {
-            this.StartSession()
-        }
     }
 }
 
@@ -158,16 +154,12 @@ class AutoFireController {
         AutoFireService.ApplyAutoFireKeys(keys)
     }
 
-    static ChangePreset(presetName) {
-        AutoFireService.SwitchPreset(presetName)
-    }
-
     static IsRunning() {
         return AutoFireService.IsSessionRunning()
     }
 
-    static ChangePresetAndResumeAutoFire(presetName) {
-        AutoFireService.SwitchPresetKeepingRunState(presetName)
+    static ChangePreset(presetName, resumeIfRunning := false) {
+        AutoFireService.SwitchPreset(presetName, resumeIfRunning)
     }
 
     static UseBlockingOriginalKeyMode(keyName) {

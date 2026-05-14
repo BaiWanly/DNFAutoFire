@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 class QuickSwitchController {
     static Start(*) {
@@ -9,12 +9,13 @@ class QuickSwitchController {
     }
 
     static Stop(*) {
-        AutoFireController.Stop()
         this.Hide()
+        AppBootstrap.StopAutoFireAndShowMain()
     }
 
     static Show(*) {
         global gQuickSwitchGui
+        gQuickSwitchGui := GuiRegistry.Ensure("QuickSwitch")
         if !GameContext.IsActiveNow() {
             return
         }
@@ -51,7 +52,9 @@ class QuickSwitchController {
     }
 
     static Hide() {
-        global gQuickSwitchGui
+        if !GuiRegistry.IsBuilt("QuickSwitch") {
+            return
+        }
         gQuickSwitchGui.Hide()
         OnMessage(0x0100, QuickSwitchOnSpacePress, 0)
     }

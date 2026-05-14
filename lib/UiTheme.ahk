@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 ; 设计 token（与旧全局 GuiTheme_* 对齐，便于 GDI+ 与经典 Text 控件共用）。
 class UiTheme {

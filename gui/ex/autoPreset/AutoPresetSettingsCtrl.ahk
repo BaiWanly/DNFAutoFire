@@ -3,6 +3,7 @@
 class AutoPresetSettingsCtrl {
     static Show(*) {
         global gMainGui, gSettingGui, gAutoPresetSettingsGui
+        gAutoPresetSettingsGui := GuiRegistry.Ensure("AutoPresetSettings")
         if IsObject(gSettingGui) && WinExist("ahk_id " gSettingGui.Hwnd) {
             gAutoPresetSettingsGui.Opt("+Owner" gSettingGui.Hwnd)
         } else if IsObject(gMainGui) {
@@ -14,7 +15,9 @@ class AutoPresetSettingsCtrl {
     }
 
     static Hide(*) {
-        global gAutoPresetSettingsGui
+        if !GuiRegistry.IsBuilt("AutoPresetSettings") {
+            return
+        }
         PresetRegionPickCommitIfOpen()
         gAutoPresetSettingsGui.Hide()
     }

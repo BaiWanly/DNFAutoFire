@@ -1,7 +1,7 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #Include ./ExWindowHost.ahk
 
-global gPetSkillGui := Gui("+ToolWindow -Theme")
+global gPetSkillGui := 0
 global gPetSkillCtrls := Map()
 global __PetSkillSkillKeys := []
 global gPetSkillColX := 16
@@ -14,32 +14,44 @@ global gPetSkillTriggerLabelW := 60
 global gPetSkillTriggerEditX := gPetSkillRightX + gPetSkillTriggerLabelW + 6
 global gPetSkillTriggerEditW := gPetSkillColW - gPetSkillTriggerLabelW - 6
 
-GuiTheme_Apply(gPetSkillGui)
+GuiRegistry.Define("PetSkill", PetSkillBuildGui)
 
-gPetSkillGui.OnEvent("Escape", PetSkillGuiEscape)
-gPetSkillGui.OnEvent("Close", PetSkillGuiClose)
-
-ExWindowHost.AddInlineHeaderLeft(gPetSkillGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.PetSkillTitle()), PetSkillHelp, 116, 18, 6)
-gPetSkillGui.Add("Text", "x" gPetSkillColX " y52 w" gPetSkillColW " h18 +0x200", ExText.PetSkillListLabel())
-gPetSkillCtrls["PetSkillKeysListBox"] := GuiTheme_AddListBox(gPetSkillGui, "PetSkillKeysListBox", gPetSkillColX, 74, gPetSkillColW, 176)
-GuiTheme_FlatBtnCompact(gPetSkillGui, "x" gPetSkillColX " y256 w" gPetSkillBtnW " h24", ExText.AddButton(), PetSkillAddKey)
-GuiTheme_FlatBtnCompact(gPetSkillGui, "x" (gPetSkillColX + gPetSkillBtnW + gPetSkillBtnGap) " y256 w" gPetSkillBtnW " h24", ExText.DeleteButton(), PetSkillDeleteKey)
-gPetSkillGui.Add("Text", "x" gPetSkillRightX " y78 w" gPetSkillTriggerLabelW " h24 +0x200", ExText.PetSkillShotKeyLabel())
-gPetSkillCtrls["PetSkillShotKey"] := gPetSkillGui.Add("Edit", "vPetSkillShotKey x" gPetSkillTriggerEditX " y78 w" gPetSkillTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
-RegisterEditPressKeyCapture(gPetSkillCtrls["PetSkillShotKey"], GetKeycode.AfterCaptureEdit.Bind(gPetSkillCtrls["PetSkillShotKey"]))
-ExWindowHost.AddAutoFooter(gPetSkillGui, 290, ExText.SaveButton(), PetSkillSave)
+PetSkillBuildGui() {
+    global gPetSkillGui, gPetSkillCtrls
+    gPetSkillGui := Gui("+ToolWindow -Theme")
+    gPetSkillCtrls := Map()
+    GuiTheme_Apply(gPetSkillGui)
+    gPetSkillGui.OnEvent("Escape", PetSkillGuiEscape)
+    gPetSkillGui.OnEvent("Close", PetSkillGuiClose)
+    ExWindowHost.AddInlineHeaderLeft(gPetSkillGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.PetSkillTitle()), PetSkillHelp, 116, 18, 6)
+    gPetSkillGui.Add("Text", "x" gPetSkillColX " y52 w" gPetSkillColW " h18 +0x200", ExText.PetSkillListLabel())
+    gPetSkillCtrls["PetSkillKeysListBox"] := GuiTheme_AddListBox(gPetSkillGui, "PetSkillKeysListBox", gPetSkillColX, 74, gPetSkillColW, 176)
+    GuiTheme_FlatBtnCompact(gPetSkillGui, "x" gPetSkillColX " y256 w" gPetSkillBtnW " h24", ExText.AddButton(), PetSkillAddKey)
+    GuiTheme_FlatBtnCompact(gPetSkillGui, "x" (gPetSkillColX + gPetSkillBtnW + gPetSkillBtnGap) " y256 w" gPetSkillBtnW " h24", ExText.DeleteButton(), PetSkillDeleteKey)
+    gPetSkillGui.Add("Text", "x" gPetSkillRightX " y78 w" gPetSkillTriggerLabelW " h24 +0x200", ExText.PetSkillShotKeyLabel())
+    gPetSkillCtrls["PetSkillShotKey"] := gPetSkillGui.Add("Edit", "vPetSkillShotKey x" gPetSkillTriggerEditX " y78 w" gPetSkillTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
+    RegisterEditPressKeyCapture(gPetSkillCtrls["PetSkillShotKey"], GetKeycode.AfterCaptureEdit.Bind(gPetSkillCtrls["PetSkillShotKey"]))
+    ExWindowHost.AddAutoFooter(gPetSkillGui, 290, ExText.SaveButton(), PetSkillSave)
+    return gPetSkillGui
+}
 
 PetSkillGetCtrl(name) {
     global gPetSkillCtrls
+    GuiRegistry.Ensure("PetSkill")
     return gPetSkillCtrls.Has(name) ? gPetSkillCtrls[name] : ""
 }
 
 ShowGuiPetSkill(*) {
+    global gPetSkillGui
+    gPetSkillGui := GuiRegistry.Ensure("PetSkill")
     ExWindowHost.ShowOwnedFit(gPetSkillGui, ExText.PetSkillTitle())
     PetSkillLoadConfig()
 }
 
 HideGuiPetSkill() {
+    if !GuiRegistry.IsBuilt("PetSkill") {
+        return
+    }
     ExWindowHost.HideOwned(gPetSkillGui)
 }
 
@@ -140,9 +152,9 @@ PetSkillSaveConfig() {
 
 PetSkillLoadConfig() {
     global __PetSkillSkillKeys
-    shotKey := LoadPreset(GetNowSelectPreset(), "PetSkillShotKey", "V")
+    shotKey := LoadPreset(GetNowSelectPreset(), "PetSkillShotKey", "Space")
     cShot := GetKeycode.CanonMainKey(Trim(shotKey))
-    PetSkillGetCtrl("PetSkillShotKey").Text := cShot != "" ? cShot : "V"
+    PetSkillGetCtrl("PetSkillShotKey").Text := cShot != "" ? cShot : "Space"
     __PetSkillSkillKeys := []
     for sk in PetSkillLoadKeys(GetNowSelectPreset()) {
         c := GetKeycode.CanonMainKey(sk)

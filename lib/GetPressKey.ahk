@@ -1,4 +1,4 @@
-﻿GetPressKey() {
+GetPressKey() {
     return GetUserInputKey()
 }
 

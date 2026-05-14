@@ -1,33 +1,45 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #Include ./ExWindowHost.ahk
 
-global gJianZongGui := Gui("+ToolWindow -Theme")
+global gJianZongGui := 0
 global gJianZongCtrls := Map()
 
-GuiTheme_Apply(gJianZongGui)
+GuiRegistry.Define("JianZong", JianZongBuildGui)
 
-gJianZongGui.OnEvent("Escape", JianZongGuiEscape)
-gJianZongGui.OnEvent("Close", JianZongGuiClose)
-
-gJianZongGui.Add("Text", "x16 y54 w110 h24 +0x200", ExText.JianZongDelayLabel())
-gJianZongCtrls["JianZongDelay"] := gJianZongGui.Add("Edit", "vJianZongDelay x128 y54 w72 h24 +Number -E0x200 Border")
-gJianZongGui.Add("Text", "x16 y86 w110 h24 +0x200", ExText.JianZongSkillKeyLabel())
-gJianZongCtrls["JianZongSkillKey"] := gJianZongGui.Add("Edit", "vJianZongSkillKey x128 y86 w72 h24 +ReadOnly -WantCtrlA -E0x200 Border")
-RegisterEditPressKeyCapture(gJianZongCtrls["JianZongSkillKey"], GetKeycode.AfterCaptureEdit.Bind(gJianZongCtrls["JianZongSkillKey"]))
-ExWindowHost.AddAutoFooter(gJianZongGui, 124, ExText.SaveButton(), JianZongSave)
-ExWindowHost.AddInlineHeaderLeft(gJianZongGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.JianZongTitle()), JianZongHelp, 120, 26, 6)
+JianZongBuildGui() {
+    global gJianZongGui, gJianZongCtrls
+    gJianZongGui := Gui("+ToolWindow -Theme")
+    gJianZongCtrls := Map()
+    GuiTheme_Apply(gJianZongGui)
+    gJianZongGui.OnEvent("Escape", JianZongGuiEscape)
+    gJianZongGui.OnEvent("Close", JianZongGuiClose)
+    gJianZongGui.Add("Text", "x16 y54 w110 h24 +0x200", ExText.JianZongDelayLabel())
+    gJianZongCtrls["JianZongDelay"] := gJianZongGui.Add("Edit", "vJianZongDelay x128 y54 w72 h24 +Number -E0x200 Border")
+    gJianZongGui.Add("Text", "x16 y86 w110 h24 +0x200", ExText.JianZongSkillKeyLabel())
+    gJianZongCtrls["JianZongSkillKey"] := gJianZongGui.Add("Edit", "vJianZongSkillKey x128 y86 w72 h24 +ReadOnly -WantCtrlA -E0x200 Border")
+    RegisterEditPressKeyCapture(gJianZongCtrls["JianZongSkillKey"], GetKeycode.AfterCaptureEdit.Bind(gJianZongCtrls["JianZongSkillKey"]))
+    ExWindowHost.AddAutoFooter(gJianZongGui, 124, ExText.SaveButton(), JianZongSave)
+    ExWindowHost.AddInlineHeaderLeft(gJianZongGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.JianZongTitle()), JianZongHelp, 120, 26, 6)
+    return gJianZongGui
+}
 
 JianZongGetCtrl(name) {
     global gJianZongCtrls
+    GuiRegistry.Ensure("JianZong")
     return gJianZongCtrls.Has(name) ? gJianZongCtrls[name] : ""
 }
 
 ShowGuiJianZong(*) {
+    global gJianZongGui
+    gJianZongGui := GuiRegistry.Ensure("JianZong")
     ExWindowHost.ShowOwnedFit(gJianZongGui, ExText.JianZongTitle())
     JianZongLoadConfig()
 }
 
 HideGuiJianZong() {
+    if !GuiRegistry.IsBuilt("JianZong") {
+        return
+    }
     ExWindowHost.HideOwned(gJianZongGui)
 }
 

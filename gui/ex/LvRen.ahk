@@ -1,7 +1,7 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #Include ./ExWindowHost.ahk
 
-global gLvRenGui := Gui("+ToolWindow -Theme")
+global gLvRenGui := 0
 global gLvRenCtrls := Map()
 global __LvRenSkillKeys := []
 global gLvRenColX := 16
@@ -14,32 +14,44 @@ global gLvRenTriggerLabelW := 60
 global gLvRenTriggerEditX := gLvRenRightX + gLvRenTriggerLabelW + 6
 global gLvRenTriggerEditW := gLvRenColW - gLvRenTriggerLabelW - 6
 
-GuiTheme_Apply(gLvRenGui)
+GuiRegistry.Define("LvRen", LvRenBuildGui)
 
-gLvRenGui.OnEvent("Escape", LvRenGuiEscape)
-gLvRenGui.OnEvent("Close", LvRenGuiClose)
-
-ExWindowHost.AddInlineHeaderLeft(gLvRenGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.LvRenTitle()), LvRenHelp, 116, 18, 6)
-gLvRenGui.Add("Text", "x" gLvRenColX " y52 w" gLvRenColW " h18 +0x200", ExText.LvRenListLabel())
-gLvRenCtrls["LvRenKeysListBox"] := GuiTheme_AddListBox(gLvRenGui, "LvRenKeysListBox", gLvRenColX, 74, gLvRenColW, 176)
-GuiTheme_FlatBtnCompact(gLvRenGui, "x" gLvRenColX " y256 w" gLvRenBtnW " h24", ExText.AddButton(), LvRenAddKey)
-GuiTheme_FlatBtnCompact(gLvRenGui, "x" (gLvRenColX + gLvRenBtnW + gLvRenBtnGap) " y256 w" gLvRenBtnW " h24", ExText.DeleteButton(), LvRenDeleteKey)
-gLvRenGui.Add("Text", "x" gLvRenRightX " y78 w" gLvRenTriggerLabelW " h24 +0x200", ExText.LvRenShotKeyLabel())
-gLvRenCtrls["LvRenShotKey"] := gLvRenGui.Add("Edit", "vLvRenShotKey x" gLvRenTriggerEditX " y78 w" gLvRenTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
-RegisterEditPressKeyCapture(gLvRenCtrls["LvRenShotKey"], GetKeycode.AfterCaptureEdit.Bind(gLvRenCtrls["LvRenShotKey"]))
-ExWindowHost.AddAutoFooter(gLvRenGui, 290, ExText.SaveButton(), LvRenSave)
+LvRenBuildGui() {
+    global gLvRenGui, gLvRenCtrls
+    gLvRenGui := Gui("+ToolWindow -Theme")
+    gLvRenCtrls := Map()
+    GuiTheme_Apply(gLvRenGui)
+    gLvRenGui.OnEvent("Escape", LvRenGuiEscape)
+    gLvRenGui.OnEvent("Close", LvRenGuiClose)
+    ExWindowHost.AddInlineHeaderLeft(gLvRenGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.LvRenTitle()), LvRenHelp, 116, 18, 6)
+    gLvRenGui.Add("Text", "x" gLvRenColX " y52 w" gLvRenColW " h18 +0x200", ExText.LvRenListLabel())
+    gLvRenCtrls["LvRenKeysListBox"] := GuiTheme_AddListBox(gLvRenGui, "LvRenKeysListBox", gLvRenColX, 74, gLvRenColW, 176)
+    GuiTheme_FlatBtnCompact(gLvRenGui, "x" gLvRenColX " y256 w" gLvRenBtnW " h24", ExText.AddButton(), LvRenAddKey)
+    GuiTheme_FlatBtnCompact(gLvRenGui, "x" (gLvRenColX + gLvRenBtnW + gLvRenBtnGap) " y256 w" gLvRenBtnW " h24", ExText.DeleteButton(), LvRenDeleteKey)
+    gLvRenGui.Add("Text", "x" gLvRenRightX " y78 w" gLvRenTriggerLabelW " h24 +0x200", ExText.LvRenShotKeyLabel())
+    gLvRenCtrls["LvRenShotKey"] := gLvRenGui.Add("Edit", "vLvRenShotKey x" gLvRenTriggerEditX " y78 w" gLvRenTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
+    RegisterEditPressKeyCapture(gLvRenCtrls["LvRenShotKey"], GetKeycode.AfterCaptureEdit.Bind(gLvRenCtrls["LvRenShotKey"]))
+    ExWindowHost.AddAutoFooter(gLvRenGui, 290, ExText.SaveButton(), LvRenSave)
+    return gLvRenGui
+}
 
 LvRenGetCtrl(name) {
     global gLvRenCtrls
+    GuiRegistry.Ensure("LvRen")
     return gLvRenCtrls.Has(name) ? gLvRenCtrls[name] : ""
 }
 
 ShowGuiLvRen(*) {
+    global gLvRenGui
+    gLvRenGui := GuiRegistry.Ensure("LvRen")
     ExWindowHost.ShowOwnedFit(gLvRenGui, ExText.LvRenTitle())
     LvRenLoadConfig()
 }
 
 HideGuiLvRen() {
+    if !GuiRegistry.IsBuilt("LvRen") {
+        return
+    }
     ExWindowHost.HideOwned(gLvRenGui)
 }
 
@@ -140,9 +152,9 @@ LvRenSaveConfig() {
 
 LvRenLoadConfig() {
     global __LvRenSkillKeys
-    shotKey := LoadPreset(GetNowSelectPreset(), "LvRenShotKey", "Z")
+    shotKey := LoadPreset(GetNowSelectPreset(), "LvRenShotKey", "Space")
     cShot := GetKeycode.CanonMainKey(Trim(shotKey))
-    LvRenGetCtrl("LvRenShotKey").Text := cShot != "" ? cShot : "Z"
+    LvRenGetCtrl("LvRenShotKey").Text := cShot != "" ? cShot : "Space"
     __LvRenSkillKeys := []
     for sk in LvRenLoadKeys(GetNowSelectPreset()) {
         c := GetKeycode.CanonMainKey(sk)

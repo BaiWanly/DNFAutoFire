@@ -1,7 +1,7 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #Include ./ExWindowHost.ahk
 
-global gGuanYuGui := Gui("+ToolWindow -Theme")
+global gGuanYuGui := 0
 global gGuanYuCtrls := Map()
 global __GuanYuSkillKeys := []
 global gGuanYuColX := 16
@@ -17,34 +17,46 @@ global gGuanYuDelayLabelW := 78
 global gGuanYuDelayEditX := gGuanYuRightX + gGuanYuDelayLabelW + 6
 global gGuanYuDelayEditW := gGuanYuColW - gGuanYuDelayLabelW - 6
 
-GuiTheme_Apply(gGuanYuGui)
+GuiRegistry.Define("GuanYu", GuanYuBuildGui)
 
-gGuanYuGui.OnEvent("Escape", GuanYuGuiEscape)
-gGuanYuGui.OnEvent("Close", GuanYuGuiClose)
-
-ExWindowHost.AddInlineHeaderLeft(gGuanYuGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.GuanYuTitle()), GuanYuHelp, 116, 18, 6)
-gGuanYuGui.Add("Text", "x" gGuanYuColX " y52 w" gGuanYuColW " h18 +0x200", ExText.GuanYuListLabel())
-gGuanYuCtrls["GuanYuKeysListBox"] := GuiTheme_AddListBox(gGuanYuGui, "GuanYuKeysListBox", gGuanYuColX, 74, gGuanYuColW, 176)
-GuiTheme_FlatBtnCompact(gGuanYuGui, "x" gGuanYuColX " y256 w" gGuanYuBtnW " h24", ExText.AddButton(), GuanYuAddKey)
-GuiTheme_FlatBtnCompact(gGuanYuGui, "x" (gGuanYuColX + gGuanYuBtnW + gGuanYuBtnGap) " y256 w" gGuanYuBtnW " h24", ExText.DeleteButton(), GuanYuDeleteKey)
-gGuanYuGui.Add("Text", "x" gGuanYuRightX " y78 w" gGuanYuTriggerLabelW " h24 +0x200", ExText.GuanYuShotKeyLabel())
-gGuanYuCtrls["GuanYuShotKey"] := gGuanYuGui.Add("Edit", "vGuanYuShotKey x" gGuanYuTriggerEditX " y78 w" gGuanYuTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
-RegisterEditPressKeyCapture(gGuanYuCtrls["GuanYuShotKey"], GetKeycode.AfterCaptureEdit.Bind(gGuanYuCtrls["GuanYuShotKey"]))
-gGuanYuGui.Add("Text", "x" gGuanYuRightX " y110 w" gGuanYuDelayLabelW " h24 +0x200", ExText.GuanYuDelayLabel())
-gGuanYuCtrls["GuanYuDelay"] := gGuanYuGui.Add("Edit", "vGuanYuDelay x" gGuanYuDelayEditX " y110 w" gGuanYuDelayEditW " h24 +Number -E0x200 Border")
-ExWindowHost.AddAutoFooter(gGuanYuGui, 290, ExText.SaveButton(), GuanYuSave)
+GuanYuBuildGui() {
+    global gGuanYuGui, gGuanYuCtrls
+    gGuanYuGui := Gui("+ToolWindow -Theme")
+    gGuanYuCtrls := Map()
+    GuiTheme_Apply(gGuanYuGui)
+    gGuanYuGui.OnEvent("Escape", GuanYuGuiEscape)
+    gGuanYuGui.OnEvent("Close", GuanYuGuiClose)
+    ExWindowHost.AddInlineHeaderLeft(gGuanYuGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.GuanYuTitle()), GuanYuHelp, 116, 18, 6)
+    gGuanYuGui.Add("Text", "x" gGuanYuColX " y52 w" gGuanYuColW " h18 +0x200", ExText.GuanYuListLabel())
+    gGuanYuCtrls["GuanYuKeysListBox"] := GuiTheme_AddListBox(gGuanYuGui, "GuanYuKeysListBox", gGuanYuColX, 74, gGuanYuColW, 176)
+    GuiTheme_FlatBtnCompact(gGuanYuGui, "x" gGuanYuColX " y256 w" gGuanYuBtnW " h24", ExText.AddButton(), GuanYuAddKey)
+    GuiTheme_FlatBtnCompact(gGuanYuGui, "x" (gGuanYuColX + gGuanYuBtnW + gGuanYuBtnGap) " y256 w" gGuanYuBtnW " h24", ExText.DeleteButton(), GuanYuDeleteKey)
+    gGuanYuGui.Add("Text", "x" gGuanYuRightX " y78 w" gGuanYuTriggerLabelW " h24 +0x200", ExText.GuanYuShotKeyLabel())
+    gGuanYuCtrls["GuanYuShotKey"] := gGuanYuGui.Add("Edit", "vGuanYuShotKey x" gGuanYuTriggerEditX " y78 w" gGuanYuTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
+    RegisterEditPressKeyCapture(gGuanYuCtrls["GuanYuShotKey"], GetKeycode.AfterCaptureEdit.Bind(gGuanYuCtrls["GuanYuShotKey"]))
+    gGuanYuGui.Add("Text", "x" gGuanYuRightX " y110 w" gGuanYuDelayLabelW " h24 +0x200", ExText.GuanYuDelayLabel())
+    gGuanYuCtrls["GuanYuDelay"] := gGuanYuGui.Add("Edit", "vGuanYuDelay x" gGuanYuDelayEditX " y110 w" gGuanYuDelayEditW " h24 +Number -E0x200 Border")
+    ExWindowHost.AddAutoFooter(gGuanYuGui, 290, ExText.SaveButton(), GuanYuSave)
+    return gGuanYuGui
+}
 
 GuanYuGetCtrl(name) {
     global gGuanYuCtrls
+    GuiRegistry.Ensure("GuanYu")
     return gGuanYuCtrls.Has(name) ? gGuanYuCtrls[name] : ""
 }
 
 ShowGuiGuanYu(*) {
+    global gGuanYuGui
+    gGuanYuGui := GuiRegistry.Ensure("GuanYu")
     ExWindowHost.ShowOwnedFit(gGuanYuGui, ExText.GuanYuTitle())
     GuanYuLoadConfig()
 }
 
 HideGuiGuanYu() {
+    if !GuiRegistry.IsBuilt("GuanYu") {
+        return
+    }
     ExWindowHost.HideOwned(gGuanYuGui)
 }
 
@@ -139,11 +151,11 @@ GuanYuSaveConfig() {
     if (StrLen(keysString) > 0) {
         keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
     }
-    delay := Round((Trim(GuanYuGetCtrl("GuanYuDelay").Text) = "" ? 300 : GuanYuGetCtrl("GuanYuDelay").Text) + 0)
+    delay := Round((Trim(GuanYuGetCtrl("GuanYuDelay").Text) = "" ? 200 : GuanYuGetCtrl("GuanYuDelay").Text) + 0)
     if (delay < 20) {
         delay := 20
-    } else if (delay > 500) {
-        delay := 500
+    } else if (delay > 3000) {
+        delay := 3000
     }
     GuanYuGetCtrl("GuanYuDelay").Text := delay
     SavePreset(GetNowSelectPreset(), "GuanYuSkillKeys", keysString)
@@ -155,12 +167,14 @@ GuanYuLoadConfig() {
     global __GuanYuSkillKeys
     shotKey := LoadPreset(GetNowSelectPreset(), "GuanYuShotKey", "Space")
     cShot := GetKeycode.CanonMainKey(Trim(shotKey))
-    delay := Round(LoadPreset(GetNowSelectPreset(), "GuanYuDelay", 300) + 0)
+    GuanYuGetCtrl("GuanYuShotKey").Text := cShot != "" ? cShot : "Space"
+    delay := Round(LoadPreset(GetNowSelectPreset(), "GuanYuDelay", 200) + 0)
     if (delay < 20) {
         delay := 20
-    } else if (delay > 500) {
-        delay := 500
+    } else if (delay > 3000) {
+        delay := 3000
     }
+    GuanYuGetCtrl("GuanYuDelay").Text := delay
     __GuanYuSkillKeys := []
     for sk in GuanYuLoadKeys(GetNowSelectPreset()) {
         c := GetKeycode.CanonMainKey(sk)
@@ -169,6 +183,4 @@ GuanYuLoadConfig() {
         }
     }
     GuanYuChangeListGui(__GuanYuSkillKeys)
-    GuanYuGetCtrl("GuanYuShotKey").Text := cShot != "" ? cShot : "Space"
-    GuanYuGetCtrl("GuanYuDelay").Text := delay
 }

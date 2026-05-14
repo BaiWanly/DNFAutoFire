@@ -1,7 +1,7 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #Include ./ExWindowHost.ahk
 
-global gZhanFaGui := Gui("+ToolWindow -Theme")
+global gZhanFaGui := 0
 global gZhanFaCtrls := Map()
 global __ZhanFaSkillKeys := []
 global gZhanFaColX := 16
@@ -14,32 +14,44 @@ global gZhanFaTriggerLabelW := 60
 global gZhanFaTriggerEditX := gZhanFaRightX + gZhanFaTriggerLabelW + 6
 global gZhanFaTriggerEditW := gZhanFaColW - gZhanFaTriggerLabelW - 6
 
-GuiTheme_Apply(gZhanFaGui)
+GuiRegistry.Define("ZhanFa", ZhanFaBuildGui)
 
-gZhanFaGui.OnEvent("Escape", ZhanFaGuiEscape)
-gZhanFaGui.OnEvent("Close", ZhanFaGuiClose)
-
-ExWindowHost.AddInlineHeaderLeft(gZhanFaGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.ZhanFaTitle()), ZhanFaHelp, 116, 18, 6)
-gZhanFaGui.Add("Text", "x" gZhanFaColX " y52 w" gZhanFaColW " h18 +0x200", ExText.ZhanFaListLabel())
-gZhanFaCtrls["ZhanFaKeysListBox"] := GuiTheme_AddListBox(gZhanFaGui, "ZhanFaKeysListBox", gZhanFaColX, 74, gZhanFaColW, 176)
-GuiTheme_FlatBtnCompact(gZhanFaGui, "x" gZhanFaColX " y256 w" gZhanFaBtnW " h24", ExText.AddButton(), ZhanFaAddKey)
-GuiTheme_FlatBtnCompact(gZhanFaGui, "x" (gZhanFaColX + gZhanFaBtnW + gZhanFaBtnGap) " y256 w" gZhanFaBtnW " h24", ExText.DeleteButton(), ZhanFaDeleteKey)
-gZhanFaGui.Add("Text", "x" gZhanFaRightX " y78 w" gZhanFaTriggerLabelW " h24 +0x200", ExText.ZhanFaShotKeyLabel())
-gZhanFaCtrls["ZhanFaShotKey"] := gZhanFaGui.Add("Edit", "vZhanFaShotKey x" gZhanFaTriggerEditX " y78 w" gZhanFaTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
-RegisterEditPressKeyCapture(gZhanFaCtrls["ZhanFaShotKey"], GetKeycode.AfterCaptureEdit.Bind(gZhanFaCtrls["ZhanFaShotKey"]))
-ExWindowHost.AddAutoFooter(gZhanFaGui, 290, ExText.SaveButton(), ZhanFaSave)
+ZhanFaBuildGui() {
+    global gZhanFaGui, gZhanFaCtrls
+    gZhanFaGui := Gui("+ToolWindow -Theme")
+    gZhanFaCtrls := Map()
+    GuiTheme_Apply(gZhanFaGui)
+    gZhanFaGui.OnEvent("Escape", ZhanFaGuiEscape)
+    gZhanFaGui.OnEvent("Close", ZhanFaGuiClose)
+    ExWindowHost.AddInlineHeaderLeft(gZhanFaGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.ZhanFaTitle()), ZhanFaHelp, 116, 18, 6)
+    gZhanFaGui.Add("Text", "x" gZhanFaColX " y52 w" gZhanFaColW " h18 +0x200", ExText.ZhanFaListLabel())
+    gZhanFaCtrls["ZhanFaKeysListBox"] := GuiTheme_AddListBox(gZhanFaGui, "ZhanFaKeysListBox", gZhanFaColX, 74, gZhanFaColW, 176)
+    GuiTheme_FlatBtnCompact(gZhanFaGui, "x" gZhanFaColX " y256 w" gZhanFaBtnW " h24", ExText.AddButton(), ZhanFaAddKey)
+    GuiTheme_FlatBtnCompact(gZhanFaGui, "x" (gZhanFaColX + gZhanFaBtnW + gZhanFaBtnGap) " y256 w" gZhanFaBtnW " h24", ExText.DeleteButton(), ZhanFaDeleteKey)
+    gZhanFaGui.Add("Text", "x" gZhanFaRightX " y78 w" gZhanFaTriggerLabelW " h24 +0x200", ExText.ZhanFaShotKeyLabel())
+    gZhanFaCtrls["ZhanFaShotKey"] := gZhanFaGui.Add("Edit", "vZhanFaShotKey x" gZhanFaTriggerEditX " y78 w" gZhanFaTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
+    RegisterEditPressKeyCapture(gZhanFaCtrls["ZhanFaShotKey"], GetKeycode.AfterCaptureEdit.Bind(gZhanFaCtrls["ZhanFaShotKey"]))
+    ExWindowHost.AddAutoFooter(gZhanFaGui, 290, ExText.SaveButton(), ZhanFaSave)
+    return gZhanFaGui
+}
 
 ZhanFaGetCtrl(name) {
     global gZhanFaCtrls
+    GuiRegistry.Ensure("ZhanFa")
     return gZhanFaCtrls.Has(name) ? gZhanFaCtrls[name] : ""
 }
 
 ShowGuiZhanFa(*) {
+    global gZhanFaGui
+    gZhanFaGui := GuiRegistry.Ensure("ZhanFa")
     ExWindowHost.ShowOwnedFit(gZhanFaGui, ExText.ZhanFaTitle())
     ZhanFaLoadConfig()
 }
 
 HideGuiZhanFa() {
+    if !GuiRegistry.IsBuilt("ZhanFa") {
+        return
+    }
     ExWindowHost.HideOwned(gZhanFaGui)
 }
 

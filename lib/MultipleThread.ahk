@@ -74,7 +74,7 @@ class MultipleThread {
         intervalMs := PresetManager.NormalizeInterval(intervalMs)
         pressDurationMs := PresetManager.NormalizePressDuration(pressDurationMs)
         thread := MultipleThread("MainKey", [keyName, intervalMs, pressDurationMs])
-        this._threads[this._ThreadId("MainKey", keyName)] := thread
+        this._TrackThread(this._ThreadId("MainKey", keyName), thread)
         return true
     }
 
@@ -84,7 +84,7 @@ class MultipleThread {
             return false
         }
         thread := MultipleThread(featureName)
-        this._threads[this._ThreadId("Feature", featureName)] := thread
+        this._TrackThread(this._ThreadId("Feature", featureName), thread)
         return true
     }
 
@@ -94,6 +94,7 @@ class MultipleThread {
         for _, thread in oldThreads {
             try thread.Stop()
         }
+        this._StopOrphanChildProcesses()
     }
 
     static AnyThreadRunning() {
@@ -105,6 +106,42 @@ class MultipleThread {
 
     static _ThreadId(kind, name) {
         return kind ":" name
+    }
+
+    static _TrackThread(threadId, thread) {
+        if this._threads.Has(threadId) {
+            try this._threads[threadId].Stop()
+        }
+        this._threads[threadId] := thread
+    }
+
+    static _StopOrphanChildProcesses() {
+        currentPid := DllCall("kernel32\GetCurrentProcessId", "UInt")
+        wmi := ""
+        try wmi := ComObjGet("winmgmts:")
+        catch {
+            return
+        }
+        try processes := wmi.ExecQuery("Select ProcessId, CommandLine from Win32_Process")
+        catch {
+            return
+        }
+        for process in processes {
+            pid := 0
+            cmd := ""
+            try pid := process.ProcessId + 0
+            try cmd := process.CommandLine ""
+            if (pid = 0 || pid = currentPid || cmd = "") {
+                continue
+            }
+            if !InStr(cmd, A_ScriptFullPath) {
+                continue
+            }
+            if !RegExMatch(cmd, '(^|["\s])/Run=') {
+                continue
+            }
+            try ProcessClose(pid)
+        }
     }
 
     static _EnsureDnfWindowGroup() {

@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 class AppBootstrap {
     static EnableHighTimerResolution() {
@@ -13,14 +13,18 @@ class AppBootstrap {
 
     static ConfigureTray() {
         A_TrayMenu.Delete()
-        A_TrayMenu.Add(GuiText.TrayMainSettings(), ShowGuiMain)
-        A_TrayMenu.Add(GuiText.TrayAppSettings(), ShowGuiSetting)
-        A_TrayMenu.Default := GuiText.TrayMainSettings()
+        A_TrayMenu.Add(GuiText.TrayStopAutoFire(), (*) => this.StopAutoFireAndShowMain())
+        A_TrayMenu.Default := GuiText.TrayStopAutoFire()
         A_TrayMenu.Add()
         A_TrayMenu.Add(GuiText.TrayExit(), (*) => this.ExitRequested())
         A_TrayMenu.ClickCount := 1
         A_IconTip := GuiText.AppIconTip()
         try TraySetIcon(A_ScriptDir "\assets\icons\icon_main.ico")
+    }
+
+    static StopAutoFireAndShowMain() {
+        try AutoFireController.Stop()
+        ShowGuiMain()
     }
 
     static ExitRequested() {
