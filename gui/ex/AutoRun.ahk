@@ -1,59 +1,61 @@
 #Requires AutoHotkey v2.0
-#Include ./ExWindowHost.ahk
 
-global gAutoRunGui := 0
+global gAutoRunGui := Gui("+ToolWindow")
 global gAutoRunCtrls := Map()
 
-GuiRegistry.Define("AutoRun", AutoRunBuildGui)
+gAutoRunGui.OnEvent("Escape", AutoRunGuiEscape)
+gAutoRunGui.OnEvent("Close", AutoRunGuiClose)
 
-AutoRunBuildGui() {
-    global gAutoRunGui, gAutoRunCtrls
-    gAutoRunGui := Gui("+ToolWindow -Theme")
-    gAutoRunCtrls := Map()
-    GuiTheme_Apply(gAutoRunGui)
-    gAutoRunGui.OnEvent("Escape", AutoRunGuiEscape)
-    gAutoRunGui.OnEvent("Close", AutoRunGuiClose)
-    gAutoRunGui.Add("Text", "x16 y54 w72 h26 +0x200", ExText.AutoRunLeftLabel())
-    gAutoRunCtrls["AutoRunLeftKey"] := gAutoRunGui.Add("Edit", "vAutoRunLeftKey x96 y54 w168 h24 +ReadOnly -WantCtrlA -E0x200 Border")
-    RegisterEditPressKeyCapture(gAutoRunCtrls["AutoRunLeftKey"], GetKeycode.AfterCaptureEdit.Bind(gAutoRunCtrls["AutoRunLeftKey"]))
-    gAutoRunGui.Add("Text", "x16 y94 w72 h26 +0x200", ExText.AutoRunRightLabel())
-    gAutoRunCtrls["AutoRunRightKey"] := gAutoRunGui.Add("Edit", "vAutoRunRightKey x96 y94 w168 h24 +ReadOnly -WantCtrlA -E0x200 Border")
-    RegisterEditPressKeyCapture(gAutoRunCtrls["AutoRunRightKey"], GetKeycode.AfterCaptureEdit.Bind(gAutoRunCtrls["AutoRunRightKey"]))
-    ExWindowHost.AddAutoFooter(gAutoRunGui, 138, ExText.SaveButton(), AutoRunSave, 16, 6, 36)
-    ExWindowHost.AddInlineHeaderLeft(gAutoRunGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.AutoRunTitle()), AutoRunHelp, 120, 26, 6)
-    return gAutoRunGui
-}
+gAutoRunGui.Add("Text", "x8 y8 w80 h20 +0x200", "左方向键")
+gAutoRunCtrls["AutoRunLeftKey"] := gAutoRunGui.Add("Edit", "vAutoRunLeftKey x8 y32 w80 h20 +ReadOnly -WantCtrlA")
+gAutoRunGui.Add("Button", "x8 y56 w80 h22", "设置按键").OnEvent("Click", AutoRunSetLeftKey)
+
+gAutoRunGui.Add("Text", "x96 y8 w80 h20 +0x200", "右方向键")
+gAutoRunCtrls["AutoRunRightKey"] := gAutoRunGui.Add("Edit", "vAutoRunRightKey x96 y32 w80 h20 +ReadOnly -WantCtrlA")
+gAutoRunGui.Add("Button", "x96 y56 w80 h22", "设置按键").OnEvent("Click", AutoRunSetRightKey)
+
+gAutoRunGui.Add("Button", "x96 y86 w80 h28", "保存").OnEvent("Click", AutoRunSave)
+gAutoRunGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", AutoRunHelp)
 
 AutoRunGetCtrl(name) {
     global gAutoRunCtrls
-    GuiRegistry.Ensure("AutoRun")
     return gAutoRunCtrls.Has(name) ? gAutoRunCtrls[name] : ""
 }
 
 ShowGuiAutoRun(*) {
-    global gAutoRunGui
-    gAutoRunGui := GuiRegistry.Ensure("AutoRun")
-    ExWindowHost.ShowOwnedFit(gAutoRunGui, ExText.AutoRunTitle())
+    global gMainGui, gAutoRunGui
+    if IsObject(gMainGui) {
+        gAutoRunGui.Opt("+Owner" gMainGui.Hwnd)
+    }
+    gAutoRunGui.Title := "自动奔跑设置"
+    gAutoRunGui.Show("w184 h122")
     AutoRunLoadConfig()
+    DisableGuiMain()
 }
 
 HideGuiAutoRun() {
-    if !GuiRegistry.IsBuilt("AutoRun") {
-        return
-    }
-    ExWindowHost.HideOwned(gAutoRunGui)
+    gAutoRunGui.Hide()
+    EnableGuiMain()
 }
 
 AutoRunGuiEscape(*) {
-    HideGuiAutoRun()
+    AutoRunSave()
 }
 
 AutoRunGuiClose(*) {
-    HideGuiAutoRun()
+    AutoRunSave()
 }
 
 AutoRunHelp(*) {
-    ExWindowHost.ShowHelp(ExText.AutoRunHelp(), ExText.AutoRunHelpTitle(), gAutoRunGui)
+    MsgBox("设置自动奔跑要监听的左右键。`n如果游戏里方向键不是 Left/Right，请改成你的实际按键后保存。", "自动奔跑说明", "Iconi")
+}
+
+AutoRunSetLeftKey(*) {
+    AutoRunGetCtrl("AutoRunLeftKey").Text := GetPressKey()
+}
+
+AutoRunSetRightKey(*) {
+    AutoRunGetCtrl("AutoRunRightKey").Text := GetPressKey()
 }
 
 AutoRunSave(*) {
@@ -63,8 +65,6 @@ AutoRunSave(*) {
 }
 
 AutoRunLoadConfig() {
-    l := GetKeycode.CanonMainKey(Trim(LoadPreset(GetNowSelectPreset(), "AutoRunLeftKey", "Left")))
-    r := GetKeycode.CanonMainKey(Trim(LoadPreset(GetNowSelectPreset(), "AutoRunRightKey", "Right")))
-    AutoRunGetCtrl("AutoRunLeftKey").Text := l != "" ? l : "Left"
-    AutoRunGetCtrl("AutoRunRightKey").Text := r != "" ? r : "Right"
+    AutoRunGetCtrl("AutoRunLeftKey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunLeftKey", "Left")
+    AutoRunGetCtrl("AutoRunRightKey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunRightKey", "Right")
 }

@@ -1,101 +1,68 @@
 #Requires AutoHotkey v2.0
-#Include ./ExWindowHost.ahk
 
-global gZhanFaGui := 0
+global gZhanFaGui := Gui("+ToolWindow")
 global gZhanFaCtrls := Map()
 global __ZhanFaSkillKeys := []
-global gZhanFaColX := 16
-global gZhanFaColW := 136
-global gZhanFaColGap := 16
-global gZhanFaRightX := gZhanFaColX + gZhanFaColW + gZhanFaColGap
-global gZhanFaBtnGap := 8
-global gZhanFaBtnW := (gZhanFaColW - gZhanFaBtnGap) // 2
-global gZhanFaTriggerLabelW := 60
-global gZhanFaTriggerEditX := gZhanFaRightX + gZhanFaTriggerLabelW + 6
-global gZhanFaTriggerEditW := gZhanFaColW - gZhanFaTriggerLabelW - 6
 
-GuiRegistry.Define("ZhanFa", ZhanFaBuildGui)
+gZhanFaGui.OnEvent("Escape", ZhanFaGuiEscape)
+gZhanFaGui.OnEvent("Close", ZhanFaGuiClose)
 
-ZhanFaBuildGui() {
-    global gZhanFaGui, gZhanFaCtrls
-    gZhanFaGui := Gui("+ToolWindow -Theme")
-    gZhanFaCtrls := Map()
-    GuiTheme_Apply(gZhanFaGui)
-    gZhanFaGui.OnEvent("Escape", ZhanFaGuiEscape)
-    gZhanFaGui.OnEvent("Close", ZhanFaGuiClose)
-    ExWindowHost.AddInlineHeaderLeft(gZhanFaGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.ZhanFaTitle()), ZhanFaHelp, 116, 18, 6)
-    gZhanFaGui.Add("Text", "x" gZhanFaColX " y52 w" gZhanFaColW " h18 +0x200", ExText.ZhanFaListLabel())
-    gZhanFaCtrls["ZhanFaKeysListBox"] := GuiTheme_AddListBox(gZhanFaGui, "ZhanFaKeysListBox", gZhanFaColX, 74, gZhanFaColW, 176)
-    GuiTheme_FlatBtnCompact(gZhanFaGui, "x" gZhanFaColX " y256 w" gZhanFaBtnW " h24", ExText.AddButton(), ZhanFaAddKey)
-    GuiTheme_FlatBtnCompact(gZhanFaGui, "x" (gZhanFaColX + gZhanFaBtnW + gZhanFaBtnGap) " y256 w" gZhanFaBtnW " h24", ExText.DeleteButton(), ZhanFaDeleteKey)
-    gZhanFaGui.Add("Text", "x" gZhanFaRightX " y78 w" gZhanFaTriggerLabelW " h24 +0x200", ExText.ZhanFaShotKeyLabel())
-    gZhanFaCtrls["ZhanFaShotKey"] := gZhanFaGui.Add("Edit", "vZhanFaShotKey x" gZhanFaTriggerEditX " y78 w" gZhanFaTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
-    RegisterEditPressKeyCapture(gZhanFaCtrls["ZhanFaShotKey"], GetKeycode.AfterCaptureEdit.Bind(gZhanFaCtrls["ZhanFaShotKey"]))
-    ExWindowHost.AddAutoFooter(gZhanFaGui, 290, ExText.SaveButton(), ZhanFaSave)
-    return gZhanFaGui
-}
+gZhanFaCtrls["ZhanFaKeysListBox"] := gZhanFaGui.Add("ListBox", "vZhanFaKeysListBox x8 y32 w80 h172")
+gZhanFaCtrls["ZhanFaShotKey"] := gZhanFaGui.Add("Edit", "vZhanFaShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
+gZhanFaGui.Add("Button", "x96 y40 w80 h22", "添加技能键").OnEvent("Click", ZhanFaAddKey)
+gZhanFaGui.Add("Button", "x96 y70 w80 h22", "删除技能键").OnEvent("Click", ZhanFaDeleteKey)
+gZhanFaGui.Add("Button", "x96 y148 w80 h22", "设置发射键").OnEvent("Click", ZhanFaSetShotKey)
+gZhanFaGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加技能键")
+gZhanFaGui.Add("Text", "x96 y100 w80 h20 +0x200", "炫纹发射键")
+gZhanFaGui.Add("Button", "x96 y178 w80 h27", "保存").OnEvent("Click", ZhanFaSave)
+gZhanFaGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", ZhanFaHelp)
 
 ZhanFaGetCtrl(name) {
     global gZhanFaCtrls
-    GuiRegistry.Ensure("ZhanFa")
     return gZhanFaCtrls.Has(name) ? gZhanFaCtrls[name] : ""
 }
 
 ShowGuiZhanFa(*) {
-    global gZhanFaGui
-    gZhanFaGui := GuiRegistry.Ensure("ZhanFa")
-    ExWindowHost.ShowOwnedFit(gZhanFaGui, ExText.ZhanFaTitle())
+    global gMainGui, gZhanFaGui
+    if IsObject(gMainGui) {
+        gZhanFaGui.Opt("+Owner" gMainGui.Hwnd)
+    }
+    gZhanFaGui.Title := "战法自动炫纹"
+    gZhanFaGui.Show("w184 h210")
     ZhanFaLoadConfig()
+    DisableGuiMain()
 }
 
 HideGuiZhanFa() {
-    if !GuiRegistry.IsBuilt("ZhanFa") {
-        return
-    }
-    ExWindowHost.HideOwned(gZhanFaGui)
+    gZhanFaGui.Hide()
+    EnableGuiMain()
 }
 
 ZhanFaGuiEscape(*) {
-    HideGuiZhanFa()
+    ZhanFaSave()
 }
 
 ZhanFaGuiClose(*) {
-    HideGuiZhanFa()
+    ZhanFaSave()
 }
 
 ZhanFaHelp(*) {
-    ExWindowHost.ShowHelp(ExText.ZhanFaHelp(), ExText.ZhanFaHelpTitle(), gZhanFaGui)
+    MsgBox("你的数据很差，我现在玩战法每130s只要能射出300次炫纹，每次差不多34824％的等效百分比，就能有相当于10447200％的输出水平，换算过来狠狠地超越了精灵骑士的三觉数据。虽然我作为爆发职业没有一个技能超过3000000％，作为续航职业没有一个技能秒伤能超过90000％，但是我的炫纹已经超越了地下城绝大多数职业(包括你)的水平，这便是战斗法师给我的骄傲的资本。", "你的数据很差", "Iconi")
 }
 
 ZhanFaAddKey(*) {
     global __ZhanFaSkillKeys
-    raw := GetPressKey()
-    key := GetKeycode.CanonMainKey(raw)
-    if (key = "") {
-        if (raw != "") {
-            MsgBox(ExText.InvalidKey(),, "Icon!")
-        }
-        return
-    }
+    key := GetPressKey()
     if IsValueInArray(key, __ZhanFaSkillKeys) {
-        MsgBox(ExText.DuplicateKey(),, "Icon!")
+        MsgBox("请勿重复添加按键",, "Icon!")
     } else {
         __ZhanFaSkillKeys.Push(key)
     }
     ZhanFaChangeListGui(__ZhanFaSkillKeys)
     ctrl := ZhanFaGetCtrl("ZhanFaKeysListBox")
-    displayIdx := 0
-    loop __ZhanFaSkillKeys.Length {
-        if !__ZhanFaSkillKeys.Has(A_Index) {
-            continue
-        }
-        item := __ZhanFaSkillKeys[A_Index]
-        if (item = "") {
-            continue
-        }
-        displayIdx++
+    for i, item in __ZhanFaSkillKeys {
         if (item = key) {
-            ctrl.Choose(displayIdx)
+            ctrl.Choose(i)
             break
         }
     }
@@ -112,18 +79,15 @@ ZhanFaSave(*) {
     HideGuiZhanFa()
 }
 
+ZhanFaSetShotKey(*) {
+    ZhanFaGetCtrl("ZhanFaShotKey").Text := GetPressKey()
+}
+
 ZhanFaChangeListGui(keys) {
     ctrl := ZhanFaGetCtrl("ZhanFaKeysListBox")
     ctrl.Delete()
     cnt := 0
-    if !IsObject(keys) {
-        keys := []
-    }
-    loop keys.Length {
-        if !keys.Has(A_Index) {
-            continue
-        }
-        key := keys[A_Index]
+    for key in keys {
         if (key != "") {
             ctrl.Add([key])
             cnt++
@@ -137,15 +101,10 @@ ZhanFaChangeListGui(keys) {
 ZhanFaSaveConfig() {
     global __ZhanFaSkillKeys
     keysString := ""
-    loop __ZhanFaSkillKeys.Length {
-        if !__ZhanFaSkillKeys.Has(A_Index) {
-            continue
-        }
-        keysString .= __ZhanFaSkillKeys[A_Index] "|"
+    for i, v in __ZhanFaSkillKeys {
+        keysString .= v "|"
     }
-    if (StrLen(keysString) > 0) {
-        keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
-    }
+    keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
     SavePreset(GetNowSelectPreset(), "ZhanFaSkillKeys", keysString)
     SavePreset(GetNowSelectPreset(), "ZhanFaShotKey", ZhanFaGetCtrl("ZhanFaShotKey").Text)
 }
@@ -153,14 +112,7 @@ ZhanFaSaveConfig() {
 ZhanFaLoadConfig() {
     global __ZhanFaSkillKeys
     shotKey := LoadPreset(GetNowSelectPreset(), "ZhanFaShotKey", "Space")
-    cShot := GetKeycode.CanonMainKey(Trim(shotKey))
-    ZhanFaGetCtrl("ZhanFaShotKey").Text := cShot != "" ? cShot : "Space"
-    __ZhanFaSkillKeys := []
-    for sk in ZhanFaLoadKeys(GetNowSelectPreset()) {
-        c := GetKeycode.CanonMainKey(sk)
-        if (c != "") {
-            __ZhanFaSkillKeys.Push(c)
-        }
-    }
+    __ZhanFaSkillKeys := ZhanFaLoadKeys(GetNowSelectPreset())
     ZhanFaChangeListGui(__ZhanFaSkillKeys)
+    ZhanFaGetCtrl("ZhanFaShotKey").Text := shotKey
 }

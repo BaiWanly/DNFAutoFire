@@ -1,101 +1,68 @@
 #Requires AutoHotkey v2.0
-#Include ./ExWindowHost.ahk
 
-global gLvRenGui := 0
+global gLvRenGui := Gui("+ToolWindow")
 global gLvRenCtrls := Map()
 global __LvRenSkillKeys := []
-global gLvRenColX := 16
-global gLvRenColW := 136
-global gLvRenColGap := 16
-global gLvRenRightX := gLvRenColX + gLvRenColW + gLvRenColGap
-global gLvRenBtnGap := 8
-global gLvRenBtnW := (gLvRenColW - gLvRenBtnGap) // 2
-global gLvRenTriggerLabelW := 60
-global gLvRenTriggerEditX := gLvRenRightX + gLvRenTriggerLabelW + 6
-global gLvRenTriggerEditW := gLvRenColW - gLvRenTriggerLabelW - 6
 
-GuiRegistry.Define("LvRen", LvRenBuildGui)
+gLvRenGui.OnEvent("Escape", LvRenGuiEscape)
+gLvRenGui.OnEvent("Close", LvRenGuiClose)
 
-LvRenBuildGui() {
-    global gLvRenGui, gLvRenCtrls
-    gLvRenGui := Gui("+ToolWindow -Theme")
-    gLvRenCtrls := Map()
-    GuiTheme_Apply(gLvRenGui)
-    gLvRenGui.OnEvent("Escape", LvRenGuiEscape)
-    gLvRenGui.OnEvent("Close", LvRenGuiClose)
-    ExWindowHost.AddInlineHeaderLeft(gLvRenGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.LvRenTitle()), LvRenHelp, 116, 18, 6)
-    gLvRenGui.Add("Text", "x" gLvRenColX " y52 w" gLvRenColW " h18 +0x200", ExText.LvRenListLabel())
-    gLvRenCtrls["LvRenKeysListBox"] := GuiTheme_AddListBox(gLvRenGui, "LvRenKeysListBox", gLvRenColX, 74, gLvRenColW, 176)
-    GuiTheme_FlatBtnCompact(gLvRenGui, "x" gLvRenColX " y256 w" gLvRenBtnW " h24", ExText.AddButton(), LvRenAddKey)
-    GuiTheme_FlatBtnCompact(gLvRenGui, "x" (gLvRenColX + gLvRenBtnW + gLvRenBtnGap) " y256 w" gLvRenBtnW " h24", ExText.DeleteButton(), LvRenDeleteKey)
-    gLvRenGui.Add("Text", "x" gLvRenRightX " y78 w" gLvRenTriggerLabelW " h24 +0x200", ExText.LvRenShotKeyLabel())
-    gLvRenCtrls["LvRenShotKey"] := gLvRenGui.Add("Edit", "vLvRenShotKey x" gLvRenTriggerEditX " y78 w" gLvRenTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
-    RegisterEditPressKeyCapture(gLvRenCtrls["LvRenShotKey"], GetKeycode.AfterCaptureEdit.Bind(gLvRenCtrls["LvRenShotKey"]))
-    ExWindowHost.AddAutoFooter(gLvRenGui, 290, ExText.SaveButton(), LvRenSave)
-    return gLvRenGui
-}
+gLvRenCtrls["LvRenKeysListBox"] := gLvRenGui.Add("ListBox", "vLvRenKeysListBox x8 y32 w80 h172")
+gLvRenCtrls["LvRenShotKey"] := gLvRenGui.Add("Edit", "vLvRenShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
+gLvRenGui.Add("Button", "x96 y40 w80 h22", "添加技能键").OnEvent("Click", LvRenAddKey)
+gLvRenGui.Add("Button", "x96 y70 w80 h22", "删除技能键").OnEvent("Click", LvRenDeleteKey)
+gLvRenGui.Add("Button", "x96 y148 w80 h22", "设置发射键").OnEvent("Click", LvRenSetShotKey)
+gLvRenGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加技能键")
+gLvRenGui.Add("Text", "x96 y100 w80 h20 +0x200", "流星发射键")
+gLvRenGui.Add("Button", "x96 y178 w80 h27", "保存").OnEvent("Click", LvRenSave)
+gLvRenGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", LvRenHelp)
 
 LvRenGetCtrl(name) {
     global gLvRenCtrls
-    GuiRegistry.Ensure("LvRen")
     return gLvRenCtrls.Has(name) ? gLvRenCtrls[name] : ""
 }
 
 ShowGuiLvRen(*) {
-    global gLvRenGui
-    gLvRenGui := GuiRegistry.Ensure("LvRen")
-    ExWindowHost.ShowOwnedFit(gLvRenGui, ExText.LvRenTitle())
+    global gMainGui, gLvRenGui
+    if IsObject(gMainGui) {
+        gLvRenGui.Opt("+Owner" gMainGui.Hwnd)
+    }
+    gLvRenGui.Title := "旅人自动流星"
+    gLvRenGui.Show("w184 h210")
     LvRenLoadConfig()
+    DisableGuiMain()
 }
 
 HideGuiLvRen() {
-    if !GuiRegistry.IsBuilt("LvRen") {
-        return
-    }
-    ExWindowHost.HideOwned(gLvRenGui)
+    gLvRenGui.Hide()
+    EnableGuiMain()
 }
 
 LvRenGuiEscape(*) {
-    HideGuiLvRen()
+    LvRenSave()
 }
 
 LvRenGuiClose(*) {
-    HideGuiLvRen()
+    LvRenSave()
 }
 
 LvRenHelp(*) {
-    ExWindowHost.ShowHelp(ExText.LvRenHelp(), ExText.LvRenHelpTitle(), gLvRenGui)
+    MsgBox("1、添加你想要发射流星的技能键`n2、设置游戏中流星的发射键（默认为Z）`n3、保存配置，启动连发并使用`n`nPS：建议和连发功能一起打开，效果更好", "如何使用旅人自动流星", "Iconi")
 }
 
 LvRenAddKey(*) {
     global __LvRenSkillKeys
-    raw := GetPressKey()
-    key := GetKeycode.CanonMainKey(raw)
-    if (key = "") {
-        if (raw != "") {
-            MsgBox(ExText.InvalidKey(),, "Icon!")
-        }
-        return
-    }
+    key := GetPressKey()
     if IsValueInArray(key, __LvRenSkillKeys) {
-        MsgBox(ExText.DuplicateKey(),, "Icon!")
+        MsgBox("请勿重复添加按键",, "Icon!")
     } else {
         __LvRenSkillKeys.Push(key)
     }
     LvRenChangeListGui(__LvRenSkillKeys)
     ctrl := LvRenGetCtrl("LvRenKeysListBox")
-    displayIdx := 0
-    loop __LvRenSkillKeys.Length {
-        if !__LvRenSkillKeys.Has(A_Index) {
-            continue
-        }
-        item := __LvRenSkillKeys[A_Index]
-        if (item = "") {
-            continue
-        }
-        displayIdx++
+    for i, item in __LvRenSkillKeys {
         if (item = key) {
-            ctrl.Choose(displayIdx)
+            ctrl.Choose(i)
             break
         }
     }
@@ -112,18 +79,15 @@ LvRenSave(*) {
     HideGuiLvRen()
 }
 
+LvRenSetShotKey(*) {
+    LvRenGetCtrl("LvRenShotKey").Text := GetPressKey()
+}
+
 LvRenChangeListGui(keys) {
     ctrl := LvRenGetCtrl("LvRenKeysListBox")
     ctrl.Delete()
     cnt := 0
-    if !IsObject(keys) {
-        keys := []
-    }
-    loop keys.Length {
-        if !keys.Has(A_Index) {
-            continue
-        }
-        key := keys[A_Index]
+    for key in keys {
         if (key != "") {
             ctrl.Add([key])
             cnt++
@@ -137,30 +101,18 @@ LvRenChangeListGui(keys) {
 LvRenSaveConfig() {
     global __LvRenSkillKeys
     keysString := ""
-    loop __LvRenSkillKeys.Length {
-        if !__LvRenSkillKeys.Has(A_Index) {
-            continue
-        }
-        keysString .= __LvRenSkillKeys[A_Index] "|"
+    for i, v in __LvRenSkillKeys {
+        keysString .= v "|"
     }
-    if (StrLen(keysString) > 0) {
-        keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
-    }
+    keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
     SavePreset(GetNowSelectPreset(), "LvRenSkillKeys", keysString)
     SavePreset(GetNowSelectPreset(), "LvRenShotKey", LvRenGetCtrl("LvRenShotKey").Text)
 }
 
 LvRenLoadConfig() {
     global __LvRenSkillKeys
-    shotKey := LoadPreset(GetNowSelectPreset(), "LvRenShotKey", "Space")
-    cShot := GetKeycode.CanonMainKey(Trim(shotKey))
-    LvRenGetCtrl("LvRenShotKey").Text := cShot != "" ? cShot : "Space"
-    __LvRenSkillKeys := []
-    for sk in LvRenLoadKeys(GetNowSelectPreset()) {
-        c := GetKeycode.CanonMainKey(sk)
-        if (c != "") {
-            __LvRenSkillKeys.Push(c)
-        }
-    }
+    shotKey := LoadPreset(GetNowSelectPreset(), "LvRenShotKey", "Z")
+    __LvRenSkillKeys := LvRenLoadKeys(GetNowSelectPreset())
     LvRenChangeListGui(__LvRenSkillKeys)
+    LvRenGetCtrl("LvRenShotKey").Text := shotKey
 }

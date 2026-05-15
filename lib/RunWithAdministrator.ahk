@@ -1,13 +1,12 @@
 full_command_line := DllCall("GetCommandLine", "Str")
 
 ; 需要管理员时先尝试 UAC 提升；若用户取消或失败，则提示并以普通权限继续（避免进程静默退出）
-if !RunWithAdministrator_IsChildProcess() && !(A_IsAdmin || RegExMatch(full_command_line, " /restart(?!\S)")) {
-    restartArgs := RunWithAdministrator_BuildRestartArgs()
+if !(A_IsAdmin || RegExMatch(full_command_line, " /restart(?!\S)")) {
     try {
         if A_IsCompiled {
-            Run('*RunAs "' A_ScriptFullPath '" /restart' restartArgs)
+            Run('*RunAs "' A_ScriptFullPath '" /restart')
         } else {
-            Run('*RunAs "' A_AhkPath '" /restart "' A_ScriptFullPath '"' restartArgs)
+            Run('*RunAs "' A_AhkPath '" /restart "' A_ScriptFullPath '"')
         }
     } catch Error as err {
         MsgBox(
@@ -20,20 +19,4 @@ if !RunWithAdministrator_IsChildProcess() && !(A_IsAdmin || RegExMatch(full_comm
     } else {
         ExitApp()
     }
-}
-
-RunWithAdministrator_BuildRestartArgs() {
-    if (A_Args.Length = 0) {
-        return ""
-    }
-    out := ""
-    for arg in A_Args {
-        escaped := StrReplace(arg "", '"', '\"')
-        out .= ' "' escaped '"'
-    }
-    return out
-}
-
-RunWithAdministrator_IsChildProcess() {
-    return A_Args.Length >= 1 && InStr(A_Args[1], "/Run=") = 1
 }

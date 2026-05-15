@@ -1,14 +1,5 @@
-git rm -f --cached.vscode
+.vscode
 .idea
-.codex
 
-
-DAF_0.27/
-DAF_0.13/
-
-DNFAutoFire.exe
-
-config.ini
-/assets/preset-recognition/
-
-任务达人.txt
+DAF连发工具.exe
+/DNFAutoFireV1/

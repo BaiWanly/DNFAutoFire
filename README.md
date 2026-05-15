@@ -1,125 +1,164 @@
-# DAF AutoFire
+# DAF - 一款 DNF 连发工具
 
-## 自动识别说明
-- 自动识别现在只保留一条固定流程：流程按“血条 -> 城镇 -> 技能”执行；
-- 血条未命中时会按重试间隔持续重试；城镇未命中时会直接停止本次自动识别；未识别到技能时会自动切换到首个配置。
+## 功能简介
+- 多键位无冲突连发
+- 使用 `vk=0xFF + 扫描码` 的游戏模式输入，尽量避免影响聊天框打字
+- 仅在 DNF 游戏窗口内生效
+- 支持软件启动后自动开连发、开机自启动、游戏内屏蔽 Win 键
+- 支持多预设保存、快速切换预设
+- 内置职业/功能扩展：旅人自动流星、关羽自动猛攻、战法自动炫纹、剑宗帝剑延迟、自动宠物技能、自动奔跑
 
+## 当前脚本结构
+项目当前版本以根目录下的 AHK v2 脚本为准，`DNFAutoFire-0` 目录只是旧版本参考，不参与当前运行。
 
-## 改动功能说明
-- 托盘退出、手动切换配置、自动识别切换配置现在共用同一套子进程清理流程
-- 次级窗口统一改为通过 `gui/GuiRegistry.ahk` 按需创建，首次打开才建窗，减少主程序首开卡顿。
-- 重复启动接管旧实例时，优先等待旧进程真实退出，拿不到进程句柄时再退回短轮询，减少开关软件时的停顿感。
-- 主连发和大部分 EX 已改为“按键钩子 + one-shot 定时器”驱动，空闲时不再 `Sleep(1)` 轮询。
-- 连发发送层拆成持续脉冲与一次点击两套接口；停止、切配置、失焦和退出时会统一补发释放，降低卡键概率。
+整体分成 4 层：
 
+1. 入口层：负责启动、加载模块、初始化托盘和首屏窗口。
+2. 核心层：负责连发、配置读写、按键转换、窗口识别、按键释放修正。
+3. 界面层：负责主界面、软件设置、快速切换窗口，以及各扩展功能的配置窗口。
+4. 扩展层：负责职业特化逻辑和自动奔跑等附加能力。
 
-## 项目结构
-注：.ahk脚本为utf-8，.ini配置文件为utf-16LE
+## 运行流程
+`DAF连发工具.ahk` 是项目入口，启动后会按下面的顺序工作：
 
+1. 加载通用库、核心模块、GUI 和扩展脚本。
+2. 检查并初始化 `config.ini`，确保至少存在一个默认预设。
+3. 初始化托盘菜单和主窗口。
+4. 读取上次使用的预设，以及软件设置中的自动启动选项。
+5. 显示主界面时会先停止连发并加载当前预设；用户点击“启动连发”后，主界面会隐藏到托盘，再按当前预设为每个普通连发键启动独立子进程，并按勾选项启动扩展子进程。
 
-### 根目录
+## 版本与图标
+- 版本号统一维护在 `DAF连发工具.ahk` 顶部的 `;@Ahk2Exe-Let AppVersion = ...`。
+- 编译版本信息通过 Ahk2Exe 指令复用 `AppVersion`，源码直接运行时界面版本也会读取同一行。
+- 图标文件统一放在 `gui/` 目录，编译时作为资源写入 exe，源码运行时托盘图标也从该目录读取。
 
-- [DNFAutoFire.ahk](D:/06Code/DNFAutoFire/DNFAutoFire.ahk)：主入口脚本，负责按顺序装配核心模块、GUI 模块和 EX 功能模块。
-- [Version.ahk](D:/06Code/DNFAutoFire/Version.ahk)：版本号定义。
-- [CHANGELOG.md](D:/06Code/DNFAutoFire/CHANGELOG.md)：历史说明与版本更新记录。
-- [README.md](D:/06Code/DNFAutoFire/README.md)：项目说明文档。
-- [config.ini](D:/06Code/DNFAutoFire/config.ini)：运行时配置文件。
-- [DNFAutoFire.exe](D:/06Code/DNFAutoFire/DNFAutoFire.exe)：打包后的可执行文件。
+## 目录与模块说明
 
-### `core/` 核心逻辑
+### 入口文件
+- `DAF连发工具.ahk`
+  - 项目总入口。
+  - 统一维护版本号和编译资源入口。
+  - 统一 `#Include` 所有模块。
+  - 初始化托盘菜单、主窗口、当前预设和自动启动逻辑。
+  - 托盘仅保留“连发设置”和“退出连发”入口。
+  - 调用 `SubProcessThread.ScriptStart()` 处理扩展子进程入口。
 
-- [core/AppBootstrap.ahk](D:/06Code/DNFAutoFire/core/AppBootstrap.ahk)：应用启动收口，负责初始化、托盘、主窗口启动等流程。
-- [core/AutoFireController.ahk](D:/06Code/DNFAutoFire/core/AutoFireController.ahk)：连发主控制器，管理按键启停、热键绑定、运行态切换。
-- [core/AutoFire.ahk](D:/06Code/DNFAutoFire/core/AutoFire.ahk)：主连发子进程运行时，负责按下/抬起热键、节奏定时和失焦释放。
-- [core/Config.ahk](D:/06Code/DNFAutoFire/core/Config.ahk)：通用配置读写。
-- [core/FeatureModuleRegistry.ahk](D:/06Code/DNFAutoFire/core/FeatureModuleRegistry.ahk)：扩展功能模块注册表，统一描述 EX 功能与实现入口。
-- [core/GameContext.ahk](D:/06Code/DNFAutoFire/core/GameContext.ahk)：游戏窗口上下文判断。
-- [core/GetKeycode.ahk](D:/06Code/DNFAutoFire/core/GetKeycode.ahk)：按键采集、规范化、转换。
-- [core/PresetExFeatures.ahk](D:/06Code/DNFAutoFire/core/PresetExFeatures.ahk)：预设与 EX 功能开关/配置关联。
-- [core/PresetManager.ahk](D:/06Code/DNFAutoFire/core/PresetManager.ahk)：预设管理核心，负责创建、重命名、克隆、删除、排序和保存加载。
-- [core/PresetRecognition.ahk](D:/06Code/DNFAutoFire/core/PresetRecognition.ahk)：自动识别与自动切换预设逻辑。
-- [core/SendIP.ahk](D:/06Code/DNFAutoFire/core/SendIP.ahk)：输入发送与释放辅助，统一管理持续脉冲、点击和补 `Up` 回收。
-- [core/SessionState.ahk](D:/06Code/DNFAutoFire/core/SessionState.ahk)：运行期状态缓存。
-- [core/SingleInstance.ahk](D:/06Code/DNFAutoFire/core/SingleInstance.ahk)：单实例接管。
+### core 核心层
+- `core/AutoFire.ahk`
+  - 普通连发子进程的执行循环。
+  - 持续检测指定物理按键是否按下，按下时通过 `SendIP` 发送同键输入。
 
-### `gui/` 通用 GUI 文案
+- `core/Scripts.ahk`
+  - 管理普通连发的开启/关闭。
+  - 维护当前启用的连发按键列表。
+  - 为每个启用按键启动独立子进程，子进程调用 `AutoFire(key)` 执行普通连发。
+  - 启动和停止扩展功能，切换托盘图标，处理预设切换。
 
-- [gui/GuiText.ahk](D:/06Code/DNFAutoFire/gui/GuiText.ahk)：通用窗口、通用短标签、系统级文本。
-- [gui/GuiRegistry.ahk](D:/06Code/DNFAutoFire/gui/GuiRegistry.ahk)：次级窗口注册与懒加载收口。
-- [gui/MainWindowText.ahk](D:/06Code/DNFAutoFire/gui/MainWindowText.ahk)：主窗口独有文案。
-- [gui/ExText.ahk](D:/06Code/DNFAutoFire/gui/ExText.ahk)：EX 功能配置窗口文案。
+- `core/Config.ahk`
+  - 统一读写 `config.ini`。
+  - 管理“软件设置”和“预设设置”两类数据。
+  - 负责首次运行时创建默认配置。
 
-### `gui/main/` 主窗口
+- `core/KeyConvert.ahk`
+  - 负责按键名和输入格式转换。
+  - 当前普通连发和多数扩展都通过 `vkFFscXX` 形式发送按键，适配 DNF 的游戏输入场景。
 
-- [gui/main/Main.ahk](D:/06Code/DNFAutoFire/gui/main/Main.ahk)：主窗口入口，事件转发、菜单、全局控件表、主窗口内部模块装配。
-- [gui/main/MainWindow.ahk](D:/06Code/DNFAutoFire/gui/main/MainWindow.ahk)：创建主窗口，组装布局和 builder。
-- [gui/main/MainController.ahk](D:/06Code/DNFAutoFire/gui/main/MainController.ahk)：主窗口行为控制，如显示隐藏、启动连发、保存界面状态。
-- [gui/main/MainKeyGrid.ahk](D:/06Code/DNFAutoFire/gui/main/MainKeyGrid.ahk)：按键区交互和按键高亮状态刷新。
-- [gui/main/MainPresetPanel.ahk](D:/06Code/DNFAutoFire/gui/main/MainPresetPanel.ahk)：预设区交互，负责预设列表、右键菜单、拖拽排序、独立间隔设置。
-- [gui/main/MainFeaturePanel.ahk](D:/06Code/DNFAutoFire/gui/main/MainFeaturePanel.ahk)：扩展开关区交互，负责开关绘制和 EX 入口点击。
+- `core/SendIP.ahk`
+  - 封装一次完整的按下/抬起发送动作，是普通连发与多个扩展的基础发送接口。
 
-### `gui/main/builders/` 主窗口搭建件
+- `core/ReleaseKeys.ahk`
+  - 持续修正 Shift、Ctrl、Alt 等修饰键状态，减少卡键问题。
 
-- [gui/main/builders/MainKeyPanelBuilder.ahk](D:/06Code/DNFAutoFire/gui/main/builders/MainKeyPanelBuilder.ahk)：搭建按键面板。
-- [gui/main/builders/MainConfigPanelBuilder.ahk](D:/06Code/DNFAutoFire/gui/main/builders/MainConfigPanelBuilder.ahk)：搭建预设和配置面板。
-- [gui/main/builders/MainActionButtonBuilder.ahk](D:/06Code/DNFAutoFire/gui/main/builders/MainActionButtonBuilder.ahk)：搭建主窗口操作按钮。
-- [gui/main/builders/MainExFeatureBuilder.ahk](D:/06Code/DNFAutoFire/gui/main/builders/MainExFeatureBuilder.ahk)：搭建扩展功能区。
+### gui 界面层
+- `gui/Main.ahk`
+  - 主界面。
+  - 提供键盘面板、预设列表、快速切换热键、扩展功能入口。
+  - 采用列表驱动的预设管理方式，支持单击切换、新建空配置、重命名、克隆、删除。
 
-### `gui/main/layout/` 主窗口布局数据
+- `gui/Setting.ahk`
+  - 软件设置窗口。
+  - 包含自动启动连发、开机启动、屏蔽 Win 键等全局选项。
 
-- [gui/main/layout/MainLayout.ahk](D:/06Code/DNFAutoFire/gui/main/layout/MainLayout.ahk)：主窗口整体尺寸和坐标规则。
-- [gui/main/layout/MainKeyLayoutData.ahk](D:/06Code/DNFAutoFire/gui/main/layout/MainKeyLayoutData.ahk)：按键区布局数据。
-- [gui/main/layout/MainExFeatureLayoutData.ahk](D:/06Code/DNFAutoFire/gui/main/layout/MainExFeatureLayoutData.ahk)：扩展功能区布局数据。
+- `gui/QuickSwitch.ahk`
+  - 快速切换窗口。
+  - 通过热键呼出，支持上下选择预设，回车或空格直接切换并启动。
 
-### `gui/dialogs/` 独立弹窗
+- `gui/ex/*.ahk`
+  - 各扩展功能的独立设置窗口。
+  - 负责采集触发键、技能键、延迟等参数并保存到当前预设。
 
-- [gui/dialogs/Setting.ahk](D:/06Code/DNFAutoFire/gui/dialogs/Setting.ahk)：设置弹窗视图。
-- [gui/dialogs/SettingController.ahk](D:/06Code/DNFAutoFire/gui/dialogs/SettingController.ahk)：设置弹窗行为与保存逻辑。
-- [gui/dialogs/QuickSwitch.ahk](D:/06Code/DNFAutoFire/gui/dialogs/QuickSwitch.ahk)：快速切换预设弹窗视图。
-- [gui/dialogs/QuickSwitchController.ahk](D:/06Code/DNFAutoFire/gui/dialogs/QuickSwitchController.ahk)：快速切换弹窗行为。
+### ex 扩展层
+- `ex/ExLvRen.ahk`
+  - 监听一组技能键，按下时自动补发旅人流星键。
 
-### `gui/ex/` 扩展功能配置窗口
+- `ex/ExGuanYu.ahk`
+  - 监听技能键，在可配置延迟后自动补发关羽猛攻键。
 
-- [gui/ex/ExWindowHost.ahk](D:/06Code/DNFAutoFire/gui/ex/ExWindowHost.ahk)：EX 弹窗公共宿主，负责 owned window 显示隐藏。
-- [gui/ex/LvRen.ahk](D:/06Code/DNFAutoFire/gui/ex/LvRen.ahk)：旅人配置窗口。
-- [gui/ex/GuanYu.ahk](D:/06Code/DNFAutoFire/gui/ex/GuanYu.ahk)：关羽配置窗口。
-- [gui/ex/PetSkill.ahk](D:/06Code/DNFAutoFire/gui/ex/PetSkill.ahk)：宠物技能配置窗口。
-- [gui/ex/ZhanFa.ahk](D:/06Code/DNFAutoFire/gui/ex/ZhanFa.ahk)：战法配置窗口。
-- [gui/ex/JianZong.ahk](D:/06Code/DNFAutoFire/gui/ex/JianZong.ahk)：剑宗配置窗口。
-- [gui/ex/AutoRun.ahk](D:/06Code/DNFAutoFire/gui/ex/AutoRun.ahk)：自动跑图配置窗口。
-- [gui/ex/Combo.ahk](D:/06Code/DNFAutoFire/gui/ex/Combo.ahk)：一键连招配置窗口。
-- [gui/ex/autoPreset/AutoPresetSettings.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/AutoPresetSettings.ahk)：自动识别设置窗口，统一展示开关、帮助、当前预设识别图与识别区域设置入口。
-- [gui/ex/autoPreset/AutoPresetSettingsCtrl.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/AutoPresetSettingsCtrl.ahk)：自动识别设置窗口行为、开关绘制和识别图预览刷新。
-- [gui/ex/autoPreset/PresetAutoSwitch.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/PresetAutoSwitch.ahk)：识别区域设置窗口，展示技能区、血条和城镇识别区域预览与操作。
-- [gui/ex/autoPreset/PresetAutoCtrl.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/PresetAutoCtrl.ahk)：识别区域设置窗口行为与识别区域预览刷新。
-- [gui/ex/autoPreset/PresetRegionPicker.ahk](D:/06Code/DNFAutoFire/gui/ex/autoPreset/PresetRegionPicker.ahk)：截图框选与识别区域拾取。
+- `ex/ExPetSkill.ahk`
+  - 监听触发键，自动释放宠物技能键。
 
-### `ex/` 扩展功能实现
+- `ex/ExZhanFa.ahk`
+  - 监听技能键，自动补发炫纹发射键。
 
-- [ex/ExLvRen.ahk](D:/06Code/DNFAutoFire/ex/ExLvRen.ahk)：旅人 EX 逻辑实现，多个触发键汇聚为一个持续输出节奏。
-- [ex/ExGuanYu.ahk](D:/06Code/DNFAutoFire/ex/ExGuanYu.ahk)：关羽 EX 逻辑实现，按下边沿后挂一次性延时触发。
-- [ex/ExPetSkill.ahk](D:/06Code/DNFAutoFire/ex/ExPetSkill.ahk)：宠物技能 EX 逻辑实现，纯按下边沿触发一次。
-- [ex/ExZhanFa.ahk](D:/06Code/DNFAutoFire/ex/ExZhanFa.ahk)：战法 EX 逻辑实现，多个触发键汇聚为一个持续输出节奏。
-- [ex/ExJianZong.ahk](D:/06Code/DNFAutoFire/ex/ExJianZong.ahk)：剑宗 EX 逻辑实现，先延时再进入持续输出。
-- [ex/ExAutoRun.ahk](D:/06Code/DNFAutoFire/ex/ExAutoRun.ahk)：自动跑图逻辑实现，保留方向键特例并接入统一释放清理。
-- [ex/ExCombo.ahk](D:/06Code/DNFAutoFire/ex/ExCombo.ahk)：一键连招逻辑实现，热键触发序列并支持按住循环重启。
+- `ex/ExJianZong.ahk`
+  - 长按指定技能键时，在达到设定延迟后持续补发帝剑输入。
 
-### `lib/` 公共库与 UI 主题
+- `ex/ExAutoRun.ahk`
+  - 监听左右方向键，通过双击式输入触发自动奔跑。
 
-- [lib/GuiTheme.ahk](D:/06Code/DNFAutoFire/lib/GuiTheme.ahk)：GUI 主题、按钮样式、开关样式、列表样式。
-- [lib/UiTheme.ahk](D:/06Code/DNFAutoFire/lib/UiTheme.ahk)：底层主题参数。
-- [lib/FlatButtonGdip.ahk](D:/06Code/DNFAutoFire/lib/FlatButtonGdip.ahk)：GDI+ 按钮绘制。
-- [lib/ToggleGdip.ahk](D:/06Code/DNFAutoFire/lib/ToggleGdip.ahk)：GDI+ 开关绘制。
-- [lib/GdipUiHelpers.ahk](D:/06Code/DNFAutoFire/lib/GdipUiHelpers.ahk)：GDI+ UI 辅助函数。
-- [lib/GdiPlusSession.ahk](D:/06Code/DNFAutoFire/lib/GdiPlusSession.ahk)：GDI+ 生命周期封装。
-- [lib/GetPressKey.ahk](D:/06Code/DNFAutoFire/lib/GetPressKey.ahk)：按键捕获辅助。
-- [lib/Keys.ahk](D:/06Code/DNFAutoFire/lib/Keys.ahk)：按键数据与键盘布局相关工具。
-- [lib/JSON.ahk](D:/06Code/DNFAutoFire/lib/JSON.ahk)：JSON 读写库。
-- [lib/MultipleThread.ahk](D:/06Code/DNFAutoFire/lib/MultipleThread.ahk)：子进程启动、跟踪和清理辅助。
-- [lib/Time.ahk](D:/06Code/DNFAutoFire/lib/Time.ahk)：时间辅助。
-- [lib/RunWithAdministrator.ahk](D:/06Code/DNFAutoFire/lib/RunWithAdministrator.ahk)：管理员权限启动辅助。
-- [lib/Log.ahk](D:/06Code/DNFAutoFire/lib/Log.ahk)：调试日志辅助。
+### lib 通用库
+- `lib/MultipleThread.ahk`
+  - 用“子进程脚本”方式承载普通连发、扩展功能和修饰键释放逻辑。
+  - 子进程入口通过扩展分发表执行 `ReleaseKeys` 与各扩展功能，普通按键则统一回落到 `AutoFire(key)`。
 
-### `assets/` 资源文件
+- `lib/Keys.ahk`
+  - 提供所有可选键位的键位总表。
 
-- `assets/icons/`：程序图标与托盘状态图标。
+- 其余库
+  - `RunWithAdministrator.ahk`：管理员权限启动辅助。
+  - `GetPressKey.ahk`：按键采集。
+  - `Time.ahk`、`JSON.ahk`、`Log.ahk`：通用工具支持。
+
+## 当前功能拆解
+
+### 1. 普通连发
+- 在主界面点亮一个或多个按键后，这些键会加入当前预设。
+- 启动连发后，主界面会隐藏，脚本会为每个启用键启动一个独立子进程，子进程调用 `AutoFire(key)` 持续检测这些键是否被物理按下。
+- 只要按住对应键，就会持续发送同键输入。
+- 左键点击托盘图标或右键选择“连发设置”时，会走同一套逻辑：停止连发并显示主界面。
+
+### 2. 预设管理
+- 每个预设都保存一套独立的连发键、扩展开关和扩展参数。
+- 支持默认预设、快速切换、单击切换、新建空配置、重命名、克隆和删除。
+- 主界面修改键位或扩展选项后，会先停留在界面状态；显示主界面时一定处于停止连发状态，切换配置、启动连发或关闭主窗口前，会自动保存到当前预设。
+- 主界面按 `Esc` 或点右上角关闭时，会保存当前预设并直接退出程序，不再隐藏到托盘。
+- 扩展功能窗口保持独立保存模型：点击保存、按 `Esc` 或点右上角关闭时，都会立即保存到当前预设。
+- 上次成功加载的预设会写入 `config.ini`，下次启动自动恢复并完整加载。
+
+### 3. DNF 窗口限定
+- 扩展功能和窗口热键逻辑都会检查 DNF 窗口组。
+- 当前通过标题和进程名双重匹配，尽量兼容不同地区或版本的客户端。
+
+### 4. 快速切换
+- 默认热键是 `Alt + \``。
+- 可在游戏内快速呼出预设窗口，直接切换配置并启动或停止连发。
+
+### 5. 附加扩展
+- 扩展功能全部挂在预设下保存，可以按职业分别配置。
+- 主连发启动时，会按勾选项一并启动对应扩展逻辑。
+
+## 配置文件说明
+项目配置统一保存在根目录的 `config.ini` 中，主要分为两类：
+
+- `[设置]`
+  - 保存全局选项，如上次预设、自动启动、开机启动、Win 键屏蔽、快速切换热键。
+
+- `[预设:名称]`
+  - 保存某个预设的连发键列表、扩展开关，以及扩展各自的参数。
+
+## 贡献人员
+|                                                                             |                                                                              |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| <img src="https://avatars.githubusercontent.com/u/7844572?v=4" width="128"> | <img src="https://avatars.githubusercontent.com/u/28993260?v=4" width="128"> |
+| [某亚瑟](https://github.com/mouyase)                                        | [Ousumu](https://github.com/1208041822)                                      |
+| 所有者                                                                      | 图标设计                                                                     |

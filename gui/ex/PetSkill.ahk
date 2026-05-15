@@ -1,101 +1,68 @@
 #Requires AutoHotkey v2.0
-#Include ./ExWindowHost.ahk
 
-global gPetSkillGui := 0
+global gPetSkillGui := Gui("+ToolWindow")
 global gPetSkillCtrls := Map()
 global __PetSkillSkillKeys := []
-global gPetSkillColX := 16
-global gPetSkillColW := 136
-global gPetSkillColGap := 16
-global gPetSkillRightX := gPetSkillColX + gPetSkillColW + gPetSkillColGap
-global gPetSkillBtnGap := 8
-global gPetSkillBtnW := (gPetSkillColW - gPetSkillBtnGap) // 2
-global gPetSkillTriggerLabelW := 60
-global gPetSkillTriggerEditX := gPetSkillRightX + gPetSkillTriggerLabelW + 6
-global gPetSkillTriggerEditW := gPetSkillColW - gPetSkillTriggerLabelW - 6
 
-GuiRegistry.Define("PetSkill", PetSkillBuildGui)
+gPetSkillGui.OnEvent("Escape", PetSkillGuiEscape)
+gPetSkillGui.OnEvent("Close", PetSkillGuiClose)
 
-PetSkillBuildGui() {
-    global gPetSkillGui, gPetSkillCtrls
-    gPetSkillGui := Gui("+ToolWindow -Theme")
-    gPetSkillCtrls := Map()
-    GuiTheme_Apply(gPetSkillGui)
-    gPetSkillGui.OnEvent("Escape", PetSkillGuiEscape)
-    gPetSkillGui.OnEvent("Close", PetSkillGuiClose)
-    ExWindowHost.AddInlineHeaderLeft(gPetSkillGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.PetSkillTitle()), PetSkillHelp, 116, 18, 6)
-    gPetSkillGui.Add("Text", "x" gPetSkillColX " y52 w" gPetSkillColW " h18 +0x200", ExText.PetSkillListLabel())
-    gPetSkillCtrls["PetSkillKeysListBox"] := GuiTheme_AddListBox(gPetSkillGui, "PetSkillKeysListBox", gPetSkillColX, 74, gPetSkillColW, 176)
-    GuiTheme_FlatBtnCompact(gPetSkillGui, "x" gPetSkillColX " y256 w" gPetSkillBtnW " h24", ExText.AddButton(), PetSkillAddKey)
-    GuiTheme_FlatBtnCompact(gPetSkillGui, "x" (gPetSkillColX + gPetSkillBtnW + gPetSkillBtnGap) " y256 w" gPetSkillBtnW " h24", ExText.DeleteButton(), PetSkillDeleteKey)
-    gPetSkillGui.Add("Text", "x" gPetSkillRightX " y78 w" gPetSkillTriggerLabelW " h24 +0x200", ExText.PetSkillShotKeyLabel())
-    gPetSkillCtrls["PetSkillShotKey"] := gPetSkillGui.Add("Edit", "vPetSkillShotKey x" gPetSkillTriggerEditX " y78 w" gPetSkillTriggerEditW " h24 +ReadOnly -WantCtrlA -E0x200 Border")
-    RegisterEditPressKeyCapture(gPetSkillCtrls["PetSkillShotKey"], GetKeycode.AfterCaptureEdit.Bind(gPetSkillCtrls["PetSkillShotKey"]))
-    ExWindowHost.AddAutoFooter(gPetSkillGui, 290, ExText.SaveButton(), PetSkillSave)
-    return gPetSkillGui
-}
+gPetSkillCtrls["PetSkillKeysListBox"] := gPetSkillGui.Add("ListBox", "vPetSkillKeysListBox x8 y32 w80 h172")
+gPetSkillCtrls["PetSkillShotKey"] := gPetSkillGui.Add("Edit", "vPetSkillShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
+gPetSkillGui.Add("Button", "x96 y40 w80 h22", "添加触发键").OnEvent("Click", PetSkillAddKey)
+gPetSkillGui.Add("Button", "x96 y70 w80 h22", "删除触发键").OnEvent("Click", PetSkillDeleteKey)
+gPetSkillGui.Add("Button", "x96 y148 w80 h22", "设置宠物键").OnEvent("Click", PetSkillSetShotKey)
+gPetSkillGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加触发键")
+gPetSkillGui.Add("Text", "x96 y100 w80 h20 +0x200", "宠物技能键")
+gPetSkillGui.Add("Button", "x96 y178 w80 h27", "保存").OnEvent("Click", PetSkillSave)
+gPetSkillGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", PetSkillHelp)
 
 PetSkillGetCtrl(name) {
     global gPetSkillCtrls
-    GuiRegistry.Ensure("PetSkill")
     return gPetSkillCtrls.Has(name) ? gPetSkillCtrls[name] : ""
 }
 
 ShowGuiPetSkill(*) {
-    global gPetSkillGui
-    gPetSkillGui := GuiRegistry.Ensure("PetSkill")
-    ExWindowHost.ShowOwnedFit(gPetSkillGui, ExText.PetSkillTitle())
+    global gMainGui, gPetSkillGui
+    if IsObject(gMainGui) {
+        gPetSkillGui.Opt("+Owner" gMainGui.Hwnd)
+    }
+    gPetSkillGui.Title := "自动宠物技能"
+    gPetSkillGui.Show("w184 h210")
     PetSkillLoadConfig()
+    DisableGuiMain()
 }
 
 HideGuiPetSkill() {
-    if !GuiRegistry.IsBuilt("PetSkill") {
-        return
-    }
-    ExWindowHost.HideOwned(gPetSkillGui)
+    gPetSkillGui.Hide()
+    EnableGuiMain()
 }
 
 PetSkillGuiEscape(*) {
-    HideGuiPetSkill()
+    PetSkillSave()
 }
 
 PetSkillGuiClose(*) {
-    HideGuiPetSkill()
+    PetSkillSave()
 }
 
 PetSkillHelp(*) {
-    ExWindowHost.ShowHelp(ExText.PetSkillHelp(), ExText.PetSkillHelpTitle(), gPetSkillGui)
+    MsgBox("1、添加你想触发宠物技能时按下的技能键`n2、设置游戏中的宠物技能键（默认Z）`n3、保存配置，启动连发并使用", "如何使用自动宠物技能", "Iconi")
 }
 
 PetSkillAddKey(*) {
     global __PetSkillSkillKeys
-    raw := GetPressKey()
-    key := GetKeycode.CanonMainKey(raw)
-    if (key = "") {
-        if (raw != "") {
-            MsgBox(ExText.InvalidKey(),, "Icon!")
-        }
-        return
-    }
+    key := GetPressKey()
     if IsValueInArray(key, __PetSkillSkillKeys) {
-        MsgBox(ExText.DuplicateKey(),, "Icon!")
+        MsgBox("请勿重复添加按键",, "Icon!")
     } else {
         __PetSkillSkillKeys.Push(key)
     }
     PetSkillChangeListGui(__PetSkillSkillKeys)
     ctrl := PetSkillGetCtrl("PetSkillKeysListBox")
-    displayIdx := 0
-    loop __PetSkillSkillKeys.Length {
-        if !__PetSkillSkillKeys.Has(A_Index) {
-            continue
-        }
-        item := __PetSkillSkillKeys[A_Index]
-        if (item = "") {
-            continue
-        }
-        displayIdx++
+    for i, item in __PetSkillSkillKeys {
         if (item = key) {
-            ctrl.Choose(displayIdx)
+            ctrl.Choose(i)
             break
         }
     }
@@ -112,18 +79,15 @@ PetSkillSave(*) {
     HideGuiPetSkill()
 }
 
+PetSkillSetShotKey(*) {
+    PetSkillGetCtrl("PetSkillShotKey").Text := GetPressKey()
+}
+
 PetSkillChangeListGui(keys) {
     ctrl := PetSkillGetCtrl("PetSkillKeysListBox")
     ctrl.Delete()
     cnt := 0
-    if !IsObject(keys) {
-        keys := []
-    }
-    loop keys.Length {
-        if !keys.Has(A_Index) {
-            continue
-        }
-        key := keys[A_Index]
+    for key in keys {
         if (key != "") {
             ctrl.Add([key])
             cnt++
@@ -137,30 +101,18 @@ PetSkillChangeListGui(keys) {
 PetSkillSaveConfig() {
     global __PetSkillSkillKeys
     keysString := ""
-    loop __PetSkillSkillKeys.Length {
-        if !__PetSkillSkillKeys.Has(A_Index) {
-            continue
-        }
-        keysString .= __PetSkillSkillKeys[A_Index] "|"
+    for i, v in __PetSkillSkillKeys {
+        keysString .= v "|"
     }
-    if (StrLen(keysString) > 0) {
-        keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
-    }
+    keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
     SavePreset(GetNowSelectPreset(), "PetSkillSkillKeys", keysString)
     SavePreset(GetNowSelectPreset(), "PetSkillShotKey", PetSkillGetCtrl("PetSkillShotKey").Text)
 }
 
 PetSkillLoadConfig() {
     global __PetSkillSkillKeys
-    shotKey := LoadPreset(GetNowSelectPreset(), "PetSkillShotKey", "Space")
-    cShot := GetKeycode.CanonMainKey(Trim(shotKey))
-    PetSkillGetCtrl("PetSkillShotKey").Text := cShot != "" ? cShot : "Space"
-    __PetSkillSkillKeys := []
-    for sk in PetSkillLoadKeys(GetNowSelectPreset()) {
-        c := GetKeycode.CanonMainKey(sk)
-        if (c != "") {
-            __PetSkillSkillKeys.Push(c)
-        }
-    }
+    shotKey := LoadPreset(GetNowSelectPreset(), "PetSkillShotKey", "Z")
+    __PetSkillSkillKeys := PetSkillLoadKeys(GetNowSelectPreset())
     PetSkillChangeListGui(__PetSkillSkillKeys)
+    PetSkillGetCtrl("PetSkillShotKey").Text := shotKey
 }

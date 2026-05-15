@@ -1,184 +1,50 @@
-#Requires AutoHotkey v2.0
-
-class MultipleThread {
-    static _threads := Map()
-
-    __New(runLabelOrFunc, extraArgs := unset) {
-        args := ['/Run=' runLabelOrFunc]
-        if IsSet(extraArgs) && IsObject(extraArgs) {
-            for item in extraArgs {
-                args.Push(item "")
-            }
-        }
-        cmd := ""
-        for item in args {
-            escaped := StrReplace(item, '"', '\"')
-            cmd .= ' "' escaped '"'
-        }
+; 勿命名为 Thread：AHK v2 标准库已有内置 Thread 类，会覆盖 ScriptStart 等调用
+class SubProcessThread
+{
+    __New(RunLabelOrFunc)
+    {
+        args := "/Run=" RunLabelOrFunc
+        ; v2：命令行为 "解释器" "脚本" "参数"，勿插入 v1 式 /f，否则会把 /f 当成脚本路径
         if (A_IsCompiled) {
-            Run('"' A_ScriptFullPath '"' cmd, , , &pid)
+            Run('"' A_ScriptFullPath '" "' args '"', , , &pid)
         } else {
-            Run('"' A_AhkPath '" "' A_ScriptFullPath '"' cmd, , , &pid)
+            Run('"' A_AhkPath '" "' A_ScriptFullPath '" "' args '"', , , &pid)
         }
         this.pid := pid
     }
-
-    Stop() {
-        if this.pid {
-            try ProcessClose(this.pid)
-            this.pid := 0
+    __Delete()
+    {
+        try ProcessClose(this.pid)
+    }
+    static ScriptStart()
+    {
+        if (A_Args.Length < 1 || !InStr(A_Args[1], "/Run="))
+        {
+            return
         }
-    }
-
-    __Delete() {
-        this.Stop()
-    }
-
-    static IsChildProcess() {
-        return A_Args.Length >= 1 && InStr(A_Args[1], "/Run=") = 1
-    }
-
-    static ScriptStart() {
-        if !this.IsChildProcess() {
-            return false
-        }
+        ; 子进程仅负责连发逻辑，不显示托盘图标，避免任务栏出现大量 H 图标
         A_IconHidden := true
         Suspend(true)
-        this._EnsureDnfWindowGroup()
-        timerRaised := false
+        k := SubStr(A_Args[1], 6)
         try {
-            UnlockSystemTimeLimit()
-            timerRaised := true
-        } catch {
-        }
-        try {
-            runName := SubStr(A_Args[1], 6)
-            if RegExMatch(runName, "^\d$") {
-                runName := "Key" runName
+            dispatch := Map(
+                "ReleaseKeys", ReleaseKeys,
+                "ExLvRen", ExLvRen,
+                "ExGuanYu", ExGuanYu,
+                "ExPetSkill", ExPetSkill,
+                "ExZhanFa", ExZhanFa,
+                "ExJianZong", ExJianZong,
+                "ExAutoRun", ExAutoRun
+            )
+            if (dispatch.Has(k)) {
+                dispatch[k].Call()
+            } else {
+                ; 普通按键线程：直接走 AutoFire，避免 Func("F").Call() 在部分环境异常
+                AutoFire(GetOriginKeyName(k))
             }
-            this._Dispatch(runName)
-        } finally {
-            try SendIP_ReleaseAll()
-            if timerRaised {
-                try RestoreSystemTimeLimit()
-            }
+        } catch as err {
+            ; 线程启动异常时保持静默，避免影响主流程
         }
         ExitApp()
-        return true
-    }
-
-    static StartMainKeyThread(keyName, intervalMs, pressDurationMs) {
-        keyName := GetKeycode.CanonMainKey(keyName)
-        if (keyName = "") {
-            return false
-        }
-        intervalMs := PresetManager.NormalizeInterval(intervalMs)
-        pressDurationMs := PresetManager.NormalizePressDuration(pressDurationMs)
-        thread := MultipleThread("MainKey", [keyName, intervalMs, pressDurationMs])
-        this._TrackThread(this._ThreadId("MainKey", keyName), thread)
-        return true
-    }
-
-    static StartFeatureThread(featureName) {
-        featureName := Trim(featureName "")
-        if (featureName = "") {
-            return false
-        }
-        thread := MultipleThread(featureName)
-        this._TrackThread(this._ThreadId("Feature", featureName), thread)
-        return true
-    }
-
-    static StopAllThreads() {
-        oldThreads := this._threads
-        this._threads := Map()
-        for _, thread in oldThreads {
-            try thread.Stop()
-        }
-        this._StopOrphanChildProcesses()
-    }
-
-    static AnyThreadRunning() {
-        for _ in this._threads {
-            return true
-        }
-        return false
-    }
-
-    static _ThreadId(kind, name) {
-        return kind ":" name
-    }
-
-    static _TrackThread(threadId, thread) {
-        if this._threads.Has(threadId) {
-            try this._threads[threadId].Stop()
-        }
-        this._threads[threadId] := thread
-    }
-
-    static _StopOrphanChildProcesses() {
-        currentPid := DllCall("kernel32\GetCurrentProcessId", "UInt")
-        wmi := ""
-        try wmi := ComObjGet("winmgmts:")
-        catch {
-            return
-        }
-        try processes := wmi.ExecQuery("Select ProcessId, CommandLine from Win32_Process")
-        catch {
-            return
-        }
-        for process in processes {
-            pid := 0
-            cmd := ""
-            try pid := process.ProcessId + 0
-            try cmd := process.CommandLine ""
-            if (pid = 0 || pid = currentPid || cmd = "") {
-                continue
-            }
-            if !InStr(cmd, A_ScriptFullPath) {
-                continue
-            }
-            if !RegExMatch(cmd, '(^|["\s])/Run=') {
-                continue
-            }
-            try ProcessClose(pid)
-        }
-    }
-
-    static _EnsureDnfWindowGroup() {
-        try GameContext._AddDnfGroup()
-    }
-
-    static _Dispatch(runName) {
-        switch runName {
-            case "MainKey":
-                keyName := this._Arg(2)
-                intervalMs := Round(this._Arg(3, 20) + 0)
-                pressDurationMs := Round(this._Arg(4, 8) + 0)
-                AutoFire_Run(keyName, intervalMs, pressDurationMs)
-            case "LvRen", "ExLvRen":
-                ExLvRen_Run()
-            case "GuanYu", "ExGuanYu":
-                ExGuanYu_Run()
-            case "PetSkill", "ExPetSkill":
-                ExPetSkill_Run()
-            case "ZhanFa", "ExZhanFa":
-                ExZhanFa_Run()
-            case "JianZong", "ExJianZong":
-                ExJianZong_Run()
-            case "AutoRun", "ExAutoRun":
-                ExAutoRun.Run()
-            case "Combo", "ExCombo":
-                ExCombo_Run()
-            default:
-                throw Error("Unsupported Ex run target: " runName)
-        }
-    }
-
-    static _Arg(index, default := "") {
-        if (index >= 1 && index <= A_Args.Length) {
-            return A_Args[index]
-        }
-        return default
     }
 }
