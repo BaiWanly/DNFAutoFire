@@ -1,26 +1,16 @@
 #Requires AutoHotkey v2.0
 
-global gMainGui := Gui("-MinimizeBox -MaximizeBox -Theme +OwnDialogs")
+global gMainGui := Gui("-MinimizeBox -MaximizeBox +OwnDialogs")
 global gMainCtrls := Map()
 global _IsPresetUiSyncing := false
 
+UiApplyWindow(gMainGui)
 gMainGui.OnEvent("Escape", MainGuiEscape)
 gMainGui.OnEvent("Close", MainGuiClose)
 
 MainAdd(ctrlType, options, text := "") {
     global gMainGui, gMainCtrls
-    ; v2：ListBox / DropDownList / ComboBox 初始项须为字符串数组，不能用 ""（会报 Expected an Array）
-    if (ctrlType = "ListBox" || ctrlType = "DropDownList" || ctrlType = "ComboBox") && (text = "") {
-        ctrl := gMainGui.Add(ctrlType, options, [])
-    } else if (ctrlType = "Hotkey" && text = "") {
-        ctrl := gMainGui.Add(ctrlType, options)
-    } else {
-        ctrl := gMainGui.Add(ctrlType, options, text)
-    }
-    if (ctrl.Name != "") {
-        gMainCtrls[ctrl.Name] := ctrl
-    }
-    return ctrl
+    return UiAdd(gMainCtrls, gMainGui, ctrlType, options, text)
 }
 
 MainGetCtrl(name) {
@@ -34,67 +24,145 @@ MainCheckboxOn(name) {
     return IsObject(c) && c.Value
 }
 
-gMainGui.Add("GroupBox", "x8 y8 w926 h276", "按键设置 - [ 红色为启用连发 蓝色为关闭连发 ]")
-gMainGui.SetFont("s12 cBlue")
-for item in [
-    ["Esc","x16 y30 w36 h36"],["F1","x90 y30 w36 h36"],["F2","x130 y30 w36 h36"],["F3","x170 y30 w36 h36"],["F4","x210 y30 w36 h36"],["F5","x270 y30 w36 h36"],["F6","x310 y30 w36 h36"],["F7","x350 y30 w36 h36"],["F8","x390 y30 w36 h36"],["F9","x450 y30 w36 h36"],["F10","x490 y30 w36 h36"],["F11","x530 y30 w36 h36"],["F12","x570 y30 w36 h36"],
-    ["Tilde","x16 y80 w36 h36","``"],["1","x56 y80 w36 h36"],["2","x96 y80 w36 h36"],["3","x136 y80 w36 h36"],["4","x176 y80 w36 h36"],["5","x216 y80 w36 h36"],["6","x256 y80 w36 h36"],["7","x296 y80 w36 h36"],["8","x336 y80 w36 h36"],["9","x376 y80 w36 h36"],["0","x416 y80 w36 h36"],["Sub","x456 y80 w36 h36","-"],["Add","x496 y80 w36 h36","+"],["Backspace","x536 y80 w70 h36","←"],
-    ["Tab","x16 y120 w54 h36"],["Q","x74 y120 w36 h36"],["W","x114 y120 w36 h36"],["E","x154 y120 w36 h36"],["R","x194 y120 w36 h36"],["T","x234 y120 w36 h36"],["Y","x274 y120 w36 h36"],["U","x314 y120 w36 h36"],["I","x354 y120 w36 h36"],["O","x394 y120 w36 h36"],["P","x434 y120 w36 h36"],["LeftBracket","x474 y120 w36 h36","["],["RightBracket","x514 y120 w36 h36","]"],["Backslash","x554 y120 w52 h36","\"],
-    ["Caps","x16 y160 w64 h36"],["A","x84 y160 w36 h36"],["S","x124 y160 w36 h36"],["D","x164 y160 w36 h36"],["F","x204 y160 w36 h36"],["G","x244 y160 w36 h36"],["H","x284 y160 w36 h36"],["J","x324 y160 w36 h36"],["K","x364 y160 w36 h36"],["L","x404 y160 w36 h36"],["Semicolon","x444 y160 w36 h36",";"],["QuotationMark","x484 y160 w36 h36","'"],["Enter","x524 y160 w82 h36"],
-    ["LShift","x16 y200 w86 h36","Shift"],["Z","x106 y200 w36 h36"],["X","x146 y200 w36 h36"],["C","x186 y200 w36 h36"],["V","x226 y200 w36 h36"],["B","x266 y200 w36 h36"],["N","x306 y200 w36 h36"],["M","x346 y200 w36 h36"],["Comma","x386 y200 w36 h36",","],["Period","x426 y200 w36 h36","."],["Slash","x466 y200 w36 h36","/"],["RShift","x506 y200 w100 h36","Shift"],
-    ["LCtrl","x16 y240 w48 h36","Ctrl"],["LAlt","x120 y240 w48 h36","Alt"],["Space","x172 y240 w226 h36"],["RAlt","x402 y240 w48 h36","Alt"],["RCtrl","x558 y240 w48 h36","Ctrl"],
-    ["Up","x670 y200 w36 h36","↑"],["Left","x630 y240 w36 h36","←"],["Down","x670 y240 w36 h36","↓"],["Right","x710 y240 w36 h36","→"],
-    ["Num0","x770 y240 w76 h36"],["NumPeriod","x850 y240 w36 h36","."],["NumSlash","x810 y80 w36 h36","/"],["NumStar","x850 y80 w36 h36","*"],["NumSub","x890 y80 w36 h36","-"],["NumAdd","x890 y120 w36 h76","+"],
-    ["Ins","x630 y70 w36 h36"],["Home","x670 y70 w36 h36"],["PgUp","x710 y70 w36 h36"],["Del","x630 y110 w36 h36"],["End","x670 y110 w36 h36"],["PgDn","x710 y110 w36 h36"],
-    ["Num1","x770 y200 w36 h36"],["Num2","x810 y200 w36 h36"],["Num3","x850 y200 w36 h36"],["Num4","x770 y160 w36 h36"],["Num5","x810 y160 w36 h36"],["Num6","x850 y160 w36 h36"],["Num7","x770 y120 w36 h36"],["Num8","x810 y120 w36 h36"],["Num9","x850 y120 w36 h36"],
-    ["PrtSc","x630 y30 w36 h36"],["ScrLk","x670 y30 w36 h36"],["Pause","x710 y30 w36 h36"],["NumEnter","x890 y200 w36 h76","`n`n`nNum`nEnter"],["NumLk","x770 y80 w36 h36"]
-] {
-    name := item[1], pos := item[2], label := item.Length >= 3 ? item[3] : name
-    fontSize := (name = "PrtSc" || name = "ScrLk" || name = "Pause" || name = "NumEnter" || name = "NumLk") ? "s7" : ((name ~= "^(Ins|Home|PgUp|Del|End|PgDn|Num[1-9])$") ? "s9" : "s12")
-    gMainGui.SetFont(fontSize " cBlue")
-    ctrl := MainAdd("Text", "v" name " " pos " +0x200 +0x400000 +Center", label)
-    ctrl.OnEvent("Click", MainKeyClick)
+MainKeyFontSize(key) {
+    if (key = "PrtSc" || key = "ScrLk" || key = "Pause" || key = "NumEnter" || key = "NumLk") {
+        return "s7"
+    }
+    if (key ~= "^(Ins|Home|PgUp|Del|End|PgDn|Num[1-9])$") {
+        return "s9"
+    }
+    return "s12"
 }
-gMainGui.SetFont()
 
-gMainGui.Add("Text", "x68 y240 w48 h36 +0x200 +0x400000 +Center +Disabled", "Win")
-gMainGui.Add("Text", "x454 y240 w48 h36 +0x200 +0x400000 +Center +Disabled", "Fn")
-gMainGui.Add("Text", "x506 y240 w48 h36 +0x200 +0x400000 +Center +Disabled", "App")
+MainAddKey(name, x, y, w := 36, h := 36, label := "") {
+    global gMainGui, gMainCtrls
+    label := label = "" ? name : label
+    UiKeycap(gMainCtrls, gMainGui, name, UiRect(x, y, w, h), label, MainKeyFontSize(name), MainKeyClick)
+}
 
-gMainGui.SetFont("s9")
-MainAdd("Button", "vMainClear x848 y30 w78 h36 +0x200 +Center", "清空键位").OnEvent("Click", MainClear)
-gMainGui.SetFont()
+MainAddKeyRow(startX, y, keys, keyH := 36, gap := 4) {
+    x := startX
+    for item in keys {
+        name := item[1]
+        if (name = "") {
+            UiSpacer(&x, item[2])
+            continue
+        }
+        w := item.Length >= 2 && item[2] != "" ? item[2] : 36
+        label := item.Length >= 3 ? item[3] : name
+        h := item.Length >= 4 ? item[4] : keyH
+        MainAddKey(name, x, y, w, h, label)
+        UiMoveX(&x, w, gap)
+    }
+}
 
-gMainGui.Add("GroupBox", "x8 y300 w274 h200", "配置设置 - [ 单击切换配置 ]")
-MainAdd("ListBox", "vPreset x16 y320 w126 h180")
-MainGetCtrl("Preset").OnEvent("Change", MainChangePresetByList)
-gMainGui.Add("Text", "x150 y320 w120 h24 +0x200", "当前配置")
-MainAdd("Text", "vCurrentPresetLabel x150 y344 w120 h22 +0x200 +0x400000", "")
-MainAdd("Button", "vMainNewPreset x150 y372 w58 h30", "新建配置").OnEvent("Click", MainNewPreset)
-MainAdd("Button", "vMainRenamePreset x212 y372 w58 h30", "重命名").OnEvent("Click", MainRenamePreset)
-MainAdd("Button", "vMainClonePreset x150 y406 w58 h30", "克隆配置").OnEvent("Click", MainClonePreset)
-MainAdd("Button", "vMainDeletePreset x212 y406 w58 h30", "删除配置").OnEvent("Click", MainDeletePreset)
-gMainGui.Add("Text", "x150 y450 w72 h24 +0x200", "快速切换热键")
-MainAdd("Hotkey", "vQuickChangeHotKey x150 y474 w120 h20").OnEvent("Change", MainSaveQuickChangeHotKey)
+MainBuildKeyboardPanel() {
+    MainAddKeyRow(16, 30, [
+        ["Esc"], ["", 34], ["F1"], ["F2"], ["F3"], ["F4"], ["", 20], ["F5"], ["F6"], ["F7"], ["F8"], ["", 20], ["F9"], ["F10"], ["F11"], ["F12"]
+    ])
+    MainAddKeyRow(16, 80, [
+        ["Tilde", 36, "``"], ["1"], ["2"], ["3"], ["4"], ["5"], ["6"], ["7"], ["8"], ["9"], ["0"], ["Sub", 36, "-"], ["Add", 36, "+"], ["Backspace", 70, "←"]
+    ])
+    MainAddKeyRow(16, 120, [
+        ["Tab", 54], ["Q"], ["W"], ["E"], ["R"], ["T"], ["Y"], ["U"], ["I"], ["O"], ["P"], ["LeftBracket", 36, "["], ["RightBracket", 36, "]"], ["Backslash", 52, "\"]
+    ])
+    MainAddKeyRow(16, 160, [
+        ["Caps", 64], ["A"], ["S"], ["D"], ["F"], ["G"], ["H"], ["J"], ["K"], ["L"], ["Semicolon", 36, ";"], ["QuotationMark", 36, "'"], ["Enter", 82]
+    ])
+    MainAddKeyRow(16, 200, [
+        ["LShift", 86, "Shift"], ["Z"], ["X"], ["C"], ["V"], ["B"], ["N"], ["M"], ["Comma", 36, ","], ["Period", 36, "."], ["Slash", 36, "/"], ["RShift", 100, "Shift"]
+    ])
+    MainAddKeyRow(16, 240, [
+        ["LCtrl", 48, "Ctrl"], ["", 52], ["LAlt", 48, "Alt"], ["Space", 226], ["RAlt", 48, "Alt"], ["", 104], ["RCtrl", 48, "Ctrl"]
+    ])
 
-MainAdd("Button", "vMainSetting x838 y305 w96 h60", "软件设置").OnEvent("Click", MainSetting)
-MainAdd("Button", "vMainCheckUpdate x838 y372 w96 h60", "检查更新").OnEvent("Click", MainCheckUpdate)
-MainAdd("Button", "vMainStart x838 y440 w96 h60", "启动连发").OnEvent("Click", MainStart)
+    MainAddKeyRow(630, 30, [["PrtSc"], ["ScrLk"], ["Pause"]])
+    MainAddKeyRow(630, 70, [["Ins"], ["Home"], ["PgUp"]])
+    MainAddKeyRow(630, 110, [["Del"], ["End"], ["PgDn"]])
+    MainAddKeyRow(630, 200, [["", 40], ["Up", 36, "↑"]])
+    MainAddKeyRow(630, 240, [["Left", 36, "←"], ["Down", 36, "↓"], ["Right", 36, "→"]])
 
-gMainGui.Add("GroupBox", "x290 y300 w538 h200", "其他功能")
-MainAdd("CheckBox", "vLvRen x298 y320 h20 w16")
-MainAdd("Link", "vMainLvRen x316 y323 h20", "<a>旅人自动流星</a>").OnEvent("Click", MainLvRen)
-MainAdd("CheckBox", "vGuanYu x298 y340 h20 w16")
-MainAdd("Link", "vMainGuanYu x316 y343 h20", "<a>关羽自动猛攻</a>").OnEvent("Click", MainGuanYu)
-MainAdd("CheckBox", "vJianZong x298 y360 h20 w16")
-MainAdd("Link", "vMainJianZong x316 y363 h20", "<a>太宗帝剑延迟</a>").OnEvent("Click", MainJianZong)
-MainAdd("CheckBox", "vZhanFa x298 y380 h20 w16")
-MainAdd("Link", "vMainZhanFa x316 y383 h20", "<a>战法自动炫纹</a>").OnEvent("Click", MainZhanFa)
-MainAdd("CheckBox", "vPetSkill x298 y400 h20 w16")
-MainAdd("Link", "vMainPetSkill x316 y403 h20", "<a>自动宠物技能</a>").OnEvent("Click", MainPetSkill)
-MainAdd("CheckBox", "vAutoRun x298 y420 h20 w16")
-MainAdd("Link", "vMainAutoRun x316 y423 h20", "<a>自动奔跑</a>").OnEvent("Click", MainAutoRun)
-gMainGui.Add("Text", "x364 y474 w170 h20 +0x200", "当前版本: v" __Version)
+    MainAddKeyRow(770, 80, [["NumLk"], ["NumSlash", 36, "/"], ["NumStar", 36, "*"], ["NumSub", 36, "-"]])
+    MainAddKeyRow(770, 120, [["Num7"], ["Num8"], ["Num9"], ["NumAdd", 36, "+", 76]])
+    MainAddKeyRow(770, 160, [["Num4"], ["Num5"], ["Num6"]])
+    MainAddKeyRow(770, 200, [["Num1"], ["Num2"], ["Num3"], ["", 0], ["NumEnter", 36, "`n`n`nNum`nEnter", 76]])
+    MainAddKeyRow(770, 240, [["Num0", 76], ["NumPeriod", 36, "."]])
+}
+
+MainBuildPresetPanel() {
+    global gMainGui, gMainCtrls
+    panelX := 8, panelY := 300
+    rightX := panelX + 142
+    buttonW := 58
+
+    UiSection(gMainGui, UiRect(panelX, panelY, 274, 200), "配置设置 - [ 单击切换配置 ]")
+    UiListBox(gMainCtrls, gMainGui, "Preset", UiRect(panelX + 8, panelY + 20, 126, 180), MainChangePresetByList)
+    UiLabel(gMainGui, UiRect(rightX, panelY + 20, 120, 24), "当前配置")
+    MainAdd("Text", "vCurrentPresetLabel " UiRect(rightX, panelY + 44, 120, 22, "+0x200 +0x400000"), "")
+
+    for item in [
+        ["MainNewPreset", "新建配置", MainNewPreset, 0, 0],
+        ["MainRenamePreset", "重命名", MainRenamePreset, 1, 0],
+        ["MainClonePreset", "克隆配置", MainClonePreset, 0, 1],
+        ["MainDeletePreset", "删除配置", MainDeletePreset, 1, 1]
+    ] {
+        x := rightX + item[4] * (buttonW + 4)
+        y := panelY + 72 + item[5] * 34
+        UiButton(gMainCtrls, gMainGui, item[1], UiRect(x, y, buttonW, 30), item[2], item[3])
+    }
+
+    UiLabel(gMainGui, UiRect(rightX, panelY + 150, 72, 24), "快速切换热键")
+    UiHotkey(gMainCtrls, gMainGui, "QuickChangeHotKey", UiRect(rightX, panelY + 174, 120, 20), MainSaveQuickChangeHotKey)
+}
+
+MainBuildActionButtons() {
+    global gMainGui, gMainCtrls
+    x := 838, w := 96, h := 60
+    for item in [
+        ["MainSetting", "软件设置", MainSetting, 305],
+        ["MainCheckUpdate", "检查更新", MainCheckUpdate, 372],
+        ["MainStart", "启动连发", MainStart, 440]
+    ] {
+        UiButton(gMainCtrls, gMainGui, item[1], UiRect(x, item[4], w, h), item[2], item[3])
+    }
+}
+
+MainBuildFeaturePanel() {
+    global gMainGui, gMainCtrls, __Version
+    panelX := 290, panelY := 300
+    checkX := panelX + 8, linkX := panelX + 26
+    rowY := panelY + 20
+
+    UiSection(gMainGui, UiRect(panelX, panelY, 538, 200), "其他功能")
+    for item in [
+        ["LvRen", "MainLvRen", "旅人自动流星", MainLvRen],
+        ["GuanYu", "MainGuanYu", "关羽自动猛攻", MainGuanYu],
+        ["JianZong", "MainJianZong", "太宗帝剑延迟", MainJianZong],
+        ["ZhanFa", "MainZhanFa", "战法自动炫纹", MainZhanFa],
+        ["PetSkill", "MainPetSkill", "自动宠物技能", MainPetSkill],
+        ["AutoRun", "MainAutoRun", "自动奔跑", MainAutoRun]
+    ] {
+        UiCheckBox(gMainCtrls, gMainGui, item[1], UiRect(checkX, rowY, 16, 20))
+        UiLink(gMainCtrls, gMainGui, item[2], UiRect(linkX, rowY + 3, 160, 20), item[3], item[4])
+        rowY += 20
+    }
+    UiMutedLabel(gMainGui, UiRect(panelX + 74, panelY + 174, 170, 20), "当前版本: v" __Version)
+}
+
+UiSection(gMainGui, UiRect(8, 8, 926, 276), "按键设置 - [ 红色为启用连发 蓝色为关闭连发 ]")
+MainBuildKeyboardPanel()
+UiSetDefaultFont(gMainGui)
+
+UiMutedLabel(gMainGui, UiRect(68, 240, 48, 36, "+0x400000 +Center +Disabled"), "Win")
+UiMutedLabel(gMainGui, UiRect(454, 240, 48, 36, "+0x400000 +Center +Disabled"), "Fn")
+UiMutedLabel(gMainGui, UiRect(506, 240, 48, 36, "+0x400000 +Center +Disabled"), "App")
+
+UiButton(gMainCtrls, gMainGui, "MainClear", UiRect(848, 30, 78, 36, "+0x200 +Center"), "清空键位", MainClear)
+UiSetDefaultFont(gMainGui)
+
+MainBuildPresetPanel()
+MainBuildActionButtons()
+MainBuildFeaturePanel()
 
 ShowGuiMain(*) {
     global gMainGui
@@ -134,18 +202,14 @@ EnableGuiMain() {
 }
 
 MainSetKeyState(key, state) {
+    global UiTheme
     ctrl := MainGetCtrl(key)
     if !IsObject(ctrl) {
         return
     }
-    color := state ? "cRed" : "cBlue"
+    color := state ? UiTheme["KeyOnColor"] : UiTheme["KeyOffColor"]
     weight := state ? "Bold" : "Norm"
-    size := "s12"
-    if (key = "PrtSc" || key = "ScrLk" || key = "Pause" || key = "NumEnter" || key = "NumLk") {
-        size := "s7"
-    } else if (key ~= "^(Ins|Home|PgUp|Del|End|PgDn|Num[1-9])$") {
-        size := "s9"
-    }
+    size := MainKeyFontSize(key)
     ctrl.SetFont(size " " color " " weight)
 }
 

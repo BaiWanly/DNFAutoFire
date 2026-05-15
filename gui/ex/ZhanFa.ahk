@@ -4,18 +4,11 @@ global gZhanFaGui := Gui("+ToolWindow")
 global gZhanFaCtrls := Map()
 global __ZhanFaSkillKeys := []
 
+UiApplyWindow(gZhanFaGui)
 gZhanFaGui.OnEvent("Escape", ZhanFaGuiEscape)
 gZhanFaGui.OnEvent("Close", ZhanFaGuiClose)
 
-gZhanFaCtrls["ZhanFaKeysListBox"] := gZhanFaGui.Add("ListBox", "vZhanFaKeysListBox x8 y32 w80 h172")
-gZhanFaCtrls["ZhanFaShotKey"] := gZhanFaGui.Add("Edit", "vZhanFaShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
-gZhanFaGui.Add("Button", "x96 y40 w80 h22", "添加技能键").OnEvent("Click", ZhanFaAddKey)
-gZhanFaGui.Add("Button", "x96 y70 w80 h22", "删除技能键").OnEvent("Click", ZhanFaDeleteKey)
-gZhanFaGui.Add("Button", "x96 y148 w80 h22", "设置发射键").OnEvent("Click", ZhanFaSetShotKey)
-gZhanFaGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加技能键")
-gZhanFaGui.Add("Text", "x96 y100 w80 h20 +0x200", "炫纹发射键")
-gZhanFaGui.Add("Button", "x96 y178 w80 h27", "保存").OnEvent("Click", ZhanFaSave)
-gZhanFaGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", ZhanFaHelp)
+UiSkillKeyEditor(gZhanFaGui, gZhanFaCtrls, "ZhanFa", "已添加技能键", "炫纹发射键", "添加技能键", "删除技能键", "设置发射键", ZhanFaAddKey, ZhanFaDeleteKey, ZhanFaSetShotKey, ZhanFaSave, ZhanFaHelp)
 
 ZhanFaGetCtrl(name) {
     global gZhanFaCtrls

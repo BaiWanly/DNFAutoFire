@@ -3,16 +3,18 @@
 global gJianZongGui := Gui("+ToolWindow")
 global gJianZongCtrls := Map()
 
+UiApplyWindow(gJianZongGui)
 gJianZongGui.OnEvent("Escape", JianZongGuiEscape)
 gJianZongGui.OnEvent("Close", JianZongGuiClose)
 
-gJianZongGui.Add("Text", "x8 y8 w80 h20 +0x200", "延迟时间(ms)")
-gJianZongCtrls["JianZongDelay"] := gJianZongGui.Add("Edit", "vJianZongDelay x8 y32 w80 h20 +Number")
-gJianZongGui.Add("Text", "x8 y56 w80 h20 +0x200", "帝国剑术键")
-gJianZongCtrls["JianZongSkillKey"] := gJianZongGui.Add("Edit", "vJianZongSkillKey x8 y80 w80 h20 +ReadOnly")
-gJianZongGui.Add("Button", "x8 y104 w80 h22", "设置按键").OnEvent("Click", JianZongSetSkillKey)
-gJianZongGui.Add("Button", "x8 y128 w80 h26", "保存").OnEvent("Click", JianZongSave)
-gJianZongGui.Add("Button", "x94 y8 w18 h18", "?").OnEvent("Click", JianZongHelp)
+xForm := UiColumnX(1)
+UiLabel(gJianZongGui, UiRect(xForm, UiRowY(1), 80, 20), "延迟时间(ms)")
+UiEdit(gJianZongCtrls, gJianZongGui, "JianZongDelay", UiRect(xForm, UiRowY(2), 80, 20, "+Number"))
+UiLabel(gJianZongGui, UiRect(xForm, UiRowY(3), 80, 20), "帝国剑术键")
+UiEdit(gJianZongCtrls, gJianZongGui, "JianZongSkillKey", UiRect(xForm, UiRowY(4), 80, 20, "+ReadOnly"))
+UiPlainButton(gJianZongGui, UiRect(xForm, UiRowY(5), 80, 22), "设置按键", JianZongSetSkillKey)
+UiPlainButton(gJianZongGui, UiRect(xForm, UiRowY(6), 80, 26), "保存", JianZongSave)
+UiHelpButton(gJianZongGui, UiRect(94, UiRowY(1), 18, 18), JianZongHelp)
 
 JianZongGetCtrl(name) {
     global gJianZongCtrls

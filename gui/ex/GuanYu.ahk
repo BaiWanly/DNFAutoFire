@@ -4,20 +4,11 @@ global gGuanYuGui := Gui("+ToolWindow")
 global gGuanYuCtrls := Map()
 global __GuanYuSkillKeys := []
 
+UiApplyWindow(gGuanYuGui)
 gGuanYuGui.OnEvent("Escape", GuanYuGuiEscape)
 gGuanYuGui.OnEvent("Close", GuanYuGuiClose)
 
-gGuanYuCtrls["GuanYuKeysListBox"] := gGuanYuGui.Add("ListBox", "vGuanYuKeysListBox x8 y32 w80 h172")
-gGuanYuCtrls["GuanYuShotKey"] := gGuanYuGui.Add("Edit", "vGuanYuShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
-gGuanYuCtrls["GuanYuDelay"] := gGuanYuGui.Add("Edit", "vGuanYuDelay x96 y200 w80 h20 +Number")
-gGuanYuGui.Add("Button", "x96 y40 w80 h22", "添加技能键").OnEvent("Click", GuanYuAddKey)
-gGuanYuGui.Add("Button", "x96 y70 w80 h22", "删除技能键").OnEvent("Click", GuanYuDeleteKey)
-gGuanYuGui.Add("Button", "x96 y148 w80 h22", "设置发射键").OnEvent("Click", GuanYuSetShotKey)
-gGuanYuGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加技能键")
-gGuanYuGui.Add("Text", "x96 y100 w80 h20 +0x200", "猛攻发射键")
-gGuanYuGui.Add("Text", "x96 y180 w80 h20 +0x200", "手动延迟(ms)")
-gGuanYuGui.Add("Button", "x96 y232 w80 h27", "保存").OnEvent("Click", GuanYuSave)
-gGuanYuGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", GuanYuHelp)
+UiSkillKeyEditor(gGuanYuGui, gGuanYuCtrls, "GuanYu", "已添加技能键", "猛攻发射键", "添加技能键", "删除技能键", "设置发射键", GuanYuAddKey, GuanYuDeleteKey, GuanYuSetShotKey, GuanYuSave, GuanYuHelp, "手动延迟(ms)")
 
 GuanYuGetCtrl(name) {
     global gGuanYuCtrls

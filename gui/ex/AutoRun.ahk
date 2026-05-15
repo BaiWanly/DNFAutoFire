@@ -3,19 +3,22 @@
 global gAutoRunGui := Gui("+ToolWindow")
 global gAutoRunCtrls := Map()
 
+UiApplyWindow(gAutoRunGui)
 gAutoRunGui.OnEvent("Escape", AutoRunGuiEscape)
 gAutoRunGui.OnEvent("Close", AutoRunGuiClose)
 
-gAutoRunGui.Add("Text", "x8 y8 w80 h20 +0x200", "左方向键")
-gAutoRunCtrls["AutoRunLeftKey"] := gAutoRunGui.Add("Edit", "vAutoRunLeftKey x8 y32 w80 h20 +ReadOnly -WantCtrlA")
-gAutoRunGui.Add("Button", "x8 y56 w80 h22", "设置按键").OnEvent("Click", AutoRunSetLeftKey)
+xLeft := UiColumnX(1)
+xRight := UiColumnX(2)
+UiLabel(gAutoRunGui, UiRect(xLeft, UiRowY(1), 80, 20), "左方向键")
+UiEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunLeftKey", UiRect(xLeft, UiRowY(2), 80, 20, "+ReadOnly -WantCtrlA"))
+UiPlainButton(gAutoRunGui, UiRect(xLeft, UiRowY(3), 80, 22), "设置按键", AutoRunSetLeftKey)
 
-gAutoRunGui.Add("Text", "x96 y8 w80 h20 +0x200", "右方向键")
-gAutoRunCtrls["AutoRunRightKey"] := gAutoRunGui.Add("Edit", "vAutoRunRightKey x96 y32 w80 h20 +ReadOnly -WantCtrlA")
-gAutoRunGui.Add("Button", "x96 y56 w80 h22", "设置按键").OnEvent("Click", AutoRunSetRightKey)
+UiLabel(gAutoRunGui, UiRect(xRight, UiRowY(1), 80, 20), "右方向键")
+UiEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunRightKey", UiRect(xRight, UiRowY(2), 80, 20, "+ReadOnly -WantCtrlA"))
+UiPlainButton(gAutoRunGui, UiRect(xRight, UiRowY(3), 80, 22), "设置按键", AutoRunSetRightKey)
 
-gAutoRunGui.Add("Button", "x96 y86 w80 h28", "保存").OnEvent("Click", AutoRunSave)
-gAutoRunGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", AutoRunHelp)
+UiPlainButton(gAutoRunGui, UiRect(xRight, 86, 80, 28), "保存", AutoRunSave)
+UiHelpButton(gAutoRunGui, UiRect(158, UiRowY(1), 18, 18), AutoRunHelp)
 
 AutoRunGetCtrl(name) {
     global gAutoRunCtrls

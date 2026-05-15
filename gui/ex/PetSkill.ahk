@@ -4,18 +4,11 @@ global gPetSkillGui := Gui("+ToolWindow")
 global gPetSkillCtrls := Map()
 global __PetSkillSkillKeys := []
 
+UiApplyWindow(gPetSkillGui)
 gPetSkillGui.OnEvent("Escape", PetSkillGuiEscape)
 gPetSkillGui.OnEvent("Close", PetSkillGuiClose)
 
-gPetSkillCtrls["PetSkillKeysListBox"] := gPetSkillGui.Add("ListBox", "vPetSkillKeysListBox x8 y32 w80 h172")
-gPetSkillCtrls["PetSkillShotKey"] := gPetSkillGui.Add("Edit", "vPetSkillShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
-gPetSkillGui.Add("Button", "x96 y40 w80 h22", "添加触发键").OnEvent("Click", PetSkillAddKey)
-gPetSkillGui.Add("Button", "x96 y70 w80 h22", "删除触发键").OnEvent("Click", PetSkillDeleteKey)
-gPetSkillGui.Add("Button", "x96 y148 w80 h22", "设置宠物键").OnEvent("Click", PetSkillSetShotKey)
-gPetSkillGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加触发键")
-gPetSkillGui.Add("Text", "x96 y100 w80 h20 +0x200", "宠物技能键")
-gPetSkillGui.Add("Button", "x96 y178 w80 h27", "保存").OnEvent("Click", PetSkillSave)
-gPetSkillGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", PetSkillHelp)
+UiSkillKeyEditor(gPetSkillGui, gPetSkillCtrls, "PetSkill", "已添加触发键", "宠物技能键", "添加触发键", "删除触发键", "设置宠物键", PetSkillAddKey, PetSkillDeleteKey, PetSkillSetShotKey, PetSkillSave, PetSkillHelp)
 
 PetSkillGetCtrl(name) {
     global gPetSkillCtrls

@@ -56,6 +56,9 @@ EnsureConfigInitialized()
 #Include ./core/AutoFire.ahk
 #Include ./core/Scripts.ahk
 #Include ./core/ReleaseKeys.ahk
+#Include ./gui/ui/Theme.ahk
+#Include ./gui/ui/Layout.ahk
+#Include ./gui/ui/Controls.ahk
 #Include ./gui/Main.ahk
 #Include ./gui/QuickSwitch.ahk
 #Include ./gui/Setting.ahk

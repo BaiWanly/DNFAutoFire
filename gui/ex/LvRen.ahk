@@ -4,18 +4,11 @@ global gLvRenGui := Gui("+ToolWindow")
 global gLvRenCtrls := Map()
 global __LvRenSkillKeys := []
 
+UiApplyWindow(gLvRenGui)
 gLvRenGui.OnEvent("Escape", LvRenGuiEscape)
 gLvRenGui.OnEvent("Close", LvRenGuiClose)
 
-gLvRenCtrls["LvRenKeysListBox"] := gLvRenGui.Add("ListBox", "vLvRenKeysListBox x8 y32 w80 h172")
-gLvRenCtrls["LvRenShotKey"] := gLvRenGui.Add("Edit", "vLvRenShotKey x96 y120 w80 h20 +ReadOnly -WantCtrlA")
-gLvRenGui.Add("Button", "x96 y40 w80 h22", "添加技能键").OnEvent("Click", LvRenAddKey)
-gLvRenGui.Add("Button", "x96 y70 w80 h22", "删除技能键").OnEvent("Click", LvRenDeleteKey)
-gLvRenGui.Add("Button", "x96 y148 w80 h22", "设置发射键").OnEvent("Click", LvRenSetShotKey)
-gLvRenGui.Add("Text", "x8 y8 w80 h20 +0x200", "已添加技能键")
-gLvRenGui.Add("Text", "x96 y100 w80 h20 +0x200", "流星发射键")
-gLvRenGui.Add("Button", "x96 y178 w80 h27", "保存").OnEvent("Click", LvRenSave)
-gLvRenGui.Add("Button", "x158 y8 w18 h18", "?").OnEvent("Click", LvRenHelp)
+UiSkillKeyEditor(gLvRenGui, gLvRenCtrls, "LvRen", "已添加技能键", "流星发射键", "添加技能键", "删除技能键", "设置发射键", LvRenAddKey, LvRenDeleteKey, LvRenSetShotKey, LvRenSave, LvRenHelp)
 
 LvRenGetCtrl(name) {
     global gLvRenCtrls
