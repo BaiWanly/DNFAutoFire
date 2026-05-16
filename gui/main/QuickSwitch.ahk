@@ -9,7 +9,7 @@ gQuickSwitchCtrls["QuickSwitchList"] := gQuickSwitchGui.Add("ListBox", "vQuickSw
 gQuickSwitchCtrls["QuickSwitchList"].OnEvent("DoubleClick", QuickSwitchChangeList)
 gQuickSwitchGui.SetFont()
 gQuickSwitchGui.Add("Text", "x12 y152 w244 h44", MainText["QuickSwitchHint"])
-gQuickSwitchGui.Add("Button", "x12 y204 w118 h38 +Default", MainText["QuickSwitchStart"]).OnEvent("Click", QuickSwitchStart)
+gQuickSwitchGui.Add("Button", "x12 y204 w118 h38", MainText["QuickSwitchStart"]).OnEvent("Click", QuickSwitchStart)
 gQuickSwitchGui.Add("Button", "x138 y204 w118 h38", MainText["QuickSwitchStop"]).OnEvent("Click", QuickSwitchStop)
 
 QuickSwitchGetCtrl(name) {

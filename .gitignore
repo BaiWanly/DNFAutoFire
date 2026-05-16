@@ -1,9 +1,10 @@
 .vscode
 .idea
+.codex
 
 
-/任务达人.txt
 config.ini
-/assets/
 subprocess-error.log
+
 /原始更新日志.txt
+/任务达人.txt

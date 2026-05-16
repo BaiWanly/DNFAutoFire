@@ -1,255 +1,97 @@
 #Requires AutoHotkey v2.0
 
-class ExText {
-    static SaveButton() {
-        return "保存"
-    }
-
-    static AddButton() {
-        return "添加"
-    }
-
-    static DeleteButton() {
-        return "删除"
-    }
-
-    static CancelButton() {
-        return "取消"
-    }
-
-    static InvalidKey() {
-        return "无效按键，请重新输入。"
-    }
-
-    static DuplicateKey() {
-        return "该按键已存在。"
-    }
-
-    static LvRenTitle() {
-        return "旅人自动流星"
-    }
-
-    static LvRenListLabel() {
-        return "已添加技能键"
-    }
-
-    static LvRenShotKeyLabel() {
-        return "触发按键"
-    }
-
-    static LvRenHelp() {
-        return "1. 添加需要触发的技能键。`n2. 设置射击键。`n3. 保存后生效。"
-    }
-
-    static LvRenHelpTitle() {
-        return "设置说明"
-    }
-
-    static GuanYuTitle() {
-        return "关闭自动战戟猛攻"
-    }
-
-    static GuanYuListLabel() {
-        return "已添加技能键"
-    }
-
-    static GuanYuShotKeyLabel() {
-        return "触发按键"
-    }
-
-    static GuanYuDelayLabel() {
-        return "手动延迟(ms)"
-    }
-
-    static GuanYuHelp() {
-        return "1. 添加需要触发的技能键。`n2. 设置戳刺键和技能延迟。`n3. 保存后生效。"
-    }
-
-    static GuanYuHelpTitle() {
-        return "设置说明"
-    }
-
-    static PetSkillTitle() {
-        return "自动宠物技能"
-    }
-
-    static PetSkillListLabel() {
-        return "已添加触发键"
-    }
-
-    static PetSkillShotKeyLabel() {
-        return "触发按键"
-    }
-
-    static PetSkillHelp() {
-        return "1. 添加宠物快捷键。`n2. 设置释放键。`n3. 保存后生效。"
-    }
-
-    static PetSkillHelpTitle() {
-        return "设置说明"
-    }
-
-    static ZhanFaTitle() {
-        return "战法自动炫纹"
-    }
-
-    static ZhanFaListLabel() {
-        return "已添加技能键"
-    }
-
-    static ZhanFaShotKeyLabel() {
-        return "触发按键"
-    }
-
-    static ZhanFaHelp() {
-        return "1. 添加需要触发的技能键。`n2. 设置释放键。`n3. 保存后生效。"
-    }
-
-    static ZhanFaHelpTitle() {
-        return "设置说明"
-    }
-
-    static JianZongTitle() {
-        return "帝国剑术延迟"
-    }
-
-    static JianZongDelayLabel() {
-        return "延迟时间(ms)"
-    }
-
-    static JianZongSkillKeyLabel() {
-        return "帝国剑术快捷键"
-    }
-
-    static JianZongHelp() {
-        return "1. 设置要触发的技能键。`n2. 设置技能延迟。`n3. 保存后生效。`n`nPS：仅对当前预设生效。"
-    }
-
-    static JianZongHelpTitle() {
-        return "设置说明"
-    }
-
-    static AutoRunTitle() {
-        return "自动奔跑设置"
-    }
-
-    static AutoRunLeftLabel() {
-        return "左方向键"
-    }
-
-    static AutoRunRightLabel() {
-        return "右方向键"
-    }
-
-    static AutoRunHelp() {
-        return "设置自动跑图时使用的左右方向键。默认可直接使用 Left / Right。"
-    }
-
-    static AutoRunHelpTitle() {
-        return "设置说明"
-    }
-
-    static ComboTitle() {
-        return "一键连招设置"
-    }
-
-    static ComboProfilesLabel() {
-        return "连招方案"
-    }
-
-    static ComboSequenceLabel() {
-        return "连招技能（双击可修改）"
-    }
-
-    static ComboAddProfile() {
-        return "新建方案"
-    }
-
-    static ComboRemoveProfile() {
-        return "删除方案"
-    }
-
-    static ComboAddSkill() {
-        return "添加技能"
-    }
-
-    static ComboDeleteSkill() {
-        return "删除技能"
-    }
-
-    static ComboTriggerLabel() {
-        return "触发按键"
-    }
-
-    static ComboLoopMode() {
-        return "循环触发"
-    }
-
-    static ComboApplyProfile() {
-        return "应用方案"
-    }
-
-    static ComboHelp() {
-        return "1. 添加技能后可双击修改按键和延迟。`n2. 每套方案都可以设置独立触发键。`n3. 触发键不能重复。`n4. 保存后写入当前预设。"
-    }
-
-    static ComboHelpTitle() {
-        return "设置说明"
-    }
-
-    static ComboProfileMax(maxCount) {
-        return "最多支持 " maxCount " 套连招方案。"
-    }
-
-    static ComboKeepOneProfile() {
-        return "至少保留一套方案。"
-    }
-
-    static ComboDuplicateTrigger(triggerKey) {
-        return "多套方案的触发键不能相同：" triggerKey
-    }
-
-    static ComboProfileUnsetTrigger() {
-        return "(未设置)"
-    }
-
-    static ComboProfileSummary(triggerKey, skillCount) {
-        return triggerKey " : " skillCount " 个技能"
-    }
-
-    static ComboEditTitle() {
-        return "编辑连招技能"
-    }
-
-    static ComboEditChangeKey() {
-        return "修改按键"
-    }
-
-    static ComboCurrentKeyLabel() {
-        return "当前技能键"
-    }
-
-    static ComboDelayLabel() {
-        return "技能延迟(ms)"
-    }
-
-    static ComboInvalidSkillKey() {
-        return "仅支持主连发键盘上的按键。"
-    }
-
-    static PresetSkillIconTitle(presetName) {
-        return "自动识别配置 - " presetName
-    }
-
-    static PresetSkillIconHint() {
-        return "框选后按 Enter 确认，Esc 取消。不要截取到技能图标外。"
-    }
-
-    static PresetSkillIconCapture() {
-        return "截取图像"
-    }
-
-    static PresetSkillIconDelete() {
-        return "清除图像"
-    }
-}
+global exText := Map(
+    "CommonSave", "保存",
+    "DuplicateKey", "请勿重复添加按键",
+    "SetKey", "设置按键",
+    "SetShotKey", "设置按键",
+    "LvRenListTitle", "已添加技能键",
+    "LvRenShotTitle", "流星键",
+    "LvRenAdd", "添加",
+    "LvRenDelete", "删除",
+    "LvRenTitle", "旅人自动流星",
+    "LvRenPageTitle", "旅人自动流星设置",
+    "LvRenHelpTitle", "如何使用旅人自动流星",
+    "LvRenHelp", "1、添加你想要发射流星的技能键`n2、设置游戏中流星的发射键（默认为Z）`n3、保存配置，启动连发并使用`n`nPS：建议和连发功能一起打开，效果更好",
+    "GuanYuListTitle", "已添加技能键",
+    "GuanYuShotTitle", "猛攻按键",
+    "GuanYuAdd", "添加",
+    "GuanYuDelete", "删除",
+    "GuanYuDelayTitle", "手动延迟(ms)",
+    "GuanYuTitle", "关羽自动猛攻",
+    "GuanYuPageTitle", "关羽自动猛攻设置",
+    "GuanYuHelpTitle", "如何使用关羽自动猛攻",
+    "GuanYuHelp", "1、添加触发猛攻的技能键`n2、设置游戏中猛攻的发射键（默认Space）`n3、可手动设置发射前延迟(ms，默认300)`n4、保存配置，启动连发并使用",
+    "PetSkillListTitle", "已添加触发键",
+    "PetSkillShotTitle", "触发按键",
+    "PetSkillAdd", "添加",
+    "PetSkillDelete", "删除",
+    "PetSkillSet", "设置按键",
+    "PetSkillTitle", "自动宠物技能",
+    "PetSkillPageTitle", "自动宠物技能设置",
+    "PetSkillHelpTitle", "如何使用自动宠物技能",
+    "PetSkillHelp", "1、添加你想触发宠物技能时按下的技能键`n2、设置游戏中的宠物技能键`n3、保存配置，启动连发并使用",
+    "ZhanFaListTitle", "已添加技能键",
+    "ZhanFaShotTitle", "炫纹按键",
+    "ZhanFaBigShotTitle", "大炫纹键",
+    "ZhanFaAdd", "添加",
+    "ZhanFaDelete", "删除",
+    "ZhanFaTitle", "战法自动炫纹",
+    "ZhanFaPageTitle", "战法自动炫纹设置",
+    "ZhanFaHelpTitle", "如何使用战法自动炫纹",
+    "ZhanFaHelp", "    你的数据很差，我现在玩战法每130s只要能射出300次炫纹，每次差不多34824％的等效百分比，就能有相当于10447200％的输出水平，换算过来狠狠地超越了精灵骑士的三觉数据。虽然我作为爆发职业没有一个技能超过3000000％，作为续航职业没有一个技能秒伤能超过90000％，但是我的炫纹已经超越了地下城绝大多数职业(包括你)的水平，这便是战斗法师给我的骄傲的资本。",
+    "ZhanFaHelpExtraTitle", "战斗法师の骄傲",
+    "ZhanFaHelpExtra", "1、添加会触发炫纹/大炫纹的左边技能键`n2、设置游戏中的炫纹发射键（默认 Space）`n3、可选设置大炫纹发射键；它和炫纹共用同一批触发键，但每次按下只触发一次，不会连发`n4、保存配置，启动连发并使用",
+    "JianZongDelay", "延迟时间(ms)",
+    "JianZongSkillKey", "帝国剑术快捷键",
+    "JianZongTitle", "帝国剑术延迟",
+    "JianZongPageTitle", "帝国剑术延迟设置",
+    "JianZongHelpTitle", "如何使用帝国剑术延迟",
+    "JianZongHelp", "1、设置游戏中帝国剑术的技能按键`n2、设置帝国剑术第一刀后的延迟时间，单位毫秒`n3、保存配置，启动连发并使用`n`nPS：该按键不能打开连发，否则功能失效",
+    "XiuLuoTitle", "修罗自动一绝",
+    "XiuLuoPageTitle", "修罗自动一绝设置",
+    "XiuLuoHelpTitle", "如何使用修罗自动一绝",
+    "XiuLuoTriggerKey", "触发键",
+    "XiuLuoXKey", "平X键",
+    "XiuLuoWaveKey1", "波动剑1",
+    "XiuLuoWaveKey2", "波动剑2",
+    "XiuLuoWaveKey3", "波动剑3",
+    "XiuLuoHelp", "1、设置一个触发键、一个平X键，以及三个波动剑键。`n2、启动连发后，在 DNF 窗口内按住触发键，会同时触发四个键的连发。`n3、平X键沿用主键连发间隔，三个波动剑键按主键连发间隔的三倍发送。`n4、如果触发键本身也开了主连发，启用本功能时会自动跳过该触发键的主连发，避免冲突。",
+    "AutoRunLeftKey", "左方向键",
+    "AutoRunRightKey", "右方向键",
+    "AutoRunDelay", "触发延迟(ms)",
+    "AutoRunTitle", "自动奔跑设置",
+    "AutoRunPageTitle", "自动奔跑设置",
+    "AutoRunHelpTitle", "自动奔跑说明",
+    "AutoRunHelp", "设置自动奔跑要监听的左右键，以及按住方向键后补发双击的延迟（毫秒）。`n默认 40ms；范围 1～400ms。`n如果游戏里方向键不是 Left/Right，请改成你的实际按键后保存。",
+    "ComboTitleLine", "一键连招设置",
+    "ComboProfileList", "连招方案",
+    "ComboAddProfile", "新建方案",
+    "ComboRemoveProfile", "删除方案",
+    "ComboSkillList", "连招技能 (双击可修改)",
+    "ComboAddSkill", "添加技能",
+    "ComboDeleteSkill", "删除技能",
+    "ComboTriggerKey", "触发键",
+    "ComboSetTriggerKey", "设置按键",
+    "ComboLoopMode", "按住循环连招",
+    "ComboApply", "应用方案",
+    "ComboSaveClose", "保存",
+    "ComboEditSkillKey", "技能键",
+    "ComboEditChangeKey", "更改技能键",
+    "ComboEditDelay", "间隔(ms)",
+    "ComboEditOk", "确定",
+    "ComboEditCancel", "取消",
+    "ComboTitle", "一键连招设置",
+    "ComboHelpTitle", "一键连招说明",
+    "ComboHelp", "在 DNF 窗口内按住「触发按钮」后，按顺序发送技能键（使用 vkFF+扫描码，减少误触聊天）。`n可配置多套方案，每套方案的触发按钮必须不同。`n勾选「循环触发」时，整套打完后若仍按住触发按钮会重新开始。`n请在主界面勾选「一键连招」并启动连发后生效。",
+    "ComboUnsupportedMainKey", "无法识别该按键，请从主键盘或小键盘选取已支持的键。",
+    "ComboUnsupportedKey", "无法识别该按键。",
+    "ComboUnsetTrigger", "（未设置）",
+    "ComboSkillCountSuffix", " 个技能",
+    "ComboMaxProfilesPrefix", "最多支持 ",
+    "ComboMaxProfilesSuffix", " 套连招方案。",
+    "ComboKeepOneProfile", "至少保留一套连招方案。",
+    "ComboDuplicateTriggerPrefix", "触发键重复：",
+    "ComboDuplicateTriggerSuffix", "。每套方案的触发键必须不同。",
+    "ComboEditTitle", "编辑连招技能"
+)
