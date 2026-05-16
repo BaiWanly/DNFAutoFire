@@ -1,5 +1,9 @@
 .vscode
 .idea
 
-DAF连发工具.exe
-/DNFAutoFireV1/
+
+/任务达人.txt
+config.ini
+/assets/
+subprocess-error.log
+/原始更新日志.txt

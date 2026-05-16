@@ -1,114 +1,103 @@
 #Requires AutoHotkey v2.0
-#Include ./ExWindowHost.ahk
 
-global gComboGui := 0
+global gComboGui := Gui("-MinimizeBox -MaximizeBox")
 global gComboCtrls := Map()
 global __ComboSkillItems := []
 global __ComboProfiles := []
 global __ComboProfileIndex := 1
 global __ComboProfileLoading := false
-global gComboEditGui := ""
+global gComboProfileDragCurrentProfile := ""
 global gComboEditCtrls := Map()
 global gComboEditIndex := 0
 global gComboEditKey := ""
-global gComboDragStartIndex := 0
-global gComboDragHoverIndex := 0
-global gComboDragDown := false
-global gComboDragPreviewing := false
-global gComboDragPreviewList := []
-global gComboDragCurrentFromIndex := 0
 
-GuiRegistry.Define("Combo", ComboBuildGui)
-GuiRegistry.Define("ComboEdit", ComboBuildEditGui)
+UiApplyWindow(gComboGui)
+gComboGui.OnEvent("Escape", ComboGuiEscape)
+gComboGui.OnEvent("Close", ComboGuiClose)
 
-ComboBuildGui() {
-    global gComboGui, gComboCtrls
-    gComboGui := Gui("+ToolWindow -Theme")
-    gComboCtrls := Map()
-    GuiTheme_Apply(gComboGui)
-    gComboGui.OnEvent("Escape", ComboGuiEscape)
-    gComboGui.OnEvent("Close", ComboGuiClose)
-    OnMessage(0x0201, ComboListOnLButtonDown)
-    OnMessage(0x0202, ComboListOnLButtonUp)
-    OnMessage(0x0200, ComboListOnMouseMove)
-    ExWindowHost.AddInlineHeaderLeft(gComboGui, 16, 16, ExWindowHost.MakeHeaderTitle(ExText.ComboTitle()), ComboHelp, 128)
-    gComboCtrls["ComboProfilesListBox"] := GuiTheme_AddListBox(gComboGui, "ComboProfilesListBox", 16, 74, 196, 210)
-    gComboCtrls["ComboProfilesListBox"].OnEvent("Change", ComboProfileListChange)
-    gComboGui.Add("Text", "x16 y52 w196 h22 +0x200", ExText.ComboProfilesLabel())
-    GuiTheme_FlatBtn(gComboGui, "x16 y292 w94 h26", ExText.ComboAddProfile(), ComboAddProfile, false)
-    GuiTheme_FlatBtn(gComboGui, "x118 y292 w94 h26", ExText.ComboRemoveProfile(), ComboRemoveProfile, false)
-    gComboCtrls["ComboSkillsListBox"] := GuiTheme_AddListBox(gComboGui, "ComboSkillsListBox", 228, 74, 364, 210)
-    gComboCtrls["ComboSkillsListBox"].OnEvent("DoubleClick", ComboEditSkill)
-    gComboGui.Add("Text", "x228 y52 w344 h22 +0x200", ExText.ComboSequenceLabel())
-    GuiTheme_FlatBtn(gComboGui, "x228 y292 w112 h26", ExText.ComboAddSkill(), ComboAddSkill, false)
-    GuiTheme_FlatBtn(gComboGui, "x348 y292 w112 h26", ExText.ComboDeleteSkill(), ComboDeleteSkill, false)
-    gComboGui.Add("Text", "x228 y334 w44 h22 +0x200", ExText.ComboTriggerLabel())
-    gComboCtrls["ComboTriggerKey"] := gComboGui.Add("Edit", "vComboTriggerKey x276 y332 w232 h24 +ReadOnly -WantCtrlA -E0x200 Border")
-    RegisterEditPressKeyCapture(gComboCtrls["ComboTriggerKey"], GetKeycode.AfterCaptureEdit.Bind(gComboCtrls["ComboTriggerKey"]))
-    gComboCtrls["ComboLoopMode"] := gComboGui.Add("CheckBox", "vComboLoopMode x512 y334 h22", ExText.ComboLoopMode())
-    GuiTheme_FlatBtn(gComboGui, "x160 y396 w140 h32", ExText.ComboApplyProfile(), ComboApplyProfile, false)
-    GuiTheme_FlatBtn(gComboGui, "x316 y396 w140 h32", ExText.SaveButton(), ComboSaveAndClose, true)
-    return gComboGui
-}
+UiExPageTitle(gComboGui, exText["ComboTitleLine"], 620)
+UiHelpButton(gComboGui, UiRect(582, 14, 22, 22), ComboHelp)
 
-ComboBuildEditGui() {
-    global gComboEditGui, gComboEditCtrls
-    gComboEditGui := Gui("+ToolWindow -Theme")
-    gComboEditCtrls := Map()
-    GuiTheme_Apply(gComboEditGui)
-    gComboEditGui.OnEvent("Escape", ComboEditCancel)
-    gComboEditGui.OnEvent("Close", ComboEditCancel)
-    gComboEditCtrls["ComboEditCurrentKey"] := gComboEditGui.Add("Edit", "x16 y38 w120 h24 +ReadOnly -WantCtrlA -E0x200 Border")
-    GuiTheme_FlatBtn(gComboEditGui, "x16 y68 w120 h28", ExText.ComboEditChangeKey(), ComboEditChangeKey, false)
-    gComboEditGui.Add("Text", "x16 y16 w120 h22 +0x200", ExText.ComboCurrentKeyLabel())
-    gComboEditGui.Add("Text", "x148 y16 w100 h22 +0x200", ExText.ComboDelayLabel())
-    gComboEditCtrls["ComboEditDelay"] := gComboEditGui.Add("Edit", "x148 y38 w100 h24 +Number -E0x200 Border")
-    GuiTheme_FlatBtn(gComboEditGui, "x148 y68 w48 h28", ExText.SaveButton(), ComboEditSave, true)
-    GuiTheme_FlatBtn(gComboEditGui, "x200 y68 w48 h28", ExText.CancelButton(), ComboEditCancel, false)
-    return gComboEditGui
-}
+UiLabel(gComboGui, UiRect(16, 52, 196, 22, "+0x200"), exText["ComboProfileList"])
+UiListBox(gComboCtrls, gComboGui, "ComboProfilesListBox", UiRect(16, 74, 196, 210), ComboProfileListChange)
+UiListBoxDragSort_Attach(gComboCtrls["ComboProfilesListBox"], ComboProfileDragGetItems, ComboProfileDragRender, ComboProfileDragCommit, ComboProfileDragClick)
+UiPlainButton(gComboGui, UiRect(16, 292, 94, 26), exText["ComboAddProfile"], ComboAddProfile)
+UiPlainButton(gComboGui, UiRect(118, 292, 94, 26), exText["ComboRemoveProfile"], ComboRemoveProfile)
+
+UiLabel(gComboGui, UiRect(228, 52, 344, 22, "+0x200"), exText["ComboSkillList"])
+UiListBox(gComboCtrls, gComboGui, "ComboSkillsListBox", UiRect(228, 74, 364, 210))
+gComboCtrls["ComboSkillsListBox"].OnEvent("DoubleClick", ComboEditSkill)
+UiListBoxDragSort_Attach(gComboCtrls["ComboSkillsListBox"], ComboDragGetItems, ComboDragRender, ComboDragCommit)
+UiPlainButton(gComboGui, UiRect(228, 292, 112, 26), exText["ComboAddSkill"], ComboAddSkill)
+UiPlainButton(gComboGui, UiRect(348, 292, 112, 26), exText["ComboDeleteSkill"], ComboDeleteSkill)
+
+UiLabel(gComboGui, UiRect(228, 334, 44, 22, "+0x200"), exText["ComboTriggerKey"])
+UiEdit(gComboCtrls, gComboGui, "ComboTriggerKey", UiRect(276, 332, 232, 24, "+ReadOnly -WantCtrlA -E0x200"))
+UiPlainButton(gComboGui, UiRect(228, 360, 200, 28), exText["ComboSetTriggerKey"], ComboSetTriggerKey)
+gComboCtrls["ComboLoopMode"] := gComboGui.Add("CheckBox", "vComboLoopMode x512 y334 h22", exText["ComboLoopMode"])
+
+UiButton(gComboCtrls, gComboGui, "ComboApply", UiRect(160, 396, 140, 32), exText["ComboApply"], ComboApplyProfile, "secondary")
+UiButton(gComboCtrls, gComboGui, "ComboSaveClose", UiRect(316, 396, 140, 32), exText["ComboSaveClose"], ComboSaveAndClose, "primary")
+
+gComboEditGui := Gui("-MinimizeBox -MaximizeBox")
+UiApplyWindow(gComboEditGui)
+gComboEditGui.OnEvent("Escape", ComboEditCancel)
+gComboEditGui.OnEvent("Close", ComboEditCancel)
+UiLabel(gComboEditGui, UiRect(16, 16, 120, 22, "+0x200"), exText["ComboEditSkillKey"])
+UiEdit(gComboEditCtrls, gComboEditGui, "ComboEditCurrentKey", UiRect(16, 38, 120, 24, "+ReadOnly -WantCtrlA -E0x200"))
+UiPlainButton(gComboEditGui, UiRect(16, 68, 120, 28), exText["ComboEditChangeKey"], ComboEditChangeKey)
+UiLabel(gComboEditGui, UiRect(148, 16, 100, 22, "+0x200"), exText["ComboEditDelay"])
+UiEdit(gComboEditCtrls, gComboEditGui, "ComboEditDelay", UiRect(148, 38, 100, 24, "+Number -E0x200"))
+UiPlainButton(gComboEditGui, UiRect(148, 68, 48, 28), exText["ComboEditOk"], ComboEditSave, "primary")
+UiPlainButton(gComboEditGui, UiRect(200, 68, 48, 28), exText["ComboEditCancel"], ComboEditCancel)
 
 ComboGetCtrl(name) {
     global gComboCtrls
-    GuiRegistry.Ensure("Combo")
     return gComboCtrls.Has(name) ? gComboCtrls[name] : ""
 }
 
 ShowGuiCombo(*) {
-    global gComboGui
-    gComboGui := GuiRegistry.Ensure("Combo")
-    gComboGui.Title := ExText.ComboTitle()
-    ExWindowHost.ShowOwnedFit(gComboGui, gComboGui.Title)
+    global gMainGui, gComboGui
+    if IsObject(gMainGui) {
+        gComboGui.Opt("+Owner" gMainGui.Hwnd)
+    }
+    gComboGui.Title := exText["ComboTitle"]
+    gComboGui.Show("w620 h440")
     ComboLoadConfig()
+    DisableGuiMain()
 }
 
 HideGuiCombo() {
-    if !GuiRegistry.IsBuilt("Combo") {
-        return
-    }
-    ExWindowHost.HideOwned(gComboGui)
+    global gComboGui
+    gComboGui.Hide()
+    EnableGuiMain()
 }
 
 ComboGuiEscape(*) {
+    if !ComboSaveConfig() {
+        return
+    }
     HideGuiCombo()
 }
 
 ComboGuiClose(*) {
-    HideGuiCombo()
+    ComboGuiEscape()
 }
 
 ComboHelp(*) {
-    ExWindowHost.ShowHelp(ExText.ComboHelp(), ExText.ComboHelpTitle(), gComboGui)
+    UiHelpMsgBox(exText["ComboHelp"], exText["ComboHelpTitle"])
 }
 
-ComboNormalizeDelay(raw) {
-    delay := Round((Trim(raw) = "" ? 20 : raw) + 0)
-    if (delay < 20) {
-        delay := 20
-    } else if (delay > 3000) {
-        delay := 3000
+ComboSetTriggerKey(*) {
+    raw := GetPressKey()
+    key := ComboCanonMainKey(raw)
+    if (key = "") {
+        if (raw != "") {
+            MsgBox(exText["ComboUnsupportedMainKey"], exText["ComboTitle"], "Icon!")
+        }
+        return
     }
-    return delay
+    ComboGetCtrl("ComboTriggerKey").Text := key
 }
 
 ComboMakeDisplay(item) {
@@ -139,10 +128,10 @@ ComboRefreshList() {
 ComboAddSkill(*) {
     global __ComboSkillItems
     raw := GetPressKey()
-    key := GetKeycode.CanonMainKey(raw)
+    key := ComboCanonMainKey(raw)
     if (key = "") {
         if (raw != "") {
-            MsgBox(ExText.ComboInvalidSkillKey(),, "Icon!")
+            MsgBox(exText["ComboUnsupportedKey"], exText["ComboTitle"], "Icon!")
         }
         return
     }
@@ -173,61 +162,6 @@ ComboEditSkill(ctrl, *) {
     ComboShowEditDialog(__ComboSkillItems[idx])
 }
 
-ComboSerializeSkills(items) {
-    data := ""
-    loop items.Length {
-        if !items.Has(A_Index) {
-            continue
-        }
-        item := items[A_Index]
-        if !IsObject(item) {
-            continue
-        }
-        data .= item.key "," item.delay "|"
-    }
-    if (StrLen(data) > 0) {
-        data := SubStr(data, 1, StrLen(data) - 1)
-    }
-    return data
-}
-
-ComboParseSkills(raw) {
-    items := []
-    for unit in StrSplit(raw, "|") {
-        unit := Trim(unit)
-        if (unit = "") {
-            continue
-        }
-        parts := StrSplit(unit, ",")
-        if (parts.Length < 1) {
-            continue
-        }
-        key := Trim(parts[1])
-        if (key = "") {
-            continue
-        }
-        key := GetKeycode.CanonMainKey(key)
-        if (key = "") {
-            continue
-        }
-        delayRaw := parts.Length >= 2 ? parts[2] : 20
-        items.Push({ key: key, delay: ComboNormalizeDelay(delayRaw) })
-    }
-    return items
-}
-
-ComboProfileSummary(p) {
-    if !IsObject(p) {
-        return ""
-    }
-    t := Trim(p.trigger)
-    if (t = "") {
-        t := ExText.ComboProfileUnsetTrigger()
-    }
-    skills := IsObject(p.skills) ? p.skills : []
-    return ExText.ComboProfileSummary(t, skills.Length)
-}
-
 ComboCloneSkillItems(items) {
     out := []
     if !IsObject(items) {
@@ -246,83 +180,16 @@ ComboCloneSkillItems(items) {
     return out
 }
 
-ComboProfileRecordSeparator() {
-    static rs := Chr(30)
-    return rs
-}
-
-ComboProfileUnitSeparator() {
-    static us := Chr(31)
-    return us
-}
-
-ComboProfileMaxCount() {
-    static maxCount := 16
-    return maxCount
-}
-
-ComboSerializeProfiles(profiles) {
-    out := ""
-    if !IsObject(profiles) {
-        return out
+ComboProfileSummary(p) {
+    if !IsObject(p) {
+        return ""
     }
-    rs := ComboProfileRecordSeparator()
-    us := ComboProfileUnitSeparator()
-    loop profiles.Length {
-        if !profiles.Has(A_Index) {
-            continue
-        }
-        p := profiles[A_Index]
-        if !IsObject(p) {
-            continue
-        }
-        trig := p.trigger
-        loopOn := p.loop ? "1" : "0"
-        skills := IsObject(p.skills) ? p.skills : []
-        skillsStr := ComboSerializeSkills(skills)
-        rec := trig us loopOn us skillsStr
-        if (out != "") {
-            out .= rs
-        }
-        out .= rec
+    t := Trim(String(p.trigger))
+    if (t = "") {
+        t := exText["ComboUnsetTrigger"]
     }
-    return out
-}
-
-ComboParseProfiles(raw) {
-    out := []
-    raw := Trim(raw)
-    if (raw = "") {
-        return out
-    }
-    rs := ComboProfileRecordSeparator()
-    us := ComboProfileUnitSeparator()
-    for rec in StrSplit(raw, rs) {
-        rec := Trim(rec)
-        if (rec = "") {
-            continue
-        }
-        parts := StrSplit(rec, us,, 3)
-        if (parts.Length < 2) {
-            continue
-        }
-        trigger := GetKeycode.CanonMainKey(Trim(parts[1]))
-        loopOn := (parts.Length >= 2 && Trim(parts[2]) = "1")
-        skillsRaw := parts.Length >= 3 ? parts[3] : ""
-        out.Push({ trigger: trigger, loop: loopOn, skills: ComboParseSkills(skillsRaw) })
-    }
-    return out
-}
-
-ComboLoadProfilesFromPreset(presetName) {
-    raw := Trim(LoadPresetSafe(presetName, "ComboProfiles"))
-    if (raw != "") {
-        return ComboParseProfiles(raw)
-    }
-    trigger := GetKeycode.CanonMainKey(LoadPresetSafe(presetName, "ComboTriggerKey"))
-    skills := ComboParseSkills(LoadPresetSafe(presetName, "ComboSkills"))
-    loopOn := LoadPreset(presetName, "ComboLoopMode", false)
-    return [{ trigger: trigger, loop: loopOn, skills: skills }]
+    skills := IsObject(p.skills) ? p.skills : []
+    return t " : " skills.Length exText["ComboSkillCountSuffix"]
 }
 
 ComboFlushEditorToProfileAt(idx) {
@@ -370,12 +237,73 @@ ComboRefreshProfileList() {
     }
 }
 
+ComboSetProfileListBoxFromItems(ctrl, items, selectedIndex) {
+    ctrl.Delete()
+    if IsObject(items) {
+        loop items.Length {
+            if !items.Has(A_Index) {
+                continue
+            }
+            ctrl.Add([ComboProfileSummary(items[A_Index])])
+        }
+    }
+    if (selectedIndex > 0) {
+        try ctrl.Choose(selectedIndex)
+    }
+}
+
+ComboProfileDragGetItems(*) {
+    global __ComboProfiles, __ComboProfileIndex, gComboProfileDragCurrentProfile
+    ComboFlushEditorToProfileAt(__ComboProfileIndex)
+    gComboProfileDragCurrentProfile := ""
+    if (__ComboProfileIndex >= 1 && __ComboProfileIndex <= __ComboProfiles.Length) {
+        gComboProfileDragCurrentProfile := __ComboProfiles[__ComboProfileIndex]
+    }
+    return UiListBoxDragSort_CopyArray(__ComboProfiles)
+}
+
+ComboProfileDragRender(ctrl, items, selectedIndex) {
+    global __ComboProfileLoading
+    __ComboProfileLoading := true
+    try {
+        ComboSetProfileListBoxFromItems(ctrl, items, selectedIndex)
+    } finally {
+        __ComboProfileLoading := false
+    }
+}
+
+ComboProfileDragCommit(items, selectedIndex) {
+    global __ComboProfiles, __ComboProfileIndex, gComboProfileDragCurrentProfile
+    __ComboProfiles := items
+    newCurrentIndex := 0
+    if IsObject(gComboProfileDragCurrentProfile) {
+        loop __ComboProfiles.Length {
+            if __ComboProfiles.Has(A_Index) && (__ComboProfiles[A_Index] == gComboProfileDragCurrentProfile) {
+                newCurrentIndex := A_Index
+                break
+            }
+        }
+    }
+    __ComboProfileIndex := newCurrentIndex > 0 ? newCurrentIndex : selectedIndex
+    ComboRefreshProfileList()
+    ComboLoadProfileToEditor(__ComboProfileIndex)
+    gComboProfileDragCurrentProfile := ""
+}
+
+ComboProfileDragClick(ctrl) {
+    ComboProfileChangeToIndex(ctrl.Value)
+}
+
 ComboProfileListChange(ctrl, *) {
     global __ComboProfiles, __ComboProfileIndex, __ComboProfileLoading
-    if __ComboProfileLoading {
+    if __ComboProfileLoading || UiListBoxDragSort_IsActive(ctrl) {
         return
     }
-    newIdx := ctrl.Value
+    ComboProfileChangeToIndex(ctrl.Value)
+}
+
+ComboProfileChangeToIndex(newIdx) {
+    global __ComboProfiles, __ComboProfileIndex
     if (newIdx < 1 || newIdx > __ComboProfiles.Length) {
         return
     }
@@ -393,7 +321,7 @@ ComboAddProfile(*) {
     ComboFlushEditorToProfileAt(__ComboProfileIndex)
     maxCount := ComboProfileMaxCount()
     if (__ComboProfiles.Length >= maxCount) {
-        MsgBox(ExText.ComboProfileMax(maxCount),, "Icon!")
+        MsgBox(exText["ComboMaxProfilesPrefix"] maxCount exText["ComboMaxProfilesSuffix"], exText["ComboTitle"], "Icon!")
         return
     }
     __ComboProfiles.Push({ trigger: "", loop: false, skills: [] })
@@ -405,7 +333,7 @@ ComboAddProfile(*) {
 ComboRemoveProfile(*) {
     global __ComboProfiles, __ComboProfileIndex
     if (__ComboProfiles.Length <= 1) {
-        MsgBox(ExText.ComboKeepOneProfile(),, "Icon!")
+        MsgBox(exText["ComboKeepOneProfile"], exText["ComboTitle"], "Icon!")
         return
     }
     ComboFlushEditorToProfileAt(__ComboProfileIndex)
@@ -441,20 +369,20 @@ ComboSaveConfig() {
         if !__ComboProfiles.Has(A_Index) {
             continue
         }
-        t := Trim(__ComboProfiles[A_Index].trigger)
+        t := Trim(String(__ComboProfiles[A_Index].trigger))
         if (t = "") {
             continue
         }
-        c := GetKeycode.CanonMainKey(t)
+        c := ComboCanonMainKey(t)
         if (c = "") {
             continue
         }
-        id := GetKeycode.ToRouterId(c)
+        id := Key2SC(GetOriginKeyName(c))
         if (id = "") {
             continue
         }
         if seen.Has(id) {
-            MsgBox(ExText.ComboDuplicateTrigger(t), ExText.ComboTitle(), "Icon!")
+            MsgBox(exText["ComboDuplicateTriggerPrefix"] t exText["ComboDuplicateTriggerSuffix"], exText["ComboTitle"], "Icon!")
             return false
         }
         seen[id] := true
@@ -484,23 +412,22 @@ ComboShowEditDialog(item) {
         return
     }
     gComboEditKey := item.key
-    gComboEditGui := GuiRegistry.Ensure("ComboEdit")
     gComboEditCtrls["ComboEditCurrentKey"].Text := gComboEditKey
     gComboEditCtrls["ComboEditDelay"].Text := ComboNormalizeDelay(item.delay)
     if IsObject(gComboGui) {
         gComboEditGui.Opt("+Owner" gComboGui.Hwnd)
     }
-    gComboEditGui.Title := ExText.ComboEditTitle()
-    GuiTheme_ShowFit(gComboEditGui)
+    gComboEditGui.Title := exText["ComboEditTitle"]
+    gComboEditGui.Show("w268 h120")
 }
 
 ComboEditChangeKey(*) {
     global gComboEditCtrls, gComboEditKey
     raw := GetPressKey()
-    key := GetKeycode.CanonMainKey(raw)
+    key := ComboCanonMainKey(raw)
     if (key = "") {
         if (raw != "") {
-            MsgBox(ExText.ComboInvalidSkillKey(),, "Icon!")
+            MsgBox(exText["ComboUnsupportedKey"], exText["ComboTitle"], "Icon!")
         }
         return
     }
@@ -528,44 +455,7 @@ ComboEditCancel(*) {
     global gComboEditGui, gComboEditIndex, gComboEditKey
     gComboEditIndex := 0
     gComboEditKey := ""
-    if GuiRegistry.IsBuilt("ComboEdit") {
-        gComboEditGui.Hide()
-    }
-}
-
-ComboMoveArrayItemInPlace(arr, fromIndex, toIndex) {
-    if !IsObject(arr) {
-        return 0
-    }
-    if (fromIndex <= 0 || toIndex <= 0 || fromIndex > arr.Length || toIndex > arr.Length) {
-        return 0
-    }
-    if (fromIndex = toIndex) {
-        return fromIndex
-    }
-    moving := arr[fromIndex]
-    arr.RemoveAt(fromIndex)
-    if (toIndex < 1) {
-        toIndex := 1
-    } else if (toIndex > arr.Length + 1) {
-        toIndex := arr.Length + 1
-    }
-    arr.InsertAt(toIndex, moving)
-    return toIndex
-}
-
-ComboListIndexFromClientPoint(ctrl, x, y) {
-    if !IsObject(ctrl) {
-        return 0
-    }
-    lp := (y << 16) | (x & 0xFFFF)
-    ret := DllCall("SendMessage", "ptr", ctrl.Hwnd, "uint", 0x01A9, "ptr", 0, "ptr", lp, "ptr")
-    outside := (ret >> 16) & 0xFFFF
-    idx0 := ret & 0xFFFF
-    if (outside != 0 || idx0 = 0xFFFF) {
-        return 0
-    }
-    return idx0 + 1
+    gComboEditGui.Hide()
 }
 
 ComboSetListBoxFromItems(ctrl, items) {
@@ -585,91 +475,29 @@ ComboSetListBoxFromItems(ctrl, items) {
     }
 }
 
-ComboListOnLButtonDown(wParam, lParam, msg, hwnd) {
-    global gComboDragStartIndex, gComboDragHoverIndex, gComboDragDown, gComboDragPreviewing
-    global gComboDragPreviewList, gComboDragCurrentFromIndex, __ComboSkillItems
-    ctrl := ComboGetCtrl("ComboSkillsListBox")
-    if !IsObject(ctrl) || hwnd != ctrl.Hwnd {
-        return
-    }
-    x := lParam & 0xFFFF
-    y := (lParam >> 16) & 0xFFFF
-    gComboDragStartIndex := ComboListIndexFromClientPoint(ctrl, x, y)
-    gComboDragHoverIndex := gComboDragStartIndex
-    gComboDragDown := (gComboDragStartIndex > 0)
-    gComboDragPreviewing := false
-    gComboDragPreviewList := []
-    gComboDragCurrentFromIndex := gComboDragStartIndex
-    if gComboDragDown {
-        loop __ComboSkillItems.Length {
-            if !__ComboSkillItems.Has(A_Index) {
-                continue
-            }
-            item := __ComboSkillItems[A_Index]
-            gComboDragPreviewList.Push({ key: item.key, delay: item.delay })
+ComboDragGetItems(*) {
+    global __ComboSkillItems
+    items := []
+    loop __ComboSkillItems.Length {
+        if !__ComboSkillItems.Has(A_Index) {
+            continue
         }
+        item := __ComboSkillItems[A_Index]
+        items.Push({ key: item.key, delay: item.delay })
     }
+    return items
 }
 
-ComboListOnMouseMove(wParam, lParam, msg, hwnd) {
-    global gComboDragStartIndex, gComboDragHoverIndex, gComboDragDown, gComboDragPreviewing
-    global gComboDragPreviewList, gComboDragCurrentFromIndex
-    if !gComboDragDown {
-        return
-    }
-    ctrl := ComboGetCtrl("ComboSkillsListBox")
-    if !IsObject(ctrl) || hwnd != ctrl.Hwnd {
-        return
-    }
-    if (gComboDragStartIndex <= 0 || !IsObject(gComboDragPreviewList) || gComboDragPreviewList.Length = 0) {
-        return
-    }
-    x := lParam & 0xFFFF
-    y := (lParam >> 16) & 0xFFFF
-    hoverIndex := ComboListIndexFromClientPoint(ctrl, x, y)
-    if (hoverIndex <= 0) {
-        return
-    }
-    fromIndex := gComboDragCurrentFromIndex
-    if (hoverIndex = fromIndex || hoverIndex = gComboDragHoverIndex) {
-        return
-    }
-    if (hoverIndex > gComboDragPreviewList.Length) {
-        return
-    }
-    gComboDragHoverIndex := hoverIndex
-    newIndex := ComboMoveArrayItemInPlace(gComboDragPreviewList, fromIndex, hoverIndex)
-    if (newIndex <= 0) {
-        return
-    }
-    gComboDragCurrentFromIndex := newIndex
-    gComboDragPreviewing := true
-    ComboSetListBoxFromItems(ctrl, gComboDragPreviewList)
-    try ctrl.Choose(newIndex)
+ComboDragRender(ctrl, items, selectedIndex) {
+    ComboSetListBoxFromItems(ctrl, items)
+    try ctrl.Choose(selectedIndex)
 }
 
-ComboListOnLButtonUp(wParam, lParam, msg, hwnd) {
-    global gComboDragStartIndex, gComboDragHoverIndex, gComboDragDown, gComboDragPreviewing
-    global gComboDragPreviewList, gComboDragCurrentFromIndex, __ComboSkillItems
-    ctrl := ComboGetCtrl("ComboSkillsListBox")
-    if !IsObject(ctrl) || hwnd != ctrl.Hwnd {
-        return
-    }
-    previewing := gComboDragPreviewing
-    previewList := gComboDragPreviewList
-    currentIndex := gComboDragCurrentFromIndex
-    gComboDragStartIndex := 0
-    gComboDragHoverIndex := 0
-    gComboDragDown := false
-    gComboDragPreviewing := false
-    gComboDragPreviewList := []
-    gComboDragCurrentFromIndex := 0
-    if !previewing {
-        return
-    }
-    __ComboSkillItems := previewList
+ComboDragCommit(items, selectedIndex) {
+    global __ComboSkillItems
+    __ComboSkillItems := items
     ComboRefreshList()
-    if (currentIndex > 0 && currentIndex <= __ComboSkillItems.Length) {
-        try ctrl.Choose(currentIndex)
+    if (selectedIndex > 0 && selectedIndex <= __ComboSkillItems.Length) {
+        try ComboGetCtrl("ComboSkillsListBox").Choose(selectedIndex)
     }
 }

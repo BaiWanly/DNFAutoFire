@@ -88,6 +88,124 @@ LoadPresetKeys(presetsName){
     return keys
 }
 
+; 单键连发间隔：`键名:毫秒|键名:毫秒`（键名与主界面键帽 Name 一致）
+AutoFireKeyIntervals_StringToMap(s) {
+    m := Map()
+    s := Trim(String(s))
+    if (s = "") {
+        return m
+    }
+    for part in StrSplit(s, "|") {
+        part := Trim(part)
+        if (part = "") {
+            continue
+        }
+        c := InStr(part, ":")
+        if (!c) {
+            continue
+        }
+        kn := Trim(SubStr(part, 1, c - 1))
+        if (kn = "" || kn = "Esc" || kn = "Win") {
+            continue
+        }
+        ms := Round(Trim(SubStr(part, c + 1)) + 0)
+        if (ms < 0) {
+            ms := 0
+        } else if (ms > 1000) {
+            ms := 1000
+        }
+        m[kn] := ms
+    }
+    return m
+}
+
+AutoFireKeyIntervals_MapToString(m) {
+    if !IsObject(m) {
+        return ""
+    }
+    parts := []
+    for kn, ms in m {
+        kn := Trim(String(kn))
+        if (kn = "") {
+            continue
+        }
+        ms := Round(ms + 0)
+        if (ms < 0) {
+            ms := 0
+        } else if (ms > 1000) {
+            ms := 1000
+        }
+        parts.Push(kn ":" ms)
+    }
+    if (parts.Length = 0) {
+        return ""
+    }
+    out := parts[1]
+    loop parts.Length - 1 {
+        out .= "|" parts[A_Index + 1]
+    }
+    return out
+}
+
+; 按 [设置] 中 PresetOrder（| 分隔）与当前 INI 节合并排序；缺省顺序为节扫描顺序
+ApplyPresetOrder(presetList) {
+    ordered := []
+    used := Map()
+    orderRaw := ""
+    try {
+        orderRaw := Trim(IniRead(ConfigIniPath(), "设置", "PresetOrder", ""))
+    } catch {
+        orderRaw := ""
+    }
+    if (orderRaw != "") {
+        for item in StrSplit(orderRaw, "|") {
+            item := Trim(item)
+            if (item = "" || used.Has(item)) {
+                continue
+            }
+            for _, p in presetList {
+                if (p = item) {
+                    ordered.Push(item)
+                    used[item] := true
+                    break
+                }
+            }
+        }
+    }
+    loop presetList.Length {
+        if !presetList.Has(A_Index) {
+            continue
+        }
+        name := presetList[A_Index]
+        if (name = "" || used.Has(name)) {
+            continue
+        }
+        ordered.Push(name)
+    }
+    return ordered
+}
+
+; 将当前预设名顺序写入 config.ini（与参考项目 DNFAutoFire 一致，供列表拖动排序）
+SavePresetOrder(presetList) {
+    orderRaw := ""
+    if IsObject(presetList) {
+        loop presetList.Length {
+            if !presetList.Has(A_Index) {
+                continue
+            }
+            name := Trim(String(presetList[A_Index]))
+            if (name = "") {
+                continue
+            }
+            orderRaw .= name "|"
+        }
+    }
+    if (StrLen(orderRaw) > 0) {
+        orderRaw := SubStr(orderRaw, 1, StrLen(orderRaw) - 1)
+    }
+    SaveConfig("PresetOrder", orderRaw)
+}
+
 ; 读取所有预设（INI 节名形如 [预设:默认]，不能按裸字符串比较）
 LoadAllPreset(){
     presetList := []
@@ -104,7 +222,7 @@ LoadAllPreset(){
             presetList.Push(SubStr(sec, 4))
         }
     }
-    return presetList
+    return ApplyPresetOrder(presetList)
 }
 
 ; 首次运行：无 config.ini 或无任何预设节时，写入默认预设与基础设置
@@ -126,6 +244,7 @@ _CreateDefaultConfigIni() {
     SaveConfig("SettingAutoStart", false)
     SaveConfig("SettingOnSystemStart", false)
     SaveConfig("SettingBlockWin", false)
+    SaveConfig("SettingSubprocessErrorLog", false)
     SaveLastPreset(DEFAULT_PRESET_NAME)
     CreateBlankPreset(DEFAULT_PRESET_NAME)
 }
@@ -187,9 +306,23 @@ CreateBlankPreset(presetName) {
     SavePreset(presetName, "PetSkillState", false)
     SavePreset(presetName, "ZhanFaState", false)
     SavePreset(presetName, "JianZongState", false)
+    SavePreset(presetName, "XiuLuoState", false)
     SavePreset(presetName, "AutoRunState", false)
+    SavePreset(presetName, "ComboState", false)
+    SavePreset(presetName, "ComboProfiles", "")
+    SavePreset(presetName, "ComboTriggerKey", "")
+    SavePreset(presetName, "ComboLoopMode", false)
+    SavePreset(presetName, "ComboSkills", "")
+    SavePreset(presetName, "XiuLuoTriggerKey", "")
+    SavePreset(presetName, "XiuLuoXKey", "X")
+    SavePreset(presetName, "XiuLuoWaveKey1", "1")
+    SavePreset(presetName, "XiuLuoWaveKey2", "2")
+    SavePreset(presetName, "XiuLuoWaveKey3", "3")
     SavePreset(presetName, "AutoRunLeftKey", "Left")
     SavePreset(presetName, "AutoRunRightKey", "Right")
+    SavePreset(presetName, "AutoRunDelay", 40)
+    SavePreset(presetName, "AutoFireIntervalMs", 20)
+    SavePreset(presetName, "AutoFireKeyIntervals", "")
 }
 
 RenamePreset(oldPresetName, newPresetName) {

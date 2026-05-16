@@ -1,6 +1,6 @@
 #Requires AutoHotkey v2.0
 
-global gGuanYuGui := Gui("+ToolWindow")
+global gGuanYuGui := Gui("-MinimizeBox -MaximizeBox")
 global gGuanYuCtrls := Map()
 global __GuanYuSkillKeys := []
 
@@ -8,7 +8,8 @@ UiApplyWindow(gGuanYuGui)
 gGuanYuGui.OnEvent("Escape", GuanYuGuiEscape)
 gGuanYuGui.OnEvent("Close", GuanYuGuiClose)
 
-UiSkillKeyEditor(gGuanYuGui, gGuanYuCtrls, "GuanYu", "已添加技能键", "猛攻发射键", "添加技能键", "删除技能键", "设置发射键", GuanYuAddKey, GuanYuDeleteKey, GuanYuSetShotKey, GuanYuSave, GuanYuHelp, "手动延迟(ms)")
+UiSkillKeyEditor(gGuanYuGui, gGuanYuCtrls, "GuanYu", exText["GuanYuListTitle"], exText["GuanYuShotTitle"], exText["GuanYuAdd"], exText["GuanYuDelete"], exText["SetShotKey"], GuanYuAddKey, GuanYuDeleteKey, GuanYuSetShotKey, GuanYuSave, GuanYuHelp, exText["CommonSave"], exText["GuanYuPageTitle"], exText["GuanYuDelayTitle"])
+UiListBoxDragSort_Attach(gGuanYuCtrls["GuanYuKeysListBox"], GuanYuDragGetItems, UiListBoxDragSort_RenderStrings, GuanYuDragCommit)
 
 GuanYuGetCtrl(name) {
     global gGuanYuCtrls
@@ -20,8 +21,8 @@ ShowGuiGuanYu(*) {
     if IsObject(gMainGui) {
         gGuanYuGui.Opt("+Owner" gMainGui.Hwnd)
     }
-    gGuanYuGui.Title := "关羽自动战戟猛攻"
-    gGuanYuGui.Show("w184 h270")
+    gGuanYuGui.Title := exText["GuanYuTitle"]
+    gGuanYuGui.Show("w320 h320")
     GuanYuLoadConfig()
     DisableGuiMain()
 }
@@ -40,14 +41,14 @@ GuanYuGuiClose(*) {
 }
 
 GuanYuHelp(*) {
-    MsgBox("1、添加触发猛攻的技能键`n2、设置游戏中猛攻的发射键（默认Space）`n3、可手动设置发射前延迟(ms，默认300)`n4、保存配置，启动连发并使用", "如何使用关羽自动战戟猛攻", "Iconi")
+    UiHelpMsgBox(exText["GuanYuHelp"], exText["GuanYuHelpTitle"])
 }
 
 GuanYuAddKey(*) {
     global __GuanYuSkillKeys
     key := GetPressKey()
     if IsValueInArray(key, __GuanYuSkillKeys) {
-        MsgBox("请勿重复添加按键",, "Icon!")
+        MsgBox(exText["DuplicateKey"],, "Icon!")
     } else {
         __GuanYuSkillKeys.Push(key)
     }
@@ -88,6 +89,20 @@ GuanYuChangeListGui(keys) {
     }
     if (cnt > 0) {
         ctrl.Choose(1)
+    }
+}
+
+GuanYuDragGetItems(*) {
+    global __GuanYuSkillKeys
+    return UiListBoxDragSort_CopyArray(__GuanYuSkillKeys)
+}
+
+GuanYuDragCommit(items, selectedIndex) {
+    global __GuanYuSkillKeys
+    __GuanYuSkillKeys := items
+    GuanYuChangeListGui(__GuanYuSkillKeys)
+    if (selectedIndex > 0 && selectedIndex <= __GuanYuSkillKeys.Length) {
+        try GuanYuGetCtrl("GuanYuKeysListBox").Choose(selectedIndex)
     }
 }
 

@@ -1,7 +1,3 @@
-#Requires AutoHotkey v2.0
-
-global gAppVersion := "0.30d"
-
-; Ahk2Exe version metadata. Keep this file as the single source of truth.
-;@Ahk2Exe-SetProductVersion 0.30d
-;@Ahk2Exe-SetVersion 0.30d
+; 版本号唯一入口 — 改 APP_VERSION，并把下一行 ;@Ahk2Exe-Let 改成相同版本（供 exe 属性）
+APP_VERSION := "0.31"
+;@Ahk2Exe-Let AppVersion = 0.31

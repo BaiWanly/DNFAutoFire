@@ -1,6 +1,6 @@
 #Requires AutoHotkey v2.0
 
-global gPetSkillGui := Gui("+ToolWindow")
+global gPetSkillGui := Gui("-MinimizeBox -MaximizeBox")
 global gPetSkillCtrls := Map()
 global __PetSkillSkillKeys := []
 
@@ -8,7 +8,8 @@ UiApplyWindow(gPetSkillGui)
 gPetSkillGui.OnEvent("Escape", PetSkillGuiEscape)
 gPetSkillGui.OnEvent("Close", PetSkillGuiClose)
 
-UiSkillKeyEditor(gPetSkillGui, gPetSkillCtrls, "PetSkill", "已添加触发键", "宠物技能键", "添加触发键", "删除触发键", "设置宠物键", PetSkillAddKey, PetSkillDeleteKey, PetSkillSetShotKey, PetSkillSave, PetSkillHelp)
+UiSkillKeyEditor(gPetSkillGui, gPetSkillCtrls, "PetSkill", exText["PetSkillListTitle"], exText["PetSkillShotTitle"], exText["PetSkillAdd"], exText["PetSkillDelete"], exText["PetSkillSet"], PetSkillAddKey, PetSkillDeleteKey, PetSkillSetShotKey, PetSkillSave, PetSkillHelp, exText["CommonSave"], exText["PetSkillPageTitle"])
+UiListBoxDragSort_Attach(gPetSkillCtrls["PetSkillKeysListBox"], PetSkillDragGetItems, UiListBoxDragSort_RenderStrings, PetSkillDragCommit)
 
 PetSkillGetCtrl(name) {
     global gPetSkillCtrls
@@ -20,8 +21,8 @@ ShowGuiPetSkill(*) {
     if IsObject(gMainGui) {
         gPetSkillGui.Opt("+Owner" gMainGui.Hwnd)
     }
-    gPetSkillGui.Title := "自动宠物技能"
-    gPetSkillGui.Show("w184 h210")
+    gPetSkillGui.Title := exText["PetSkillTitle"]
+    gPetSkillGui.Show("w320 h320")
     PetSkillLoadConfig()
     DisableGuiMain()
 }
@@ -40,14 +41,14 @@ PetSkillGuiClose(*) {
 }
 
 PetSkillHelp(*) {
-    MsgBox("1、添加你想触发宠物技能时按下的技能键`n2、设置游戏中的宠物技能键（默认Z）`n3、保存配置，启动连发并使用", "如何使用自动宠物技能", "Iconi")
+    UiHelpMsgBox(exText["PetSkillHelp"], exText["PetSkillHelpTitle"])
 }
 
 PetSkillAddKey(*) {
     global __PetSkillSkillKeys
     key := GetPressKey()
     if IsValueInArray(key, __PetSkillSkillKeys) {
-        MsgBox("请勿重复添加按键",, "Icon!")
+        MsgBox(exText["DuplicateKey"],, "Icon!")
     } else {
         __PetSkillSkillKeys.Push(key)
     }
@@ -88,6 +89,20 @@ PetSkillChangeListGui(keys) {
     }
     if (cnt > 0) {
         ctrl.Choose(1)
+    }
+}
+
+PetSkillDragGetItems(*) {
+    global __PetSkillSkillKeys
+    return UiListBoxDragSort_CopyArray(__PetSkillSkillKeys)
+}
+
+PetSkillDragCommit(items, selectedIndex) {
+    global __PetSkillSkillKeys
+    __PetSkillSkillKeys := items
+    PetSkillChangeListGui(__PetSkillSkillKeys)
+    if (selectedIndex > 0 && selectedIndex <= __PetSkillSkillKeys.Length) {
+        try PetSkillGetCtrl("PetSkillKeysListBox").Choose(selectedIndex)
     }
 }
 

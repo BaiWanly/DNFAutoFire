@@ -70,104 +70,12 @@ class GdipUiHelpers {
         }
     }
 
-    static DrawStringCentered(gr, text, face, sizePx, argb, x, y, w, h, fontStyle := 0) {
-        if (text = "") {
-            return
-        }
-        try DllCall("gdiplus\GdipSetTextRenderingHint", "ptr", gr, "int", 3) ; AntiAlias
-        try DllCall("gdiplus\GdipSetPixelOffsetMode", "ptr", gr, "int", 0) ; Default
-        ff := 0
-        st := DllCall("gdiplus\GdipCreateFontFamilyFromName", "wstr", face, "ptr", 0, "ptr*", &ff := 0)
-        if (st != 0 || !ff) {
-            return
-        }
-        try {
-            pFont := 0
-            if DllCall("gdiplus\GdipCreateFont", "ptr", ff, "float", sizePx, "int", fontStyle, "int", 0, "ptr*", &pFont := 0) != 0 || !pFont {
-                return
-            }
-            try {
-                pBrush := 0
-                if DllCall("gdiplus\GdipCreateSolidFill", "uint", argb, "ptr*", &pBrush := 0) != 0 || !pBrush {
-                    return
-                }
-                try {
-                    pFmt := 0
-                    if DllCall("gdiplus\GdipStringFormatGetGenericDefault", "ptr*", &pFmt := 0) != 0 || !pFmt {
-                        return
-                    }
-                    try {
-                        DllCall("gdiplus\GdipSetStringFormatAlign", "ptr", pFmt, "int", 1) ; Center
-                        DllCall("gdiplus\GdipSetStringFormatLineAlign", "ptr", pFmt, "int", 1) ; Center
-                        rf := Buffer(16, 0)
-                        NumPut("float", x, rf, 0)
-                        NumPut("float", y, rf, 4)
-                        NumPut("float", w, rf, 8)
-                        NumPut("float", h, rf, 12)
-                        DllCall("gdiplus\GdipDrawString", "ptr", gr, "wstr", text, "int", -1, "ptr", pFont, "ptr", rf.Ptr, "ptr", pFmt, "ptr", pBrush)
-                    } finally {
-                        DllCall("gdiplus\GdipDeleteStringFormat", "ptr", pFmt)
-                    }
-                } finally {
-                    DllCall("gdiplus\GdipDeleteBrush", "ptr", pBrush)
-                }
-            } finally {
-                DllCall("gdiplus\GdipDeleteFont", "ptr", pFont)
-            }
-        } finally {
-            DllCall("gdiplus\GdipDeleteFontFamily", "ptr", ff)
-        }
-    }
-
     static BitmapToHBITMAP(pBitmap) {
         hbm := 0
         if DllCall("gdiplus\GdipCreateHBITMAPFromBitmap", "ptr", pBitmap, "ptr*", &hbm := 0, "uint", 0) != 0 || !hbm {
             return 0
         }
         return hbm
-    }
-
-    static RenderButtonBitmap(w, h, text, state, primary) {
-        GdiPlusSession.EnsureStarted()
-        pBitmap := 0
-        stride := ((w * 4 + 3) // 4) * 4
-        if DllCall("gdiplus\GdipCreateBitmapFromScan0", "int", w, "int", h, "int", stride, "int", this.PixelFormat32bppARGB, "ptr", 0, "ptr*", &pBitmap := 0) != 0 || !pBitmap {
-            return 0
-        }
-        try {
-            gr := 0
-            if DllCall("gdiplus\GdipGetImageGraphicsContext", "ptr", pBitmap, "ptr*", &gr := 0) != 0 || !gr {
-                return 0
-            }
-            try {
-                DllCall("gdiplus\GdipSetSmoothingMode", "ptr", gr, "int", 4)
-                DllCall("gdiplus\GdipGraphicsClear", "ptr", gr, "uint", 0)
-                pad := 1.0
-                rr := Min(UiTheme.RadiusMd, w / 2 - 1, h / 2 - 1)
-                if primary {
-                    bg := this.HexRgbToARGB(UiTheme.BtnPrimaryBg)
-                    fg := this.HexRgbToARGB(UiTheme.BtnPrimaryText)
-                } else {
-                    bg := this.HexRgbToARGB(UiTheme.KeyCellBg)
-                    fg := this.HexRgbToARGB(UiTheme.BtnText)
-                }
-                if (state = "disabled") {
-                    bg := (bg & 0xFFFFFF) | 0x99000000
-                    fg := (fg & 0xFFFFFF) | 0x99000000
-                } else if (state = "hover") {
-                    bg := this._DarkenArgb(bg, 0.94)
-                } else if (state = "pressed") {
-                    bg := this._DarkenArgb(bg, 0.86)
-                }
-                this.FillRoundRect(gr, bg, pad, pad, w - 2 * pad, h - 2 * pad, rr)
-                this.StrokeRoundRect(gr, 0x33000000, pad, pad, w - 2 * pad, h - 2 * pad, rr, 1)
-            } finally {
-                DllCall("gdiplus\GdipDeleteGraphics", "ptr", gr)
-            }
-            return this.BitmapToHBITMAP(pBitmap)
-        } finally {
-            DllCall("gdiplus\GdipDisposeImage", "ptr", pBitmap)
-        }
     }
 
     static FillPolygon(gr, argb, points) {
@@ -218,6 +126,7 @@ class GdipUiHelpers {
     }
 
     static _PaintKeycap(gr, w, h, visualState, renderState, keyName := "", showHint := false) {
+        global UiTheme
         pad := 1.0
         rr := 0
         palette := this._KeycapPalette(visualState)
@@ -293,15 +202,16 @@ class GdipUiHelpers {
     }
 
     static _KeycapPalette(visualState) {
+        global UiTheme
         switch visualState {
             case "on":
-                return { bg: UiTheme.KeyCapOnBg, border: UiTheme.KeyCapOnBorder, text: UiTheme.KeyOn, hint: UiTheme.KeyCapHintOn }
+                return { bg: UiTheme["KeyCapOnBg"], border: UiTheme["KeyCapOnBorder"], text: UiTheme["KeyOn"], hint: UiTheme["KeyCapHintOn"] }
             case "override":
-                return { bg: UiTheme.KeyCapOvBg, border: UiTheme.KeyCapOvBorder, text: UiTheme.KeyOv, hint: UiTheme.KeyCapHintOv }
+                return { bg: UiTheme["KeyCapOvBg"], border: UiTheme["KeyCapOvBorder"], text: UiTheme["KeyOv"], hint: UiTheme["KeyCapHintOv"] }
             case "locked":
-                return { bg: UiTheme.KeyCapLockedBg, border: UiTheme.KeyCapLockedBorder, text: UiTheme.KeyCapLockedText, hint: UiTheme.KeyCapHintLocked }
+                return { bg: UiTheme["KeyCapLockedBg"], border: UiTheme["KeyCapLockedBorder"], text: UiTheme["KeyCapLockedText"], hint: UiTheme["KeyCapHintLocked"] }
             default:
-                return { bg: UiTheme.KeyCapOffBg, border: UiTheme.KeyCapOffBorder, text: UiTheme.KeyOff, hint: UiTheme.KeyCapOffBorder }
+                return { bg: UiTheme["KeyCapOffBg"], border: UiTheme["KeyCapOffBorder"], text: UiTheme["KeyOff"], hint: UiTheme["KeyCapOffBorder"] }
         }
     }
 
@@ -326,6 +236,7 @@ class GdipUiHelpers {
 
     static RenderToggleBitmap(w, h, on) {
         GdiPlusSession.EnsureStarted()
+        global UiTheme
         pBitmap := 0
         stride := ((w * 4 + 3) // 4) * 4
         if DllCall("gdiplus\GdipCreateBitmapFromScan0", "int", w, "int", h, "int", stride, "int", this.PixelFormat32bppARGB, "ptr", 0, "ptr*", &pBitmap := 0) != 0 || !pBitmap {
@@ -341,7 +252,7 @@ class GdipUiHelpers {
                 DllCall("gdiplus\GdipGraphicsClear", "ptr", gr, "uint", 0)
                 th := h - 2
                 tw := w - 2
-                trackArgb := on ? this.HexRgbToARGB(UiTheme.SwitchTrackOn) : this.HexRgbToARGB(UiTheme.KeyCellBg)
+                trackArgb := on ? this.HexRgbToARGB(UiTheme["SwitchTrackOn"]) : this.HexRgbToARGB(UiTheme["KeyCellBg"])
                 this.FillRoundRect(gr, trackArgb, 1, 1, tw, th, th / 2)
                 this.StrokeRoundRect(gr, 0x22000000, 1, 1, tw, th, th / 2, 1)
                 ks := th - 4

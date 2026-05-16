@@ -1,86 +1,128 @@
 #Requires AutoHotkey v2.0
-;@Ahk2Exe-SetMainIcon assets\icons\icon_main.ico
-;@Ahk2Exe-AddResource assets\icons\icon_alert.ico, 160
-;@Ahk2Exe-AddResource assets\icons\icon_green.ico, 206
-;@Ahk2Exe-AddResource assets\icons\icon_red.ico, 207
+#Include ./Version.ahk
+;@Ahk2Exe-SetMainIcon lib\ui\icons\icon_main.ico
+;@Ahk2Exe-AddResource lib\ui\icons\icon_alert.ico, 160
+;@Ahk2Exe-AddResource lib\ui\icons\icon_green.ico, 206
+;@Ahk2Exe-AddResource lib\ui\icons\icon_red.ico, 207
 
-;@Ahk2Exe-SetDescription DAF连发工具
+;@Ahk2Exe-SetDescription DNFAutoFire
 ;@Ahk2Exe-SetCopyright 某亚瑟
 ;@Ahk2Exe-SetLanguage 0x0804
-;@Ahk2Exe-SetProductName DAF连发工具
+;@Ahk2Exe-SetProductName DNFAutoFire
+;@Ahk2Exe-SetProductVersion %AppVersion%
+;@Ahk2Exe-SetVersion %AppVersion%
+
+; 允许 SubProcessThread 启动并存子进程；Ignore 会把子进程直接拒绝掉
 #SingleInstance Off
 #WinActivateForce
 SetWorkingDir(A_ScriptDir)
-InstallKeybdHook()
-if (A_Args.Length >= 1 && InStr(A_Args[1], "/Run=") = 1) {
+SetTitleMatchMode(3)
+A_MaxHotkeysPerInterval := 9999
+; 子进程（/Run=xxx）在 very early 阶段就隐藏图标，避免短暂闪出多个托盘图标
+if (A_Args.Length >= 1 && InStr(A_Args[1], "/Run=")) {
     A_IconHidden := true
 }
-#Include ./Version.ahk
-#Include ./core/SingleInstance.ahk
-if !(A_Args.Length >= 1 && InStr(A_Args[1], "/Run=") = 1) {
-    SingleInstance_TryHandOffAndExit()
-}
-A_MaxHotkeysPerInterval := 9999
 
-#Include <MultipleThread>
+global __Version := APP_VERSION
+
 #Include <RunWithAdministrator>
-; UAC 判定完成后，把最终驻留进程提升到高优先级。
-try ProcessSetPriority("High")
+#Include <MultipleThread>
 #Include <Keys>
-#Include <JSON>
 #Include <Time>
+#Include <GetPressKey>
 #Include ./core/SendIP.ahk
-#Include ./core/GetKeycode.ahk
+#Include ./core/KeyConvert.ahk
 #Include ./core/Config.ahk
 EnsureConfigInitialized()
-#Include ./core/PresetManager.ahk
-#Include ./core/GameContext.ahk
+#Include ./core/Scripts.ahk
 #Include ./core/AutoFire.ahk
-#Include ./ex/ExLvRen.ahk
-#Include ./ex/ExGuanYu.ahk
-#Include ./ex/ExPetSkill.ahk
-#Include ./ex/ExZhanFa.ahk
-#Include ./ex/ExJianZong.ahk
-#Include ./ex/ExAutoRun.ahk
-#Include ./ex/ExCombo.ahk
+#Include ./core/ComboPreset.ahk
+#Include ./ex/ExActionRuntime.ahk
 
-if MultipleThread.ScriptStart() {
-    return
+; 子进程 /Run=… 仅解析到此为止即进入连发逻辑；主进程在返回后继续加载 GUI 等大段代码
+SubProcessThread.ScriptStart()
+
+global __MainInstanceMutex := EnsureMainSingleInstance()
+
+EnsureMainSingleInstance() {
+    mutexName := "DNFAutoFire.Main." StrReplace(A_ScriptFullPath, "\", ".")
+    hMutex := DllCall("CreateMutex", "ptr", 0, "int", true, "str", mutexName, "ptr")
+    if (!hMutex) {
+        return 0
+    }
+    if (A_LastError = 183) {
+        MsgBox("DNFAutoFire 已经在运行。", "DNFAutoFire", "Iconi")
+        ExitApp()
+    }
+    return hMutex
 }
 
-#Include <GetPressKey>
-#Include <GdiPlusSession>
-#Include <GuiTheme>
-#Include ./gui/GuiText.ahk
-#Include ./gui/GuiRegistry.ahk
-global __Version := GuiText.AppVersion()
-#Include ./core/SessionState.ahk
-SessionState.InitFromLastPreset()
-#Include ./core/PresetExFeatures.ahk
-#Include ./core/FeatureModuleRegistry.ahk
-#Include ./core/AutoFireController.ahk
-#Include ./core/PresetRecognition.ahk
+#Include ./lib/GdiPlusSession.ahk
+#Include ./lib/GdipUiHelpers.ahk
+#Include ./lib/ToggleGdip.ahk
+#Include ./core/AutoPresets.ahk
+#Include ./gui/MainText.ahk
+#Include ./gui/exText.ahk
+#Include ./gui/AutoPresetsText.ahk
+#Include ./lib/ui/Theme.ahk
+#Include ./lib/ui/Layout.ahk
+#Include ./lib/ui/Controls.ahk
+#Include ./lib/ui/ListBoxDragSort.ahk
+#Include ./lib/ui/KeyCap.ahk
 #Include ./gui/main/Main.ahk
-#Include ./gui/dialogs/QuickSwitch.ahk
-#Include ./gui/dialogs/Setting.ahk
-#Include ./gui/ex/autoPreset/AutoPresetSettings.ahk
-#Include ./gui/ExText.ahk
+#Include ./gui/AutoPresets/AutoPresets.ahk
+#Include ./gui/main/QuickSwitch.ahk
+#Include ./gui/main/Setting.ahk
 #Include ./gui/ex/LvRen.ahk
 #Include ./gui/ex/GuanYu.ahk
 #Include ./gui/ex/PetSkill.ahk
 #Include ./gui/ex/ZhanFa.ahk
 #Include ./gui/ex/JianZong.ahk
+#Include ./gui/ex/XiuLuo.ahk
 #Include ./gui/ex/AutoRun.ahk
 #Include ./gui/ex/Combo.ahk
-#Include ./gui/ex/autoPreset/PresetAutoSwitch.ahk
-#Include ./core/AppBootstrap.ahk
 
-AppBootstrap.EnableHighTimerResolution()
+global _AutoFireThreads := []
+global _AutoFireEnableKeys := []
+global _AutoFireKeyIntervals := Map()
+global _NowSelectPreset := LoadLastPreset()
 
 ;@Ahk2Exe-IgnoreBegin
 #Include <Log>
-; 需要调试时再取消下一行注释。
+; 源码直接运行时也会执行本段；Log() 会挂控制台，易导致启动异常。需要调试时再取消下一行注释。
 ; Log()
 ;@Ahk2Exe-IgnoreEnd
 
-AppBootstrap.Run()
+A_TrayMenu.Delete()
+A_TrayMenu.Add(MainText["TraySettings"], RevealStoppedMainGui)
+A_TrayMenu.Default := MainText["TraySettings"]
+A_TrayMenu.Add()
+A_TrayMenu.Add(MainText["TrayExit"], Exit)
+A_TrayMenu.ClickCount := 1
+A_IconTip := MainText["TrayTip"]
+try TraySetIcon(A_IsCompiled ? A_ScriptFullPath : A_ScriptDir "\lib\ui\icons\icon_main.ico", 1)
+
+Exit(*) {
+    try SaveCurrentPresetState()
+    try StopAutoFire()
+    ExitApp()
+}
+
+RevealStoppedMainGui(*) {
+    SwitchToStoppedState()
+    gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
+    SetTimer(MainMutedLinkPoll, 100)
+}
+
+MainProcessOnExit(*) {
+    try SaveCurrentPresetState()
+    try StopAutoFire()
+}
+
+OnExit(MainProcessOnExit)
+
+RevealStoppedMainGui()
+RegisterGameWindowGroup()
+if (_AutoStart) {
+    EnterRunningMode()
+}

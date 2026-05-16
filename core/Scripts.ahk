@@ -17,14 +17,12 @@ ChangeKeyAutoFireState(key){
             }
         }
         if (needDeleteIndex > 0) {
-            _AutoFireEnableKeys.Delete(needDeleteIndex)
+            _AutoFireEnableKeys.RemoveAt(needDeleteIndex)
         }
         MainSetKeyState(key, false)
-        SetOriginalDirect(key)
     } else {
         _AutoFireEnableKeys.Push(key)
         MainSetKeyState(key, true)
-        SetOriginalBlocking(key)
     }
 }
 
@@ -122,71 +120,41 @@ GetOriginKeyName(key){
     return keyName
 }
 
-; 用于屏蔽按键原始功能（v2 Hotkey 回调会传入额外汇总参数，故用 * 吸收）
-OriginalBlocking(key, *){
-    SendInput("{Blind}{" key " DownTemp}")
-    Sleep(1)
-    KeyWait(key)
-    SendInput("{Blind}{" key " Up}")
-}
-
-; 屏蔽按键原始功能
-SetOriginalBlocking(key){
-    keyName := GetOriginKeyName(key)
-    if (!InStr(keyName, "Num")){
-        keyName := Key2SC(keyName)
-    }
-    ; v2：直接用函数引用，勿用 Func("名称")，便于静态检查与运行一致
-    fn := OriginalBlocking.Bind(Format("{:L}", keyName))
-    try{
-        Hotkey("$*" keyName, fn, "On")
-    }
-}
-
-; 恢复按键原始功能
-SetOriginalDirect(key){
-    keyName := GetOriginKeyName(key)
-    if (!InStr(keyName, "Num")){
-        keyName := Key2SC(keyName)
-    }
-    try{
-        Hotkey("$*" keyName, "Off")
-    }
-}
-
 ; 设置托盘图标状态
 SetTrayRunningIcon(state){
-    ; 编译后从 exe 资源切换；源码运行时直接读取 gui 目录下的图标文件。
+    ; 编译后从 exe 资源切换；源码运行时直接读取 lib\ui\icons 目录下的图标文件。
     if (A_IsCompiled) {
         try TraySetIcon(A_ScriptFullPath, state ? 3 : 4)
         return
     }
-    try TraySetIcon(A_ScriptDir "\gui\" (state ? "icon_green.ico" : "icon_red.ico"))
+    try TraySetIcon(A_ScriptDir "\lib\ui\icons\" (state ? "icon_green.ico" : "icon_red.ico"))
 }
 
 ; 启动连发功能
 StartAutoFire(){
     global _AutoFireEnableKeys
     global _AutoFireThreads
+    AutoFireThreads_StopAll()
     _AutoFireThreads := []
-    try enableKeyCount := _AutoFireEnableKeys.Length
+    nowSelectPreset := ResolvePresetName()
+    runtimeKeys := AutoFire_LoadRuntimeKeys(nowSelectPreset)
+    try enableKeyCount := runtimeKeys.Length
     catch {
         enableKeyCount := 0
     }
-    loop enableKeyCount {
-        if !_AutoFireEnableKeys.Has(A_Index) {
-            continue
-        }
-        afKey := _AutoFireEnableKeys[A_Index]
-        SetOriginalBlocking(afKey)
-        _AutoFireThreads.Push(SubProcessThread(afKey))
+    if (enableKeyCount > 0) {
+        _AutoFireThreads.Push(SubProcessThread("MainAutoFire", nowSelectPreset))
     }
-    Sleep(10)
-    _AutoFireThreads.Push(SubProcessThread("ReleaseKeys"))
-    StartEx()
+    StartEx(nowSelectPreset)
+    if (_AutoFireThreads.Length = 0) {
+        try AutoPresets_OnSessionStopped()
+        SetTrayRunningIcon(false)
+        return false
+    }
+    try AutoPresets_OnSessionStarted()
     SetTrayRunningIcon(true)
-    nowSelectPreset := GetNowSelectPreset()
     ShowTip("连发已启动 - " . nowSelectPreset)
+    return true
 }
 
 EnterRunningMode(presetName := "") {
@@ -194,49 +162,46 @@ EnterRunningMode(presetName := "") {
     SaveCurrentPresetState()
     LoadMainPresetState(targetPreset)
     HideGuiMain()
-    StartAutoFire()
+    if !StartAutoFire() {
+        SwitchToStoppedState()
+        gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
+        SetTimer(MainMutedLinkPoll, 100)
+    }
 }
 
-StartEx(){
+StartEx(presetName := ""){
     global _AutoFireThreads
-    if MainCheckboxOn("LvRen") {
-        _AutoFireThreads.Push(SubProcessThread("ExLvRen"))
-    }
-    if MainCheckboxOn("GuanYu") {
-        _AutoFireThreads.Push(SubProcessThread("ExGuanYu"))
-    }
-    if MainCheckboxOn("PetSkill") {
-        _AutoFireThreads.Push(SubProcessThread("ExPetSkill"))
-    }
-    if MainCheckboxOn("ZhanFa") {
-        _AutoFireThreads.Push(SubProcessThread("ExZhanFa"))
-    }
-    if MainCheckboxOn("JianZong") {
-        skillKey := LoadPreset(GetNowSelectPreset(), "JianZongSkillKey")
-        SetOriginalBlocking(skillKey)
-        _AutoFireThreads.Push(SubProcessThread("ExJianZong"))
-    }
-    if MainCheckboxOn("AutoRun") {
-        _AutoFireThreads.Push(SubProcessThread("ExAutoRun"))
+    presetName := ResolvePresetName(presetName)
+    exNames := ["LvRen", "GuanYu", "PetSkill", "ZhanFa", "JianZong", "XiuLuo", "AutoRun", "Combo"]
+    for exName in exNames {
+        if MainCheckboxOn(exName) {
+            _AutoFireThreads.Push(SubProcessThread("ExActionRuntime", presetName))
+            return
+        }
     }
 }
 
 ; 停止连发功能
 StopAutoFire(){
     global _AutoFireThreads
-    allKeys := GetAllKeys()
-    try allKeyCount := allKeys.Length
-    catch {
-        allKeyCount := 0
-    }
-    loop allKeyCount {
-        if !allKeys.Has(A_Index) {
-            continue
-        }
-        SetOriginalDirect(allKeys[A_Index])
-    }
+    try AutoPresets_OnSessionStopped()
+    AutoFireThreads_StopAll()
     _AutoFireThreads := []
     SetTrayRunningIcon(false)
+}
+
+AutoFireThreads_StopAll() {
+    global _AutoFireThreads
+    try threadCount := _AutoFireThreads.Length
+    catch {
+        threadCount := 0
+    }
+    loop threadCount {
+        if !_AutoFireThreads.Has(A_Index) {
+            continue
+        }
+        try _AutoFireThreads[A_Index].Stop()
+    }
 }
 
 ; 设置所有关闭连发
@@ -278,7 +243,7 @@ SetAllKeysAutoFire(keys){
 }
 
 SaveMainPresetState(presetName) {
-    global _AutoFireEnableKeys
+    global _AutoFireEnableKeys, _AutoFireKeyIntervals
     presetName := NormalizePresetName(presetName)
     if (presetName = "") {
         return false
@@ -289,7 +254,23 @@ SaveMainPresetState(presetName) {
     SavePreset(presetName, "PetSkillState", MainGetCtrl("PetSkill").Value)
     SavePreset(presetName, "ZhanFaState", MainGetCtrl("ZhanFa").Value)
     SavePreset(presetName, "JianZongState", MainGetCtrl("JianZong").Value)
+    SavePreset(presetName, "XiuLuoState", MainGetCtrl("XiuLuo").Value)
     SavePreset(presetName, "AutoRunState", MainGetCtrl("AutoRun").Value)
+    SavePreset(presetName, "ComboState", MainGetCtrl("Combo").Value)
+    SaveConfig("AutoPresetsEnabled", MainGetCtrl("AutoPresets").Value ? 1 : 0)
+    afInterval := 20
+    try {
+        afInterval := Round(MainGetCtrl("AutoFireIntervalMs").Text + 0)
+    } catch {
+        afInterval := 20
+    }
+    if (afInterval < 1) {
+        afInterval := 1
+    } else if (afInterval > 200) {
+        afInterval := 200
+    }
+    SavePreset(presetName, "AutoFireIntervalMs", afInterval)
+    SavePreset(presetName, "AutoFireKeyIntervals", AutoFireKeyIntervals_MapToString(_AutoFireKeyIntervals))
     return true
 }
 
@@ -315,6 +296,17 @@ ResolvePresetName(presetName := "") {
         fallbackPreset := DEFAULT_PRESET_NAME
     }
     return fallbackPreset
+}
+
+; 从预设节加载单键连发间隔表到内存（与主界面右键设置共用）
+AutoFireKeyIntervals_LoadForPreset(presetName) {
+    global _AutoFireKeyIntervals
+    presetName := NormalizePresetName(presetName)
+    if (presetName = "") {
+        _AutoFireKeyIntervals := Map()
+        return
+    }
+    _AutoFireKeyIntervals := AutoFireKeyIntervals_StringToMap(LoadPreset(presetName, "AutoFireKeyIntervals", ""))
 }
 
 LoadMainPresetState(presetName) {
@@ -365,50 +357,101 @@ IsValueInArray(value, array){
 
 ; 删除数组中的某值
 DeleteValueInArray(value, array){
-    if(IsValueInArray(value, array)){
-        needDeleteIndex := 0
-        try itemCount := array.Length
-        catch {
-            itemCount := 0
+    if !IsObject(array) {
+        return
+    }
+    try itemCount := array.Length
+    catch {
+        itemCount := 0
+    }
+    loop itemCount
+    {
+        if !array.Has(A_Index) {
+            continue
         }
-        loop itemCount
-        {
-            if !array.Has(A_Index) {
-                continue
-            }
-            if(array[A_Index] == value){
-                needDeleteIndex := A_Index
-            }
-        }
-        if (needDeleteIndex > 0) {
-            array.Delete(needDeleteIndex)
+        if(array[A_Index] == value){
+            array.RemoveAt(A_Index)
+            return
         }
     }
 }
 
-ShowTip(text){
-    ToolTip(text)
-    SetTimer(CloseTip, -3000)
-    ; 只尝试激活标题匹配，避免把标题当成 ahk_class
-    try WinActivate("地下城与勇士")
+GAME_WINDOW_TITLES := [
+    "地下城与勇士：创新世纪",
+    "次元对决"
+]
+
+FindDNFGameWindowTitle() {
+    global GAME_WINDOW_TITLES
+    for t in GAME_WINDOW_TITLES {
+        try {
+            if WinExist(t)
+                return t
+        }
+    }
+    return ""
+}
+
+; 提示后切回游戏：按精确客户端标题依次尝试，避免 WinActivate("ahk_group DNF") 命中组内非客户区 HWND（有声但键像未进游戏）。
+ActivateDNFAfterTip() {
+    t := FindDNFGameWindowTitle()
+    if t {
+        try WinActivate(t)
+    }
+}
+
+ShowTip(text) {
+    try SetTimer(ShowTipDisplay, 0)
+    try SetTimer(CloseTip, 0)
+    global __ShowTipPendingText := text
+    SetTimer(ShowTipDisplay, -100)
+}
+
+ShowTipDisplay() {
+    global __ShowTipPendingText
+    text := __ShowTipPendingText
+    marginX := 16
+    marginY := 16
+    tipH := 24
+    tipW := ShowTipEstimateWidth(text)
+    title := FindDNFGameWindowTitle()
+    if title {
+        try {
+            WinGetClientPos(&cx, &cy, &cw, &ch, title)
+            tipX := cx + cw - tipW - marginX
+            tipY := cy + ch - tipH - marginY
+            if (tipX < cx)
+                tipX := cx + marginX
+            if (tipY < cy)
+                tipY := cy + marginY
+            ToolTip(text, tipX, tipY)
+        } catch {
+            ToolTip(text)
+        }
+    } else {
+        ToolTip(text)
+    }
+    SetTimer(CloseTip, -1000)
+    try ActivateDNFAfterTip()
+}
+
+ShowTipEstimateWidth(text) {
+    w := 20
+    Loop Parse text {
+        w += (Ord(A_LoopField) > 127) ? 15 : 8
+    }
+    return Max(w, 64)
 }
 
 CloseTip(){
     ToolTip()
 }
 
-SetDNFWindowClass(){
-    ; DNF 的窗口“类名”(Class)在不同地区/版本可能不同，但窗口标题与进程名更稳定。
+RegisterGameWindowGroup(){
+    global GAME_WINDOW_TITLES
+    ; DNF 的窗口“类名”(Class)在不同地区/版本可能不同，这里只按精确窗口标题纳入前台判定。
     ; 旧版写法把标题当成 ahk_class，会导致 WinActive("ahk_group DNF") 永远不成立。
-    ;
-    ; 1) 标题匹配（不加 ahk_class/ahk_exe 前缀时，默认按标题匹配）
-    GroupAdd("DNF", "地下城与勇士")
-    GroupAdd("DNF", "Dungeon & Fighter")
-    GroupAdd("DNF", "Dungeon Fighter Online")
-    ;
-    ; 2) 进程匹配（尽量覆盖常见命名；如果你的进程名不同，后面我再按诊断结果补）
-    GroupAdd("DNF", "ahk_exe dnf.exe")
-    GroupAdd("DNF", "ahk_exe DNF.exe")
-    GroupAdd("DNF", "ahk_exe DungeonFighter.exe")
-    GroupAdd("DNF", "ahk_exe DFO.exe")
+    for t in GAME_WINDOW_TITLES {
+        GroupAdd("DNF", t)
+    }
 }

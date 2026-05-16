@@ -1,24 +1,26 @@
 #Requires AutoHotkey v2.0
 
-global gAutoRunGui := Gui("+ToolWindow")
+global gAutoRunGui := Gui("-MinimizeBox -MaximizeBox")
 global gAutoRunCtrls := Map()
 
 UiApplyWindow(gAutoRunGui)
 gAutoRunGui.OnEvent("Escape", AutoRunGuiEscape)
 gAutoRunGui.OnEvent("Close", AutoRunGuiClose)
 
-xLeft := UiColumnX(1)
-xRight := UiColumnX(2)
-UiLabel(gAutoRunGui, UiRect(xLeft, UiRowY(1), 80, 20), "左方向键")
-UiEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunLeftKey", UiRect(xLeft, UiRowY(2), 80, 20, "+ReadOnly -WantCtrlA"))
-UiPlainButton(gAutoRunGui, UiRect(xLeft, UiRowY(3), 80, 22), "设置按键", AutoRunSetLeftKey)
+UiExPageTitle(gAutoRunGui, exText["AutoRunPageTitle"], 296)
+UiLabel(gAutoRunGui, UiRect(16, 54, 72, 26), exText["AutoRunLeftKey"])
+UiEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunLeftKey", UiRect(96, 54, 168, 24, "+ReadOnly -WantCtrlA -E0x200 Border"))
+UiPlainButton(gAutoRunGui, UiRect(96, 84, 168, 24), exText["SetKey"], AutoRunSetLeftKey)
 
-UiLabel(gAutoRunGui, UiRect(xRight, UiRowY(1), 80, 20), "右方向键")
-UiEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunRightKey", UiRect(xRight, UiRowY(2), 80, 20, "+ReadOnly -WantCtrlA"))
-UiPlainButton(gAutoRunGui, UiRect(xRight, UiRowY(3), 80, 22), "设置按键", AutoRunSetRightKey)
+UiLabel(gAutoRunGui, UiRect(16, 118, 72, 26), exText["AutoRunRightKey"])
+UiEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunRightKey", UiRect(96, 118, 168, 24, "+ReadOnly -WantCtrlA -E0x200 Border"))
+UiPlainButton(gAutoRunGui, UiRect(96, 148, 168, 24), exText["SetKey"], AutoRunSetRightKey)
 
-UiPlainButton(gAutoRunGui, UiRect(xRight, 86, 80, 28), "保存", AutoRunSave)
-UiHelpButton(gAutoRunGui, UiRect(158, UiRowY(1), 18, 18), AutoRunHelp)
+UiLabel(gAutoRunGui, UiRect(16, 182, 72, 26), exText["AutoRunDelay"])
+UiEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunDelay", UiRect(96, 182, 72, 24, "+Number -E0x200 Border"))
+
+UiPlainButton(gAutoRunGui, UiRect(96, 218, 168, 32), exText["CommonSave"], AutoRunSave, "primary")
+UiHelpButton(gAutoRunGui, UiRect(262, 16, 22, 22), AutoRunHelp)
 
 AutoRunGetCtrl(name) {
     global gAutoRunCtrls
@@ -30,8 +32,8 @@ ShowGuiAutoRun(*) {
     if IsObject(gMainGui) {
         gAutoRunGui.Opt("+Owner" gMainGui.Hwnd)
     }
-    gAutoRunGui.Title := "自动奔跑设置"
-    gAutoRunGui.Show("w184 h122")
+    gAutoRunGui.Title := exText["AutoRunTitle"]
+    gAutoRunGui.Show("w296 h270")
     AutoRunLoadConfig()
     DisableGuiMain()
 }
@@ -50,7 +52,7 @@ AutoRunGuiClose(*) {
 }
 
 AutoRunHelp(*) {
-    MsgBox("设置自动奔跑要监听的左右键。`n如果游戏里方向键不是 Left/Right，请改成你的实际按键后保存。", "自动奔跑说明", "Iconi")
+    UiHelpMsgBox(exText["AutoRunHelp"], exText["AutoRunHelpTitle"])
 }
 
 AutoRunSetLeftKey(*) {
@@ -62,12 +64,27 @@ AutoRunSetRightKey(*) {
 }
 
 AutoRunSave(*) {
+    delay := Round((Trim(AutoRunGetCtrl("AutoRunDelay").Text) = "" ? 40 : AutoRunGetCtrl("AutoRunDelay").Text) + 0)
+    if (delay < 1) {
+        delay := 1
+    } else if (delay > 400) {
+        delay := 400
+    }
+    AutoRunGetCtrl("AutoRunDelay").Text := delay
     SavePreset(GetNowSelectPreset(), "AutoRunLeftKey", AutoRunGetCtrl("AutoRunLeftKey").Text)
     SavePreset(GetNowSelectPreset(), "AutoRunRightKey", AutoRunGetCtrl("AutoRunRightKey").Text)
+    SavePreset(GetNowSelectPreset(), "AutoRunDelay", delay)
     HideGuiAutoRun()
 }
 
 AutoRunLoadConfig() {
+    delay := Round(LoadPreset(GetNowSelectPreset(), "AutoRunDelay", 40) + 0)
+    if (delay < 1) {
+        delay := 1
+    } else if (delay > 400) {
+        delay := 400
+    }
     AutoRunGetCtrl("AutoRunLeftKey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunLeftKey", "Left")
     AutoRunGetCtrl("AutoRunRightKey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunRightKey", "Right")
+    AutoRunGetCtrl("AutoRunDelay").Text := delay
 }

@@ -1,6 +1,6 @@
 #Requires AutoHotkey v2.0
 
-global gLvRenGui := Gui("+ToolWindow")
+global gLvRenGui := Gui("-MinimizeBox -MaximizeBox")
 global gLvRenCtrls := Map()
 global __LvRenSkillKeys := []
 
@@ -8,7 +8,8 @@ UiApplyWindow(gLvRenGui)
 gLvRenGui.OnEvent("Escape", LvRenGuiEscape)
 gLvRenGui.OnEvent("Close", LvRenGuiClose)
 
-UiSkillKeyEditor(gLvRenGui, gLvRenCtrls, "LvRen", "已添加技能键", "流星发射键", "添加技能键", "删除技能键", "设置发射键", LvRenAddKey, LvRenDeleteKey, LvRenSetShotKey, LvRenSave, LvRenHelp)
+UiSkillKeyEditor(gLvRenGui, gLvRenCtrls, "LvRen", exText["LvRenListTitle"], exText["LvRenShotTitle"], exText["LvRenAdd"], exText["LvRenDelete"], exText["SetShotKey"], LvRenAddKey, LvRenDeleteKey, LvRenSetShotKey, LvRenSave, LvRenHelp, exText["CommonSave"], exText["LvRenPageTitle"])
+UiListBoxDragSort_Attach(gLvRenCtrls["LvRenKeysListBox"], LvRenDragGetItems, UiListBoxDragSort_RenderStrings, LvRenDragCommit)
 
 LvRenGetCtrl(name) {
     global gLvRenCtrls
@@ -20,8 +21,8 @@ ShowGuiLvRen(*) {
     if IsObject(gMainGui) {
         gLvRenGui.Opt("+Owner" gMainGui.Hwnd)
     }
-    gLvRenGui.Title := "旅人自动流星"
-    gLvRenGui.Show("w184 h210")
+    gLvRenGui.Title := exText["LvRenTitle"]
+    gLvRenGui.Show("w320 h320")
     LvRenLoadConfig()
     DisableGuiMain()
 }
@@ -40,14 +41,14 @@ LvRenGuiClose(*) {
 }
 
 LvRenHelp(*) {
-    MsgBox("1、添加你想要发射流星的技能键`n2、设置游戏中流星的发射键（默认为Z）`n3、保存配置，启动连发并使用`n`nPS：建议和连发功能一起打开，效果更好", "如何使用旅人自动流星", "Iconi")
+    UiHelpMsgBox(exText["LvRenHelp"], exText["LvRenHelpTitle"])
 }
 
 LvRenAddKey(*) {
     global __LvRenSkillKeys
     key := GetPressKey()
     if IsValueInArray(key, __LvRenSkillKeys) {
-        MsgBox("请勿重复添加按键",, "Icon!")
+        MsgBox(exText["DuplicateKey"],, "Icon!")
     } else {
         __LvRenSkillKeys.Push(key)
     }
@@ -88,6 +89,20 @@ LvRenChangeListGui(keys) {
     }
     if (cnt > 0) {
         ctrl.Choose(1)
+    }
+}
+
+LvRenDragGetItems(*) {
+    global __LvRenSkillKeys
+    return UiListBoxDragSort_CopyArray(__LvRenSkillKeys)
+}
+
+LvRenDragCommit(items, selectedIndex) {
+    global __LvRenSkillKeys
+    __LvRenSkillKeys := items
+    LvRenChangeListGui(__LvRenSkillKeys)
+    if (selectedIndex > 0 && selectedIndex <= __LvRenSkillKeys.Length) {
+        try LvRenGetCtrl("LvRenKeysListBox").Choose(selectedIndex)
     }
 }
 
