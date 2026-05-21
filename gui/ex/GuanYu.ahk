@@ -9,7 +9,7 @@ UiApplyWindow(gGuanYuGui)
 gGuanYuGui.OnEvent("Escape", GuanYuGuiEscape)
 gGuanYuGui.OnEvent("Close", GuanYuGuiClose)
 
-UiSkillKeyEditor(gGuanYuGui, gGuanYuCtrls, "GuanYu", exText["GuanYuListTitle"], exText["GuanYuShotTitle"], exText["GuanYuAdd"], exText["GuanYuDelete"], exText["SetShotKey"], GuanYuAddKey, GuanYuDeleteKey, GuanYuSetShotKey, GuanYuSave, GuanYuHelp, exText["CommonSave"], exText["GuanYuPageTitle"], exText["GuanYuDelayTitle"], "", 0, gGuanYuLayout)
+UiSkillKeyEditor(gGuanYuGui, gGuanYuCtrls, "GuanYu", exText["GuanYuListTitle"], exText["GuanYuShotTitle"], exText["GuanYuAdd"], exText["GuanYuDelete"], GuanYuAddKey, GuanYuDeleteKey, GuanYuSave, GuanYuHelp, exText["CommonSave"], exText["GuanYuPageTitle"], exText["GuanYuDelayTitle"], "", gGuanYuLayout)
 UiListBoxDragSort_Attach(gGuanYuCtrls["GuanYuKeysListBox"], GuanYuDragGetItems, UiListBoxDragSort_RenderStrings, GuanYuDragCommit)
 
 GuanYuGetCtrl(name) {
@@ -74,10 +74,6 @@ GuanYuSave(*) {
     HideGuiGuanYu()
 }
 
-GuanYuSetShotKey(*) {
-    GuanYuGetCtrl("GuanYuShotKey").Text := GetPressKey()
-}
-
 GuanYuChangeListGui(keys) {
     ctrl := GuanYuGetCtrl("GuanYuKeysListBox")
     ctrl.Delete()
@@ -124,7 +120,7 @@ GuanYuSaveConfig() {
     }
     GuanYuGetCtrl("GuanYuDelay").Text := delay
     SavePreset(GetNowSelectPreset(), "GuanYuSkillKeys", keysString)
-    SavePreset(GetNowSelectPreset(), "GuanYuShotKey", GuanYuGetCtrl("GuanYuShotKey").Text)
+    SavePreset(GetNowSelectPreset(), "GuanYuShotKey", UiPressKeyEdit_Value(GuanYuGetCtrl("GuanYuShotKey")))
     SavePreset(GetNowSelectPreset(), "GuanYuDelay", delay)
 }
 

@@ -41,13 +41,12 @@ UiSectionWithHelp(gAutoPresetsGui, gAutoPresetsLayout, marginX, 12, AutoPresetsT
 gAutoPresetsCtrls["AutoPresetsEnableVisible"] := gAutoPresetsGui.Add("CheckBox", UiLayoutRect(gAutoPresetsLayout, marginX, apEnableY, 310, 20, "vAutoPresetsEnableVisible"), AutoPresetsText["Enable"])
 gAutoPresetsCtrls["AutoPresetsEnableVisible"].OnEvent("Click", AutoPresetsSyncEnableFromUi)
 UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, apHotkeyY, 140, 20), AutoPresetsText["ExtraHotkey"])
-UiEdit(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetHotkey", UiLayoutRect(gAutoPresetsLayout, 144, apHotkeyY - 1, 112, 22, "+ReadOnly -WantCtrlA -E0x200"))
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, 264, apHotkeyY - 2, 72, 24), AutoPresetsText["Capture"], AutoPresetsCaptureHotkey, "secondary")
+UiPressKeyEdit(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetHotkey", UiLayoutRect(gAutoPresetsLayout, 144, apHotkeyY, 192, ExLayout.ControlHeight()))
 
 UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, middleLabelY, contentR - marginX, 18), AutoPresetsText["TownReference"])
 gAutoPresetsCtrls["TownPreview"] := gAutoPresetsGui.Add("Picture", UiLayoutRect(gAutoPresetsLayout, townX, townY, townPvW, townPvH), "")
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, 76, pickBtnY, 192, 30), AutoPresetsText["PickRegion"], AutoPresetsOpenPickMenu, "secondary")
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, 76, townBtnY, 192, 28), AutoPresetsText["UpdateTown"], AutoPresetsUpdateTownIcon, "secondary")
+UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, 76, pickBtnY, 192, ExLayout.ControlHeight()), AutoPresetsText["PickRegion"], AutoPresetsOpenPickMenu, "secondary")
+UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, 76, townBtnY, 192, ExLayout.ControlHeight()), AutoPresetsText["UpdateTown"], AutoPresetsUpdateTownIcon, "secondary")
 
 UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, lowerY, listW, 20), AutoPresetsText["PresetList"])
 UiListBox(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetPresetList", UiLayoutRect(gAutoPresetsLayout, marginX, listY, listW, listH), AutoPresetsOnPresetListChange)
@@ -58,9 +57,9 @@ OnMessage(0x0202, AutoPresetsSkillIconListOnLButtonUp)
 UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, rightX, lowerY, rightW, 20), AutoPresetsText["SkillReference"])
 UiEdit(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetSelectedName", UiLayoutRect(gAutoPresetsLayout, rightX, lowerY + 1, 1, 1, "+ReadOnly Hidden -E0x200"))
 gAutoPresetsCtrls["SkillPreview"] := gAutoPresetsGui.Add("Picture", UiLayoutRect(gAutoPresetsLayout, rightX, pvY, pvW, pvH), "")
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, rightX, rowActionY, (pvW - 8) // 2, 28), AutoPresetsText["CaptureReference"], AutoPresetsUpdateSkillIcon, "secondary")
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, rightX + (pvW + 8) // 2, rowActionY, (pvW - 8) // 2, 28), AutoPresetsText["DeleteReference"], AutoPresetsDeleteSkillIcon, "secondary")
-UiPlainButton(gAutoPresetsGui, UiExSaveButtonRect(gAutoPresetsLayout, saveY, contentR, 30), AutoPresetsText["Save"], AutoPresetsGuiSave, "primary")
+UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, rightX, rowActionY, (pvW - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["CaptureReference"], AutoPresetsUpdateSkillIcon, "secondary")
+UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, rightX + (pvW + 8) // 2, rowActionY, (pvW - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["DeleteReference"], AutoPresetsDeleteSkillIcon, "secondary")
+UiPlainButton(gAutoPresetsGui, UiExSaveButtonRect(gAutoPresetsLayout, saveY, contentR), AutoPresetsText["Save"], AutoPresetsGuiSave, "primary")
 
 AutoPresetsGetCtrl(name) {
     global gAutoPresetsCtrls
@@ -358,7 +357,7 @@ AutoPresetsGuiClose(*) {
 
 AutoPresetsGuiSave(*) {
     PresetRegionPickCommitIfOpen()
-    hk := Trim(AutoPresetsGetCtrl("AutoPresetHotkey").Text)
+    hk := Trim(UiPressKeyEdit_Value(AutoPresetsGetCtrl("AutoPresetHotkey")))
     SaveConfig("AutoPresetHotkey", hk)
     v := AutoPresetsGetCtrl("AutoPresetsEnableVisible").Value ? 1 : 0
     SaveConfig("AutoPresetsEnabled", v)
@@ -374,10 +373,6 @@ AutoPresetsGuiSave(*) {
 
 AutoPresetsHelp(*) {
     UiHelpMsgBox(AutoPresetsText["Help"], AutoPresetsText["HelpTitle"])
-}
-
-AutoPresetsCaptureHotkey(*) {
-    AutoPresetsGetCtrl("AutoPresetHotkey").Text := GetPressKey()
 }
 
 AutoPresetsUpdateSkillIcon(*) {

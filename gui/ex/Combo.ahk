@@ -23,14 +23,14 @@ profileColW := 196
 colGap := 16
 skillColX := profileColX + profileColW + colGap
 skillColW := contentRight - skillColX
-bottomBtnRects := UiExSplitButtonRects(gComboLayout, ExLayout.MarginLeft(), 396, contentRight - ExLayout.MarginLeft(), 8, 32)
+bottomBtnRects := UiExSplitButtonRects(gComboLayout, ExLayout.MarginLeft(), 396, contentRight - ExLayout.MarginLeft(), 8, ExLayout.SaveButtonHeight())
 
 UiExPageTitle(gComboGui, exText["ComboTitleLine"], contentRight, gComboLayout, ComboHelp)
 
 UiLabel(gComboGui, UiLayoutRect(gComboLayout, profileColX, 52, profileColW, 22, "+0x200"), exText["ComboProfileList"])
 UiListBox(gComboCtrls, gComboGui, "ComboProfilesListBox", UiLayoutRect(gComboLayout, profileColX, 74, profileColW, 210), ComboProfileListChange)
 UiListBoxDragSort_Attach(gComboCtrls["ComboProfilesListBox"], ComboProfileDragGetItems, ComboProfileDragRender, ComboProfileDragCommit, ComboProfileDragClick)
-profileBtnRects := UiExSplitButtonRects(gComboLayout, profileColX, 292, profileColW, 8, 26)
+profileBtnRects := UiExSplitButtonRects(gComboLayout, profileColX, 292, profileColW, 8)
 UiPlainButton(gComboGui, profileBtnRects[1], exText["ComboAddProfile"], ComboAddProfile)
 UiPlainButton(gComboGui, profileBtnRects[2], exText["ComboRemoveProfile"], ComboRemoveProfile)
 
@@ -38,13 +38,12 @@ UiLabel(gComboGui, UiLayoutRect(gComboLayout, skillColX, 52, skillColW, 22, "+0x
 UiListBox(gComboCtrls, gComboGui, "ComboSkillsListBox", UiLayoutRect(gComboLayout, skillColX, 74, skillColW, 210))
 gComboCtrls["ComboSkillsListBox"].OnEvent("DoubleClick", ComboEditSkill)
 UiListBoxDragSort_Attach(gComboCtrls["ComboSkillsListBox"], ComboDragGetItems, ComboDragRender, ComboDragCommit)
-skillActionRects := UiExSplitButtonRects(gComboLayout, skillColX, 292, skillColW, 8, 26)
+skillActionRects := UiExSplitButtonRects(gComboLayout, skillColX, 292, skillColW, 8)
 UiPlainButton(gComboGui, skillActionRects[1], exText["ComboAddSkill"], ComboAddSkill)
 UiPlainButton(gComboGui, skillActionRects[2], exText["ComboDeleteSkill"], ComboDeleteSkill)
 
 UiLabel(gComboGui, UiLayoutRect(gComboLayout, skillColX, 334, 44, 22, "+0x200"), exText["ComboTriggerKey"])
-UiEdit(gComboCtrls, gComboGui, "ComboTriggerKey", UiLayoutRect(gComboLayout, 276, 332, 232, 24, "+ReadOnly -WantCtrlA -E0x200"))
-UiPlainButton(gComboGui, UiLayoutRect(gComboLayout, skillColX, 360, skillColW, 28), exText["ComboSetTriggerKey"], ComboSetTriggerKey)
+UiPressKeyEdit(gComboCtrls, gComboGui, "ComboTriggerKey", UiLayoutRect(gComboLayout, 276, 332, 232, 24), ComboCanonMainPressKeyCaptured)
 gComboCtrls["ComboLoopMode"] := gComboGui.Add("CheckBox", UiLayoutRect(gComboLayout, contentRight - 80, 334, 80, 22, "vComboLoopMode"), exText["ComboLoopMode"])
 
 UiButton(gComboCtrls, gComboGui, "ComboApply", bottomBtnRects[1], exText["ComboApply"], ComboApplyProfile, "secondary")
@@ -55,12 +54,11 @@ UiApplyWindow(gComboEditGui)
 gComboEditGui.OnEvent("Escape", ComboEditCancel)
 gComboEditGui.OnEvent("Close", ComboEditCancel)
 UiLabel(gComboEditGui, UiLayoutRect(gComboEditLayout, 16, 16, 120, 22, "+0x200"), exText["ComboEditSkillKey"])
-UiEdit(gComboEditCtrls, gComboEditGui, "ComboEditCurrentKey", UiLayoutRect(gComboEditLayout, 16, 38, 120, 24, "+ReadOnly -WantCtrlA -E0x200"))
-UiPlainButton(gComboEditGui, UiLayoutRect(gComboEditLayout, 16, 68, 120, 28), exText["ComboEditChangeKey"], ComboEditChangeKey)
+UiPressKeyEdit(gComboEditCtrls, gComboEditGui, "ComboEditCurrentKey", UiLayoutRect(gComboEditLayout, 16, 38, 120, 24), ComboCanonSkillPressKeyCaptured)
 UiLabel(gComboEditGui, UiLayoutRect(gComboEditLayout, 148, 16, 100, 22, "+0x200"), exText["ComboEditDelay"])
 UiEdit(gComboEditCtrls, gComboEditGui, "ComboEditDelay", UiLayoutRect(gComboEditLayout, 148, 38, 100, 24, "+Number -E0x200"))
-UiPlainButton(gComboEditGui, UiLayoutRect(gComboEditLayout, 148, 68, 48, 28), exText["ComboEditOk"], ComboEditSave, "primary")
-UiPlainButton(gComboEditGui, UiLayoutRect(gComboEditLayout, 200, 68, 48, 28), exText["ComboEditCancel"], ComboEditCancel)
+UiPlainButton(gComboEditGui, UiLayoutRect(gComboEditLayout, 148, 68, 48, ExLayout.ControlHeight()), exText["ComboEditOk"], ComboEditSave, "primary")
+UiPlainButton(gComboEditGui, UiLayoutRect(gComboEditLayout, 200, 68, 48, ExLayout.ControlHeight()), exText["ComboEditCancel"], ComboEditCancel)
 
 ComboGetCtrl(name) {
     global gComboCtrls
@@ -99,16 +97,20 @@ ComboHelp(*) {
     UiHelpMsgBox(exText["ComboHelp"], exText["ComboHelpTitle"])
 }
 
-ComboSetTriggerKey(*) {
-    raw := GetPressKey()
-    key := ComboCanonMainKey(raw)
-    if (key = "") {
-        if (raw != "") {
-            MsgBox(exText["ComboUnsupportedMainKey"], exText["ComboTitle"], "Icon!")
-        }
-        return
+ComboCanonMainPressKeyCaptured(key) {
+    canon := ComboCanonMainKey(key)
+    if (canon = "") && key != "" {
+        MsgBox(exText["ComboUnsupportedMainKey"], exText["ComboTitle"], "Icon!")
     }
-    ComboGetCtrl("ComboTriggerKey").Text := key
+    return canon
+}
+
+ComboCanonSkillPressKeyCaptured(key) {
+    canon := ComboCanonMainKey(key)
+    if (canon = "") && key != "" {
+        MsgBox(exText["ComboUnsupportedKey"], exText["ComboTitle"], "Icon!")
+    }
+    return canon
 }
 
 ComboMakeDisplay(item) {
@@ -209,7 +211,7 @@ ComboFlushEditorToProfileAt(idx) {
         return
     }
     p := __ComboProfiles[idx]
-    p.trigger := ComboGetCtrl("ComboTriggerKey").Text
+    p.trigger := UiPressKeyEdit_Value(ComboGetCtrl("ComboTriggerKey"))
     p.loop := ComboGetCtrl("ComboLoopMode").Value
     p.skills := ComboCloneSkillItems(__ComboSkillItems)
 }
@@ -432,20 +434,6 @@ ComboShowEditDialog(item) {
     gComboEditGui.Show("w" gComboEditLayout.Width() " h" gComboEditLayout.Height())
 }
 
-ComboEditChangeKey(*) {
-    global gComboEditCtrls, gComboEditKey
-    raw := GetPressKey()
-    key := ComboCanonMainKey(raw)
-    if (key = "") {
-        if (raw != "") {
-            MsgBox(exText["ComboUnsupportedKey"], exText["ComboTitle"], "Icon!")
-        }
-        return
-    }
-    gComboEditKey := key
-    gComboEditCtrls["ComboEditCurrentKey"].Text := key
-}
-
 ComboEditSave(*) {
     global __ComboSkillItems, gComboEditCtrls, gComboEditIndex, gComboEditKey
     if (gComboEditIndex < 1 || gComboEditIndex > __ComboSkillItems.Length || !__ComboSkillItems.Has(gComboEditIndex)) {
@@ -453,7 +441,10 @@ ComboEditSave(*) {
         return
     }
     delay := ComboNormalizeDelay(gComboEditCtrls["ComboEditDelay"].Text)
-    if (gComboEditKey = "") {
+    key := UiPressKeyEdit_Value(gComboEditCtrls["ComboEditCurrentKey"])
+    if (key != "") {
+        gComboEditKey := key
+    } else if (gComboEditKey = "") {
         gComboEditKey := __ComboSkillItems[gComboEditIndex].key
     }
     __ComboSkillItems[gComboEditIndex] := { key: gComboEditKey, delay: delay }

@@ -9,7 +9,7 @@ UiApplyWindow(gPetSkillGui)
 gPetSkillGui.OnEvent("Escape", PetSkillGuiEscape)
 gPetSkillGui.OnEvent("Close", PetSkillGuiClose)
 
-UiSkillKeyEditor(gPetSkillGui, gPetSkillCtrls, "PetSkill", exText["PetSkillListTitle"], exText["PetSkillShotTitle"], exText["PetSkillAdd"], exText["PetSkillDelete"], exText["PetSkillSet"], PetSkillAddKey, PetSkillDeleteKey, PetSkillSetShotKey, PetSkillSave, PetSkillHelp, exText["CommonSave"], exText["PetSkillPageTitle"], "", "", 0, gPetSkillLayout, PetSkillSaveToAll, exText["CommonSaveToAll"])
+UiSkillKeyEditor(gPetSkillGui, gPetSkillCtrls, "PetSkill", exText["PetSkillListTitle"], exText["PetSkillShotTitle"], exText["PetSkillAdd"], exText["PetSkillDelete"], PetSkillAddKey, PetSkillDeleteKey, PetSkillSave, PetSkillHelp, exText["CommonSave"], exText["PetSkillPageTitle"], "", "", gPetSkillLayout, PetSkillSaveToAll, exText["CommonSaveToAll"])
 UiListBoxDragSort_Attach(gPetSkillCtrls["PetSkillKeysListBox"], PetSkillDragGetItems, UiListBoxDragSort_RenderStrings, PetSkillDragCommit)
 
 PetSkillGetCtrl(name) {
@@ -81,10 +81,6 @@ PetSkillSaveToAll(*) {
     HideGuiPetSkill()
 }
 
-PetSkillSetShotKey(*) {
-    PetSkillGetCtrl("PetSkillShotKey").Text := GetPressKey()
-}
-
 PetSkillChangeListGui(keys) {
     ctrl := PetSkillGetCtrl("PetSkillKeysListBox")
     ctrl.Delete()
@@ -122,7 +118,7 @@ PetSkillSaveConfig(presetName) {
     }
     keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
     SavePreset(presetName, "PetSkillSkillKeys", keysString)
-    SavePreset(presetName, "PetSkillShotKey", PetSkillGetCtrl("PetSkillShotKey").Text)
+    SavePreset(presetName, "PetSkillShotKey", UiPressKeyEdit_Value(PetSkillGetCtrl("PetSkillShotKey")))
 }
 
 PetSkillLoadConfig() {

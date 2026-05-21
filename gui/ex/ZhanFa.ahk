@@ -9,7 +9,7 @@ UiApplyWindow(gZhanFaGui)
 gZhanFaGui.OnEvent("Escape", ZhanFaGuiEscape)
 gZhanFaGui.OnEvent("Close", ZhanFaGuiClose)
 
-UiSkillKeyEditor(gZhanFaGui, gZhanFaCtrls, "ZhanFa", exText["ZhanFaListTitle"], exText["ZhanFaShotTitle"], exText["ZhanFaAdd"], exText["ZhanFaDelete"], exText["SetShotKey"], ZhanFaAddKey, ZhanFaDeleteKey, ZhanFaSetShotKey, ZhanFaSave, ZhanFaHelp, exText["CommonSave"], exText["ZhanFaPageTitle"], "", exText["ZhanFaBigShotTitle"], ZhanFaSetShotKey2, gZhanFaLayout)
+UiSkillKeyEditor(gZhanFaGui, gZhanFaCtrls, "ZhanFa", exText["ZhanFaListTitle"], exText["ZhanFaShotTitle"], exText["ZhanFaAdd"], exText["ZhanFaDelete"], ZhanFaAddKey, ZhanFaDeleteKey, ZhanFaSave, ZhanFaHelp, exText["CommonSave"], exText["ZhanFaPageTitle"], "", exText["ZhanFaBigShotTitle"], gZhanFaLayout)
 UiListBoxDragSort_Attach(gZhanFaCtrls["ZhanFaKeysListBox"], ZhanFaDragGetItems, UiListBoxDragSort_RenderStrings, ZhanFaDragCommit)
 
 ZhanFaGetCtrl(name) {
@@ -74,14 +74,6 @@ ZhanFaSave(*) {
     HideGuiZhanFa()
 }
 
-ZhanFaSetShotKey(*) {
-    ZhanFaGetCtrl("ZhanFaShotKey").Text := GetPressKey()
-}
-
-ZhanFaSetShotKey2(*) {
-    ZhanFaGetCtrl("ZhanFaShotKey2").Text := GetPressKey()
-}
-
 ZhanFaChangeListGui(keys) {
     ctrl := ZhanFaGetCtrl("ZhanFaKeysListBox")
     ctrl.Delete()
@@ -119,8 +111,8 @@ ZhanFaSaveConfig() {
     }
     keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
     SavePreset(GetNowSelectPreset(), "ZhanFaSkillKeys", keysString)
-    SavePreset(GetNowSelectPreset(), "ZhanFaShotKey", ZhanFaGetCtrl("ZhanFaShotKey").Text)
-    SavePreset(GetNowSelectPreset(), "ZhanFaBigShotKey", ZhanFaGetCtrl("ZhanFaShotKey2").Text)
+    SavePreset(GetNowSelectPreset(), "ZhanFaShotKey", UiPressKeyEdit_Value(ZhanFaGetCtrl("ZhanFaShotKey")))
+    SavePreset(GetNowSelectPreset(), "ZhanFaBigShotKey", UiPressKeyEdit_Value(ZhanFaGetCtrl("ZhanFaShotKey2")))
 }
 
 ZhanFaLoadConfig() {

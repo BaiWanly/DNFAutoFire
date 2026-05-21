@@ -24,8 +24,8 @@ class AutoPresetsLayout {
     static MiddleLabelY() => this.MiddleY()
     static MiddlePreviewY() => this.MiddleY() + 30
     static PickBtnY() => this.MiddlePreviewY() + this.TownPreviewHeight() + 14
-    static TownBtnY() => this.PickBtnY() + 36
-    static LowerY() => this.TownBtnY() + 52
+    static TownBtnY() => this.PickBtnY() + ExLayout.ControlHeight() + 4
+    static LowerY() => this.TownBtnY() + ExLayout.ControlHeight() + 4
     static ListY() => this.LowerY() + 24
     static ListHeight() => 120
     static TownY() => this.MiddlePreviewY()

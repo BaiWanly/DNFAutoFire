@@ -14,11 +14,10 @@ fieldW := contentRight - fieldX
 
 UiExPageTitle(gJianZongGui, exText["JianZongPageTitle"], contentRight, gJianZongLayout, JianZongHelp)
 UiLabel(gJianZongGui, UiLayoutRect(gJianZongLayout, ExLayout.MarginLeft(), 54, 110, 24), exText["JianZongDelay"])
-UiEdit(gJianZongCtrls, gJianZongGui, "JianZongDelay", UiLayoutRect(gJianZongLayout, fieldX, 54, fieldW, 24, "+Number -E0x200 Border"))
+UiEdit(gJianZongCtrls, gJianZongGui, "JianZongDelay", UiLayoutRect(gJianZongLayout, fieldX, 54, fieldW, ExLayout.ControlHeight(), "+Number -E0x200 Border"))
 UiLabel(gJianZongGui, UiLayoutRect(gJianZongLayout, ExLayout.MarginLeft(), 86, 110, 24), exText["JianZongSkillKey"])
-UiEdit(gJianZongCtrls, gJianZongGui, "JianZongSkillKey", UiLayoutRect(gJianZongLayout, fieldX, 86, fieldW, 24, "+ReadOnly -WantCtrlA -E0x200 Border"))
-UiPlainButton(gJianZongGui, UiLayoutRect(gJianZongLayout, ExLayout.MarginLeft(), 118, contentRight - ExLayout.MarginLeft(), 26), exText["SetKey"], JianZongSetSkillKey)
-UiPlainButton(gJianZongGui, UiExSaveButtonRect(gJianZongLayout, 152, contentRight, 32), exText["CommonSave"], JianZongSave, "primary")
+UiPressKeyEdit(gJianZongCtrls, gJianZongGui, "JianZongSkillKey", UiLayoutRect(gJianZongLayout, fieldX, 86, fieldW, ExLayout.ControlHeight()))
+UiPlainButton(gJianZongGui, UiExSaveButtonRect(gJianZongLayout, 120, contentRight), exText["CommonSave"], JianZongSave, "primary")
 
 JianZongGetCtrl(name) {
     global gJianZongCtrls
@@ -58,12 +57,8 @@ JianZongSave(*) {
     HideGuiJianZong()
 }
 
-JianZongSetSkillKey(*) {
-    JianZongGetCtrl("JianZongSkillKey").Text := GetPressKey()
-}
-
 JianZongSaveConfig() {
-    SavePreset(GetNowSelectPreset(), "JianZongSkillKey", JianZongGetCtrl("JianZongSkillKey").Text)
+    SavePreset(GetNowSelectPreset(), "JianZongSkillKey", UiPressKeyEdit_Value(JianZongGetCtrl("JianZongSkillKey")))
     SavePreset(GetNowSelectPreset(), "JianZongDelay", JianZongGetCtrl("JianZongDelay").Text)
 }
 

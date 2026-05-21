@@ -8,7 +8,6 @@ global AutoPresetsText := Map(
     "RenameSkillIconTitle", "重命名",
     "RenameSkillIconPrompt", "请输入名称",
     "ExtraHotkey", "冒险团玩法信息",
-    "Capture", "设置快捷键",
     "CurrentPreset", "当前配置",
     "SkillReference", "技能图（双击改名）",
     "CaptureReference", "截取",

@@ -9,7 +9,7 @@ UiApplyWindow(gLvRenGui)
 gLvRenGui.OnEvent("Escape", LvRenGuiEscape)
 gLvRenGui.OnEvent("Close", LvRenGuiClose)
 
-UiSkillKeyEditor(gLvRenGui, gLvRenCtrls, "LvRen", exText["LvRenListTitle"], exText["LvRenShotTitle"], exText["LvRenAdd"], exText["LvRenDelete"], exText["SetShotKey"], LvRenAddKey, LvRenDeleteKey, LvRenSetShotKey, LvRenSave, LvRenHelp, exText["CommonSave"], exText["LvRenPageTitle"], "", "", 0, gLvRenLayout)
+UiSkillKeyEditor(gLvRenGui, gLvRenCtrls, "LvRen", exText["LvRenListTitle"], exText["LvRenShotTitle"], exText["LvRenAdd"], exText["LvRenDelete"], LvRenAddKey, LvRenDeleteKey, LvRenSave, LvRenHelp, exText["CommonSave"], exText["LvRenPageTitle"], "", "", gLvRenLayout)
 UiListBoxDragSort_Attach(gLvRenCtrls["LvRenKeysListBox"], LvRenDragGetItems, UiListBoxDragSort_RenderStrings, LvRenDragCommit)
 
 LvRenGetCtrl(name) {
@@ -74,10 +74,6 @@ LvRenSave(*) {
     HideGuiLvRen()
 }
 
-LvRenSetShotKey(*) {
-    LvRenGetCtrl("LvRenShotKey").Text := GetPressKey()
-}
-
 LvRenChangeListGui(keys) {
     ctrl := LvRenGetCtrl("LvRenKeysListBox")
     ctrl.Delete()
@@ -115,7 +111,7 @@ LvRenSaveConfig() {
     }
     keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
     SavePreset(GetNowSelectPreset(), "LvRenSkillKeys", keysString)
-    SavePreset(GetNowSelectPreset(), "LvRenShotKey", LvRenGetCtrl("LvRenShotKey").Text)
+    SavePreset(GetNowSelectPreset(), "LvRenShotKey", UiPressKeyEdit_Value(LvRenGetCtrl("LvRenShotKey")))
 }
 
 LvRenLoadConfig() {

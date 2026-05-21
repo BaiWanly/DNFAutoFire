@@ -67,6 +67,7 @@ EnsureMainSingleInstance() {
 #Include ./lib/ui/Theme.ahk
 #Include ./lib/ui/Layout.ahk
 #Include ./lib/ui/Controls.ahk
+#Include ./lib/ui/PressKeyEdit.ahk
 #Include ./lib/ui/ListBoxDragSort.ahk
 #Include ./lib/ui/KeyCap.ahk
 #Include ./gui/main/MainLayout.ahk

@@ -132,7 +132,7 @@
 - 每个 EX 页面先确定自己的 `contentRight`，它表示“内容区右边界”，不是窗口宽度；右对齐控件、帮助按钮和底部保存按钮都只认这条线。
 - 页头统一调用 `UiExPageTitle(...)`，传入 `contentRight`；不要再把标题宽度当成帮助按钮定位基准，也不要在页面里写 `contentRight + 28`、`contentRight + 32` 这类补偿值。
 - 底部保存按钮统一走 `UiExSaveButtonRect(...)`，左边从 `ExLayout.MarginLeft()` 起，右边贴 `contentRight`。
-- 技能键列表型 EX 优先复用 `UiSkillKeyEditor(...)`；普通表单型 EX 也应复用同一套左边距、右边线和按钮宽度规则，保证不同页面切换时边缘对齐一致。
+- 技能键列表型 EX 优先复用 `UiSkillKeyEditor(...)`（目标键位用 `UiPressKeyEdit` 点击录入，不再单独放「设置按键」按钮）；普通表单型 EX 的单键位设置同样使用 `UiPressKeyEdit`；各页面复用同一套左边距、右边线和控件宽度规则，保证切换时边缘对齐一致。
 
 ### ex 扩展层
 - `ex/ExActionRuntime.ahk`
@@ -150,7 +150,8 @@
 
 - 其余库
   - `RunWithAdministrator.ahk`：管理员权限启动辅助。
-  - `GetPressKey.ahk`：按键采集。
+  - `GetPressKey.ahk`：阻塞式按键采集（如 EX 技能列表「添加」）。
+  - `lib/ui/PressKeyEdit.ahk`：可点击只读框的单键采集；录入时显示「输入按键..」，Esc 清空，失焦恢复原值。
   - `Time.ahk`、`Log.ahk`：通用工具支持。
 
 ## 当前功能拆解

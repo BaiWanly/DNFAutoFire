@@ -194,8 +194,8 @@ MainBuildFeaturePanel() {
     leftRows := [
         ["LvRen", MainText["LvRen"], MainLvRen, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()],
         ["GuanYu", MainText["GuanYu"], MainGuanYu, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()],
-        ["JianZong", MainText["JianZong"], MainJianZong, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()],
-        ["ZhanFa", MainText["ZhanFa"], MainZhanFa, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()]
+        ["ZhanFa", MainText["ZhanFa"], MainZhanFa, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()],
+        ["JianZong", MainText["JianZong"], MainJianZong, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()]
     ]
     rightRows := [
         ["XiuLuo", MainText["XiuLuo"], MainXiuLuo, MainLayout.ExRightColumnX(), MainLayout.ExRightLinkWidth()],

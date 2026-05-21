@@ -1,6 +1,8 @@
 #Requires AutoHotkey v2.0
 
 class ExLayout {
+    static ControlHeight() => 24
+    static SaveButtonHeight() => 30
     static MarginLeft() => 16
     static MarginTop() => 16
     static MarginRight() => 16

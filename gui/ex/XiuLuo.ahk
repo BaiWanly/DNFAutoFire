@@ -8,32 +8,28 @@ UiApplyWindow(gXiuLuoGui)
 gXiuLuoGui.OnEvent("Escape", XiuLuoGuiEscape)
 gXiuLuoGui.OnEvent("Close", XiuLuoGuiClose)
 
-contentRight := 238
-fieldX := 98
-fieldW := contentRight - fieldX
+labelW := 60
+fieldW := 120
+fieldX := ExLayout.MarginLeft() + labelW + 8
+contentRight := fieldX + fieldW
 
 UiExPageTitle(gXiuLuoGui, exText["XiuLuoPageTitle"], contentRight, gXiuLuoLayout, XiuLuoHelp)
-UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 54, 76, 24), exText["XiuLuoTriggerKey"])
-UiEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoTriggerKey", UiLayoutRect(gXiuLuoLayout, fieldX, 54, fieldW, 24, "+ReadOnly -WantCtrlA -E0x200 Border"))
-UiPlainButton(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, fieldX, 82, fieldW, 24), exText["SetKey"], XiuLuoSetTriggerKey)
+UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 54, labelW, 24), exText["XiuLuoTriggerKey"])
+UiPressKeyEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoTriggerKey", UiLayoutRect(gXiuLuoLayout, fieldX, 54, fieldW, ExLayout.ControlHeight()))
 
-UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 118, 76, 24), exText["XiuLuoXKey"])
-UiEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoXKey", UiLayoutRect(gXiuLuoLayout, fieldX, 118, fieldW, 24, "+ReadOnly -WantCtrlA -E0x200 Border"))
-UiPlainButton(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, fieldX, 146, fieldW, 24), exText["SetKey"], XiuLuoSetXKey)
+UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 86, labelW, 24), exText["XiuLuoXKey"])
+UiPressKeyEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoXKey", UiLayoutRect(gXiuLuoLayout, fieldX, 86, fieldW, ExLayout.ControlHeight()))
 
-UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 182, 76, 24), exText["XiuLuoWaveKey1"])
-UiEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoWaveKey1", UiLayoutRect(gXiuLuoLayout, fieldX, 182, fieldW, 24, "+ReadOnly -WantCtrlA -E0x200 Border"))
-UiPlainButton(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, fieldX, 210, fieldW, 24), exText["SetKey"], XiuLuoSetWaveKey1)
+UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 118, labelW, 24), exText["XiuLuoWaveKey1"])
+UiPressKeyEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoWaveKey1", UiLayoutRect(gXiuLuoLayout, fieldX, 118, fieldW, ExLayout.ControlHeight()))
 
-UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 246, 76, 24), exText["XiuLuoWaveKey2"])
-UiEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoWaveKey2", UiLayoutRect(gXiuLuoLayout, fieldX, 246, fieldW, 24, "+ReadOnly -WantCtrlA -E0x200 Border"))
-UiPlainButton(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, fieldX, 274, fieldW, 24), exText["SetKey"], XiuLuoSetWaveKey2)
+UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 150, labelW, 24), exText["XiuLuoWaveKey2"])
+UiPressKeyEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoWaveKey2", UiLayoutRect(gXiuLuoLayout, fieldX, 150, fieldW, ExLayout.ControlHeight()))
 
-UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 310, 76, 24), exText["XiuLuoWaveKey3"])
-UiEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoWaveKey3", UiLayoutRect(gXiuLuoLayout, fieldX, 310, fieldW, 24, "+ReadOnly -WantCtrlA -E0x200 Border"))
-UiPlainButton(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, fieldX, 338, fieldW, 24), exText["SetKey"], XiuLuoSetWaveKey3)
+UiLabel(gXiuLuoGui, UiLayoutRect(gXiuLuoLayout, ExLayout.MarginLeft(), 182, labelW, 24), exText["XiuLuoWaveKey3"])
+UiPressKeyEdit(gXiuLuoCtrls, gXiuLuoGui, "XiuLuoWaveKey3", UiLayoutRect(gXiuLuoLayout, fieldX, 182, fieldW, ExLayout.ControlHeight()))
 
-UiPlainButton(gXiuLuoGui, UiExSaveButtonRect(gXiuLuoLayout, 382, contentRight, 30), exText["CommonSave"], XiuLuoSave, "primary")
+UiPlainButton(gXiuLuoGui, UiExSaveButtonRect(gXiuLuoLayout, 222, contentRight), exText["CommonSave"], XiuLuoSave, "primary")
 
 XiuLuoGetCtrl(name) {
     global gXiuLuoCtrls
@@ -73,38 +69,18 @@ XiuLuoSave(*) {
     HideGuiXiuLuo()
 }
 
-XiuLuoSetTriggerKey(*) {
-    XiuLuoGetCtrl("XiuLuoTriggerKey").Text := GetPressKey()
-}
-
-XiuLuoSetXKey(*) {
-    XiuLuoGetCtrl("XiuLuoXKey").Text := GetPressKey()
-}
-
-XiuLuoSetWaveKey1(*) {
-    XiuLuoGetCtrl("XiuLuoWaveKey1").Text := GetPressKey()
-}
-
-XiuLuoSetWaveKey2(*) {
-    XiuLuoGetCtrl("XiuLuoWaveKey2").Text := GetPressKey()
-}
-
-XiuLuoSetWaveKey3(*) {
-    XiuLuoGetCtrl("XiuLuoWaveKey3").Text := GetPressKey()
-}
-
 XiuLuoSaveConfig() {
-    SavePreset(GetNowSelectPreset(), "XiuLuoTriggerKey", XiuLuoGetCtrl("XiuLuoTriggerKey").Text)
-    SavePreset(GetNowSelectPreset(), "XiuLuoXKey", XiuLuoGetCtrl("XiuLuoXKey").Text)
-    SavePreset(GetNowSelectPreset(), "XiuLuoWaveKey1", XiuLuoGetCtrl("XiuLuoWaveKey1").Text)
-    SavePreset(GetNowSelectPreset(), "XiuLuoWaveKey2", XiuLuoGetCtrl("XiuLuoWaveKey2").Text)
-    SavePreset(GetNowSelectPreset(), "XiuLuoWaveKey3", XiuLuoGetCtrl("XiuLuoWaveKey3").Text)
+    SavePreset(GetNowSelectPreset(), "XiuLuoTriggerKey", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoTriggerKey")))
+    SavePreset(GetNowSelectPreset(), "XiuLuoXKey", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoXKey")))
+    SavePreset(GetNowSelectPreset(), "XiuLuoWaveKey1", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoWaveKey1")))
+    SavePreset(GetNowSelectPreset(), "XiuLuoWaveKey2", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoWaveKey2")))
+    SavePreset(GetNowSelectPreset(), "XiuLuoWaveKey3", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoWaveKey3")))
 }
 
 XiuLuoLoadConfig() {
-    XiuLuoGetCtrl("XiuLuoTriggerKey").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoTriggerKey", "")
+    XiuLuoGetCtrl("XiuLuoTriggerKey").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoTriggerKey", "A")
     XiuLuoGetCtrl("XiuLuoXKey").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoXKey", "X")
-    XiuLuoGetCtrl("XiuLuoWaveKey1").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoWaveKey1", "1")
-    XiuLuoGetCtrl("XiuLuoWaveKey2").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoWaveKey2", "2")
-    XiuLuoGetCtrl("XiuLuoWaveKey3").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoWaveKey3", "3")
+    XiuLuoGetCtrl("XiuLuoWaveKey1").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoWaveKey1", "S")
+    XiuLuoGetCtrl("XiuLuoWaveKey2").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoWaveKey2", "D")
+    XiuLuoGetCtrl("XiuLuoWaveKey3").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoWaveKey3", "F")
 }
