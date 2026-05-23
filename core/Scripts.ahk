@@ -172,12 +172,8 @@ EnterRunningMode(presetName := "") {
 StartEx(presetName := ""){
     global _AutoFireThreads
     presetName := ResolvePresetName(presetName)
-    exNames := ["LvRen", "GuanYu", "PetSkill", "ZhanFa", "JianZong", "XiuLuo", "AutoRun", "Combo"]
-    for exName in exNames {
-        if MainCheckboxOn(exName) {
-            _AutoFireThreads.Push(SubProcessThread("ExActionRuntime", presetName))
-            return
-        }
+    if ExAction_HasRunnable(presetName) {
+        _AutoFireThreads.Push(SubProcessThread("ExActionRuntime", presetName))
     }
 }
 
@@ -243,7 +239,7 @@ SetAllKeysAutoFire(keys){
 }
 
 SaveMainPresetState(presetName) {
-    global _AutoFireEnableKeys, _AutoFireKeyIntervals
+    global _AutoFireEnableKeys, _AutoFireKeyIntervals, _AutoFireKeyDelays
     presetName := NormalizePresetName(presetName)
     if (presetName = "") {
         return false
@@ -263,7 +259,8 @@ SaveMainPresetState(presetName) {
     } catch {
         SaveAutoFireGlobalIntervalMs(20)
     }
-    SavePreset(presetName, "AutoFireKeyIntervals", AutoFireKeyIntervals_MapToString(_AutoFireKeyIntervals))
+    SavePreset(presetName, "AutoFireKeyIntervals", MsMapToStr(_AutoFireKeyIntervals))
+    SavePreset(presetName, "AutoFireKeyDelays", MsMapToStr(_AutoFireKeyDelays))
     return true
 }
 
@@ -293,13 +290,15 @@ ResolvePresetName(presetName := "") {
 
 ; 从预设节加载单键连发间隔表到内存（与主界面右键设置共用）
 AutoFireKeyIntervals_LoadForPreset(presetName) {
-    global _AutoFireKeyIntervals
+    global _AutoFireKeyIntervals, _AutoFireKeyDelays
     presetName := NormalizePresetName(presetName)
     if (presetName = "") {
         _AutoFireKeyIntervals := Map()
+        _AutoFireKeyDelays := Map()
         return
     }
-    _AutoFireKeyIntervals := AutoFireKeyIntervals_StringToMap(LoadPreset(presetName, "AutoFireKeyIntervals", ""))
+    _AutoFireKeyIntervals := StrToMsMap(LoadPreset(presetName, "AutoFireKeyIntervals", ""))
+    _AutoFireKeyDelays := StrToMsMap(LoadPreset(presetName, "AutoFireKeyDelays", ""))
 }
 
 LoadMainPresetState(presetName) {
@@ -393,17 +392,21 @@ ActivateDNFBeforeTip() {
     }
 }
 
-ShowTip(text) {
+ShowTip(text, activateGame := true) {
     try SetTimer(ShowTipDisplay, 0)
     try SetTimer(CloseTip, 0)
     global __ShowTipPendingText := text
+    global __ShowTipActivateGame := activateGame
     SetTimer(ShowTipDisplay, -50)
 }
 
 ShowTipDisplay() {
     global __ShowTipPendingText
+    global __ShowTipActivateGame
     text := __ShowTipPendingText
-    try ActivateDNFBeforeTip()
+    if __ShowTipActivateGame {
+        try ActivateDNFBeforeTip()
+    }
     marginX := 16
     marginY := 16
     tipH := 24

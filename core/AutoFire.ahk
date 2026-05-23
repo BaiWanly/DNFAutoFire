@@ -1,11 +1,11 @@
 ; 全局主键连发间隔（毫秒），保存在 config.ini [设置]；供主界面与子进程复用
 LoadAutoFireGlobalIntervalMs() {
     AutoFireGlobalInterval_EnsureMigrated()
-    return ClampAutoFireIntervalMs(Round(LoadConfig("AutoFireIntervalMs", 20) + 0))
+    return ClampMsMin1(Round(LoadConfig("AutoFireIntervalMs", 20) + 0))
 }
 
 SaveAutoFireGlobalIntervalMs(intervalMs) {
-    SaveConfig("AutoFireIntervalMs", ClampAutoFireIntervalMs(intervalMs))
+    SaveConfig("AutoFireIntervalMs", ClampMsMin1(intervalMs))
 }
 
 AutoFireGlobalInterval_EnsureMigrated() {
@@ -22,40 +22,67 @@ AutoFireGlobalInterval_EnsureMigrated() {
     SaveAutoFireGlobalIntervalMs(LoadPreset(presetName, "AutoFireIntervalMs", 20))
 }
 
-ClampAutoFireIntervalMs(intervalMs) {
-    intervalMs := Round(intervalMs + 0)
-    if (intervalMs < 1) {
-        intervalMs := 1
-    } else if (intervalMs > 200) {
-        intervalMs := 200
+ClampMsMin1(ms) {
+    ms := Round(ms + 0)
+    if (ms < 1) {
+        ms := 1
     }
-    return intervalMs
+    return ms
 }
 
-ResolveAutoFireIntervalMs(guiKeyName, presetName, defaultMs, perMap) {
-    intervalMs := defaultMs
+ResolveKeyMs(guiKeyName, defaultMs, perMap, minMs := 0) {
+    ms := defaultMs
     if (IsObject(perMap) && perMap.Has(guiKeyName)) {
-        intervalMs := perMap[guiKeyName]
+        ms := perMap[guiKeyName]
     }
-    return ClampAutoFireIntervalMs(intervalMs)
+    ms := Round(ms + 0)
+    if (ms < minMs) {
+        ms := minMs
+    }
+    return ms
 }
 
 AutoFire_LoadRuntimeKeys(presetName) {
     keys := LoadPresetKeys(presetName)
-    if !LoadPreset(presetName, "XiuLuoState", false) {
-        return keys
-    }
-    triggerKey := Trim(String(LoadPreset(presetName, "XiuLuoTriggerKey", "")))
-    if (triggerKey = "") {
+    avoidPressKeys := AutoFire_LoadAvoidPressKeys(presetName)
+    if (avoidPressKeys.Count = 0) {
         return keys
     }
     filteredKeys := []
     for key in keys {
-        if (key != triggerKey) {
+        pressKey := AutoFire_KeyToPressKey(key)
+        if (pressKey = "" || !avoidPressKeys.Has(pressKey)) {
             filteredKeys.Push(key)
         }
     }
     return filteredKeys
+}
+
+AutoFire_LoadAvoidPressKeys(presetName) {
+    avoidPressKeys := Map()
+    if LoadPreset(presetName, "XiuLuoState", false) {
+        AutoFire_AddAvoidPressKey(avoidPressKeys, LoadPreset(presetName, "XiuLuoTriggerKey", ""))
+    }
+    return avoidPressKeys
+}
+
+AutoFire_AddAvoidPressKey(avoidPressKeys, key) {
+    pressKey := AutoFire_KeyToPressKey(key)
+    if (pressKey != "") {
+        avoidPressKeys[pressKey] := true
+    }
+}
+
+AutoFire_KeyToPressKey(key) {
+    key := Trim(String(key))
+    if (key = "") {
+        return ""
+    }
+    pressKey := Key2PressKey(GetOriginKeyName(key))
+    if (StrLen(pressKey) >= 4 && SubStr(pressKey, 1, 2) = "sc") {
+        pressKey := Format("{:L}", pressKey)
+    }
+    return pressKey
 }
 
 ; 单个专用子进程承载全部主键连发：保留子进程隔离，同时复刻 0.27 的单进程多定时器调度。
@@ -69,7 +96,8 @@ MainAutoFire(presetName := "") {
     presetName := ResolvePresetName(presetName = "" ? LoadLastPreset() : presetName)
     keys := AutoFire_LoadRuntimeKeys(presetName)
     defaultMs := LoadAutoFireGlobalIntervalMs()
-    perMap := AutoFireKeyIntervals_StringToMap(LoadPreset(presetName, "AutoFireKeyIntervals", ""))
+    perMap := StrToMsMap(LoadPreset(presetName, "AutoFireKeyIntervals", ""))
+    delayMap := StrToMsMap(LoadPreset(presetName, "AutoFireKeyDelays", ""))
     timers := []
 
     try keyCount := keys.Length
@@ -83,12 +111,10 @@ MainAutoFire(presetName := "") {
         guiKeyName := keys[A_Index]
         key := GetOriginKeyName(guiKeyName)
         keyCode := Key2NoVkSC(key)
-        pressKey := Key2PressKey(key)
-        if (StrLen(pressKey) >= 4 && SubStr(pressKey, 1, 2) = "sc") {
-            pressKey := Format("{:L}", pressKey)
-        }
-        intervalMs := ResolveAutoFireIntervalMs(guiKeyName, presetName, defaultMs, perMap)
-        fn := AutoFireSingleKeyTick.Bind(pressKey, keyCode)
+        pressKey := AutoFire_KeyToPressKey(guiKeyName)
+        intervalMs := ResolveKeyMs(guiKeyName, defaultMs, perMap, 1)
+        keyDelayMs := ResolveKeyMs(guiKeyName, 8, delayMap)
+        fn := AutoFireSingleKeyTick.Bind(pressKey, keyCode, keyDelayMs)
         timers.Push(fn)
         SetTimer(fn, intervalMs)
     }
@@ -102,7 +128,7 @@ MainAutoFire_OnExit(*) {
     try RestoreSystemTimeLimit()
 }
 
-AutoFireSingleKeyTick(pressKey, keyCode) {
+AutoFireSingleKeyTick(pressKey, keyCode, keyDelayMs) {
     if !WinActive("ahk_group DNF") {
         return
     }
@@ -112,7 +138,7 @@ AutoFireSingleKeyTick(pressKey, keyCode) {
     }
     keyBusy[pressKey] := true
     try if (GetKeyState(pressKey, "P")) {
-        SendIP(keyCode)
+        SendIP(keyCode, keyDelayMs)
     }
     finally keyBusy[pressKey] := false
 }

@@ -39,7 +39,7 @@ class MainLayout {
     static ConfigFieldEditY(index) => this.ConfigFieldGroupTop(index) + this.ConfigFieldLabelHeight()
 
     static ExRowTop() => this.BottomY() + 34
-    static ExRowHeight() => 36
+    static ExRowHeight() => 34
     static ExLeftColumnX() => 334
     static ExRightColumnX() => 488
     static ExToggleWidth() => 40

@@ -1,5 +1,14 @@
 GetPressKey(){
+    try ShowTip(GetPressKeyPrompt(), false)
     return GetUserInputKey()
+}
+
+GetPressKeyPrompt() {
+    global exText
+    if IsSet(exText) && IsObject(exText) && exText.Has("PressKeyPrompt") {
+        return exText["PressKeyPrompt"]
+    }
+    return "输入按键.."
 }
 
 GetUserInputKey(){

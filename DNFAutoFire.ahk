@@ -89,6 +89,7 @@ EnsureMainSingleInstance() {
 global _AutoFireThreads := []
 global _AutoFireEnableKeys := []
 global _AutoFireKeyIntervals := Map()
+global _AutoFireKeyDelays := Map()
 global _NowSelectPreset := LoadLastPreset()
 
 ;@Ahk2Exe-IgnoreBegin

@@ -88,8 +88,8 @@ LoadPresetKeys(presetsName){
     return keys
 }
 
-; 单键连发间隔：`键名:毫秒|键名:毫秒`（键名与主界面键帽 Name 一致）
-AutoFireKeyIntervals_StringToMap(s) {
+; 单键毫秒表：`键名:毫秒|键名:毫秒`（键名与主界面键帽 Name 一致）
+StrToMsMap(s) {
     m := Map()
     s := Trim(String(s))
     if (s = "") {
@@ -111,15 +111,13 @@ AutoFireKeyIntervals_StringToMap(s) {
         ms := Round(Trim(SubStr(part, c + 1)) + 0)
         if (ms < 0) {
             ms := 0
-        } else if (ms > 1000) {
-            ms := 1000
         }
         m[kn] := ms
     }
     return m
 }
 
-AutoFireKeyIntervals_MapToString(m) {
+MsMapToStr(m) {
     if !IsObject(m) {
         return ""
     }
@@ -132,8 +130,6 @@ AutoFireKeyIntervals_MapToString(m) {
         ms := Round(ms + 0)
         if (ms < 0) {
             ms := 0
-        } else if (ms > 1000) {
-            ms := 1000
         }
         parts.Push(kn ":" ms)
     }
@@ -324,6 +320,7 @@ CreateBlankPreset(presetName) {
     SavePreset(presetName, "AutoRunDelay", 30)
     SavePreset(presetName, "AutoRunPauseKey", "")
     SavePreset(presetName, "AutoFireKeyIntervals", "")
+    SavePreset(presetName, "AutoFireKeyDelays", "")
 }
 
 RenamePreset(oldPresetName, newPresetName) {

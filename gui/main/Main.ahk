@@ -151,7 +151,7 @@ MainBuildPresetPanel() {
     fw := MainLayout.ConfigFieldWidth()
     feh := MainLayout.ConfigFieldEditHeight()
 
-    UiSection(gMainGui, UiRect(panelX, panelY, titleW, 20), MainText["PresetSection"])
+    UiSection(gMainGui, UiRect(panelX, panelY + 6, titleW, 20), MainText["PresetSection"])
     presetCtrl := UiListBox(gMainCtrls, gMainGui, "Preset", UiRect(MainLayout.ConfigListX(), MainLayout.ConfigListTop(), MainLayout.ConfigListWidth(), listH), MainChangePresetByList)
     UiListBoxDragSort_Attach(presetCtrl, MainPresetDragGetItems, MainPresetDragRender, MainPresetDragCommit, MainPresetDragClick)
     UiLabel(gMainGui, UiRect(fx, MainLayout.ConfigFieldLabelY(1), fw, MainLayout.ConfigFieldLabelHeight()), MainText["CurrentPreset"])
@@ -190,15 +190,15 @@ MainBuildFeaturePanel() {
         MainAdd("CheckBox", "v" name " Hidden x-2000 y-2000 w1 h1 -TabStop")
     }
 
-    UiSection(gMainGui, UiRect(panelX, panelY, titleW, panelH), MainText["FeatureSection"])
+    UiSection(gMainGui, UiRect(panelX, panelY + 6, titleW, panelH), MainText["FeatureSection"])
     leftRows := [
         ["LvRen", MainText["LvRen"], MainLvRen, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()],
         ["GuanYu", MainText["GuanYu"], MainGuanYu, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()],
         ["ZhanFa", MainText["ZhanFa"], MainZhanFa, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()],
-        ["JianZong", MainText["JianZong"], MainJianZong, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()]
+        ["XiuLuo", MainText["XiuLuo"], MainXiuLuo, MainLayout.ExLeftColumnX(), MainLayout.ExLeftLinkWidth()]
     ]
     rightRows := [
-        ["XiuLuo", MainText["XiuLuo"], MainXiuLuo, MainLayout.ExRightColumnX(), MainLayout.ExRightLinkWidth()],
+        ["JianZong", MainText["JianZong"], MainJianZong, MainLayout.ExRightColumnX(), MainLayout.ExRightLinkWidth()],
         ["PetSkill", MainText["PetSkill"], MainPetSkill, MainLayout.ExRightColumnX(), MainLayout.ExRightLinkWidth()],
         ["AutoRun", MainText["AutoRun"], MainAutoRun, MainLayout.ExRightColumnX(), MainLayout.ExRightLinkWidth()],
         ["Combo", MainText["Combo"], MainCombo, MainLayout.ExRightColumnX(), MainLayout.ExRightLinkWidth()]
@@ -217,7 +217,7 @@ MainBuildFeaturePanel() {
 }
 
 keyPanelH := MainLayout.KeyPanelHeight()
-UiSection(gMainGui, UiRect(MainLayout.StandardMargin(), 8, MainLayout.GuiWidth() - MainLayout.StandardMargin() * 2, keyPanelH), MainText["KeySection"])
+UiSection(gMainGui, UiRect(MainLayout.StandardMargin(), 14, MainLayout.GuiWidth() - MainLayout.StandardMargin() * 2, keyPanelH), MainText["KeySection"])
 MainBuildKeyboardPanel()
 UiSetDefaultFont(gMainGui)
 
@@ -691,7 +691,7 @@ MainKeyCapFromControl(ctrlObj) {
 }
 
 MainSyncKeyIntervalBars() {
-    global gMainKeyCaps, _AutoFireKeyIntervals
+    global gMainKeyCaps, _AutoFireKeyIntervals, _AutoFireKeyDelays
     if !IsObject(gMainKeyCaps) {
         return
     }
@@ -699,7 +699,7 @@ MainSyncKeyIntervalBars() {
         if !IsObject(kc) {
             continue
         }
-        has := IsObject(_AutoFireKeyIntervals) && _AutoFireKeyIntervals.Has(kn)
+        has := (IsObject(_AutoFireKeyIntervals) && _AutoFireKeyIntervals.Has(kn)) || (IsObject(_AutoFireKeyDelays) && _AutoFireKeyDelays.Has(kn))
         kc.SetIntervalBarHint(!!has)
     }
 }
@@ -715,10 +715,16 @@ MainShowKeyIntervalContextMenu(kc, x, y) {
 }
 
 MainKeyIntervalMenu_Edit(*) {
-    global gMainKeyIntervalMenuTargetKey, _AutoFireKeyIntervals
+    global gMainKeyIntervalMenuTargetKey, _AutoFireKeyIntervals, _AutoFireKeyDelays
     kn := gMainKeyIntervalMenuTargetKey
     if (kn = "") {
         return
+    }
+    if !IsObject(_AutoFireKeyIntervals) {
+        _AutoFireKeyIntervals := Map()
+    }
+    if !IsObject(_AutoFireKeyDelays) {
+        _AutoFireKeyDelays := Map()
     }
     defGlobal := 20
     try {
@@ -728,56 +734,88 @@ MainKeyIntervalMenu_Edit(*) {
     }
     if (defGlobal < 1) {
         defGlobal := 1
-    } else if (defGlobal > 200) {
-        defGlobal := 200
     }
-    curTxt := _AutoFireKeyIntervals.Has(kn) ? String(_AutoFireKeyIntervals[kn]) : String(defGlobal)
-    ret := InputBox(
-        MainText["KeyIntervalPrompt"],
-        MainText["KeyIntervalTitlePrefix"] kn,
-        "w380 h140",
-        curTxt
-    )
-    if (ret.Result != "OK") {
+    intervalText := _AutoFireKeyIntervals.Has(kn) ? String(_AutoFireKeyIntervals[kn]) : String(defGlobal)
+    delayText := _AutoFireKeyDelays.Has(kn) ? String(_AutoFireKeyDelays[kn]) : "8"
+    ret := MainShowKeyParamsDialog(kn, intervalText, delayText)
+    if !IsObject(ret) {
         return
     }
-    v := Trim(ret.Value)
-    if (v = "") {
+    intervalText := Trim(ret.intervalMs)
+    delayText := Trim(ret.delayMs)
+    if (intervalText = "" || delayText = "" || !IsInteger(intervalText) || !IsInteger(delayText)) {
+        MsgBox(MainText["KeyParamsFormatRequired"],, "Icon!")
         return
     }
-    if !IsInteger(v) {
-        MsgBox(MainText["IntegerMsRequired"],, "Icon!")
+    intervalMs := Integer(intervalText)
+    delayMs := Integer(delayText)
+    if (intervalMs < 1) {
+        MsgBox(MainText["IntegerMsPositive"],, "Icon!")
         return
     }
-    ms := Integer(v)
-    if (ms < 1 || ms > 200) {
-        MsgBox(MainText["IntegerMsRange"],, "Icon!")
+    if (delayMs < 0) {
+        MsgBox(MainText["IntegerMsNonNegative"],, "Icon!")
         return
     }
-    _AutoFireKeyIntervals[kn] := ms
+    _AutoFireKeyIntervals[kn] := intervalMs
+    _AutoFireKeyDelays[kn] := delayMs
     if IsObject(MainGetKeyCap(kn)) {
         MainGetKeyCap(kn).SetIntervalBarHint(true)
     }
     SaveCurrentPresetState()
 }
 
-MainKeyIntervalMenu_UseGlobal(*) {
-    global gMainKeyIntervalMenuTargetKey, _AutoFireKeyIntervals
+MainShowKeyParamsDialog(kn, intervalText, delayText) {
+    dlg := Gui("+Owner" gMainGui.Hwnd " -MinimizeBox -MaximizeBox", MainText["KeyParamsTitlePrefix"] kn)
+    ctrls := Map()
+    UiApplyWindow(dlg)
+    labelW := 60
+    fieldW := 80
+    fieldX := ExLayout.MarginLeft() + labelW + 8
+    contentRight := fieldX + fieldW
+    UiLabel(dlg, UiRect(ExLayout.MarginLeft(), 16, labelW, 26), MainText["KeyParamsIntervalLabel"])
+    intervalEdit := UiEdit(ctrls, dlg, "KeyParamsInterval", UiRect(fieldX, 16, fieldW, ExLayout.ControlHeight(), "+Number -E0x200 Border"))
+    UiLabel(dlg, UiRect(ExLayout.MarginLeft(), 48, labelW, 26), MainText["KeyParamsDelayLabel"])
+    delayEdit := UiEdit(ctrls, dlg, "KeyParamsDelay", UiRect(fieldX, 48, fieldW, ExLayout.ControlHeight(), "+Number -E0x200 Border"))
+    intervalEdit.Text := intervalText
+    delayEdit.Text := delayText
+    btnRects := UiExSplitButtonRects("", ExLayout.MarginLeft(), 88, contentRight - ExLayout.MarginLeft(), 8, ExLayout.SaveButtonHeight())
+    okBtn := UiPlainButton(dlg, btnRects[1], MainText["Ok"], "", "primary")
+    cancelBtn := UiPlainButton(dlg, btnRects[2], MainText["Cancel"], "", "secondary")
+    result := false
+    okBtn.OnEvent("Click", (*) => (result := { intervalMs: intervalEdit.Text, delayMs: delayEdit.Text }, dlg.Destroy()))
+    cancelBtn.OnEvent("Click", (*) => dlg.Destroy())
+    dlg.OnEvent("Close", (*) => dlg.Destroy())
+    dlg.OnEvent("Escape", (*) => dlg.Destroy())
+    hwnd := dlg.Hwnd
+    dlg.Show("w" (contentRight + ExLayout.MarginRight()) " h132")
+    WinWaitClose("ahk_id " hwnd)
+    return result
+}
+
+MainKeyIntervalMenu_UseDefault(*) {
+    global gMainKeyIntervalMenuTargetKey, _AutoFireKeyIntervals, _AutoFireKeyDelays
     kn := gMainKeyIntervalMenuTargetKey
     if (kn = "") {
         return
     }
-    if !(IsObject(_AutoFireKeyIntervals) && _AutoFireKeyIntervals.Has(kn)) {
-        MsgBox(MainText["KeyIntervalAlreadyGlobal"],, "Iconi")
+    hasInterval := IsObject(_AutoFireKeyIntervals) && _AutoFireKeyIntervals.Has(kn)
+    hasDelay := IsObject(_AutoFireKeyDelays) && _AutoFireKeyDelays.Has(kn)
+    if (!hasInterval && !hasDelay) {
+        MsgBox(MainText["KeyParamsAlreadyDefault"],, "Iconi")
         return
     }
-    _AutoFireKeyIntervals.Delete(kn)
+    if (hasInterval) {
+        _AutoFireKeyIntervals.Delete(kn)
+    }
+    if (hasDelay) {
+        _AutoFireKeyDelays.Delete(kn)
+    }
     if IsObject(MainGetKeyCap(kn)) {
         MainGetKeyCap(kn).SetIntervalBarHint(false)
     }
     SaveCurrentPresetState()
 }
-
 global gKeyIntervalMenu := Menu()
-gKeyIntervalMenu.Add(MainText["SetKeyInterval"], MainKeyIntervalMenu_Edit)
-gKeyIntervalMenu.Add(MainText["UseGlobalInterval"], MainKeyIntervalMenu_UseGlobal)
+gKeyIntervalMenu.Add(MainText["SetKeyParams"], MainKeyIntervalMenu_Edit)
+gKeyIntervalMenu.Add(MainText["UseDefaultParams"], MainKeyIntervalMenu_UseDefault)
