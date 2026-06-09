@@ -88,7 +88,46 @@ ComboProfileUnitSeparator() {
 }
 
 ComboProfileMaxCount() {
-    return 16
+    return 64
+}
+
+ComboExportFileSection() {
+    return "DNFAutoFireComboExport"
+}
+
+ComboExportFileVersion() {
+    return "1"
+}
+
+ComboWriteExportFile(filePath, profiles) {
+    filePath := Trim(String(filePath))
+    if (filePath = "") {
+        throw Error("EMPTY_PATH")
+    }
+    section := ComboExportFileSection()
+    IniWrite(ComboExportFileVersion(), filePath, section, "Version")
+    IniWrite(ComboSerializeProfiles(profiles), filePath, section, "Profiles")
+}
+
+ComboReadExportFile(filePath) {
+    filePath := Trim(String(filePath))
+    if (filePath = "" || !FileExist(filePath)) {
+        throw Error("MISSING_FILE")
+    }
+    section := ComboExportFileSection()
+    version := Trim(String(IniRead(filePath, section, "Version", "")))
+    if (version = "") {
+        throw Error("MISSING_SECTION")
+    }
+    if (version != ComboExportFileVersion()) {
+        throw Error("UNSUPPORTED_VERSION")
+    }
+    raw := IniRead(filePath, section, "Profiles", "")
+    profiles := ComboParseProfiles(raw)
+    if (profiles.Length = 0) {
+        throw Error("EMPTY_PROFILES")
+    }
+    return profiles
 }
 
 ComboSerializeSkills(items) {

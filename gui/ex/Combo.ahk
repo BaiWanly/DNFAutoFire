@@ -33,6 +33,9 @@ UiListBoxDragSort_Attach(gComboCtrls["ComboProfilesListBox"], ComboProfileDragGe
 profileBtnRects := UiExSplitButtonRects(gComboLayout, profileColX, 292, profileColW, 8)
 UiPlainButton(gComboGui, profileBtnRects[1], exText["ComboAddProfile"], ComboAddProfile)
 UiPlainButton(gComboGui, profileBtnRects[2], exText["ComboRemoveProfile"], ComboRemoveProfile)
+profileFileBtnRects := UiExSplitButtonRects(gComboLayout, profileColX, 322, profileColW, 8)
+UiPlainButton(gComboGui, profileFileBtnRects[1], exText["ComboImportProfiles"], ComboImportProfiles)
+UiPlainButton(gComboGui, profileFileBtnRects[2], exText["ComboExportProfiles"], ComboExportProfiles)
 
 UiLabel(gComboGui, UiLayoutRect(gComboLayout, skillColX, 52, skillColW, 22, "+0x200"), exText["ComboSkillList"])
 UiListBox(gComboCtrls, gComboGui, "ComboSkillsListBox", UiLayoutRect(gComboLayout, skillColX, 74, skillColW, 210))
@@ -359,6 +362,97 @@ ComboRemoveProfile(*) {
     }
     ComboRefreshProfileList()
     ComboLoadProfileToEditor(__ComboProfileIndex)
+}
+
+ComboImportProfiles(*) {
+    global __ComboProfiles, __ComboProfileIndex
+    ComboFlushEditorToProfileAt(__ComboProfileIndex)
+    filePath := FileSelect(1, A_ScriptDir, exText["ComboImportTitle"], "INI (*.ini)")
+    if (filePath = "") {
+        return
+    }
+    try {
+        imported := ComboReadExportFile(filePath)
+    } catch Error as e {
+        ComboShowImportError(e)
+        return
+    }
+    maxCount := ComboProfileMaxCount()
+    room := maxCount - __ComboProfiles.Length
+    if (room <= 0) {
+        MsgBox(exText["ComboImportFullPrefix"] maxCount exText["ComboImportFullSuffix"], exText["ComboTitle"], "Icon!")
+        return
+    }
+    startIndex := __ComboProfiles.Length + 1
+    added := 0
+    loop imported.Length {
+        if !imported.Has(A_Index) {
+            continue
+        }
+        if (added >= room) {
+            break
+        }
+        p := imported[A_Index]
+        if !IsObject(p) {
+            continue
+        }
+        __ComboProfiles.Push({
+            trigger: p.trigger,
+            loop: p.loop ? true : false,
+            blockOriginal: (HasProp(p, "blockOriginal") && p.blockOriginal) ? true : false,
+            skills: ComboCloneSkillItems(p.skills)
+        })
+        added++
+    }
+    if (added = 0) {
+        MsgBox(exText["ComboImportNoValidProfiles"], exText["ComboTitle"], "Icon!")
+        return
+    }
+    __ComboProfileIndex := startIndex
+    ComboRefreshProfileList()
+    ComboLoadProfileToEditor(__ComboProfileIndex)
+    skipped := imported.Length - added
+    if (skipped > 0) {
+        MsgBox(exText["ComboImportPartialPrefix"] added exText["ComboImportPartialMiddle"] skipped exText["ComboImportPartialSuffix"], exText["ComboTitle"], "Icon!")
+    } else {
+        MsgBox(exText["ComboImportSuccessPrefix"] added exText["ComboImportSuccessSuffix"], exText["ComboTitle"], "Iconi")
+    }
+}
+
+ComboExportProfiles(*) {
+    global __ComboProfiles, __ComboProfileIndex
+    ComboFlushEditorToProfileAt(__ComboProfileIndex)
+    defaultPath := A_ScriptDir "\combo-profiles.ini"
+    filePath := FileSelect("S16", defaultPath, exText["ComboExportTitle"], "INI (*.ini)")
+    if (filePath = "") {
+        return
+    }
+    if !RegExMatch(filePath, "i)\.ini$") {
+        filePath .= ".ini"
+    }
+    try {
+        ComboWriteExportFile(filePath, __ComboProfiles)
+    } catch {
+        MsgBox(exText["ComboExportFailed"], exText["ComboTitle"], "Icon!")
+        return
+    }
+    MsgBox(exText["ComboExportSuccess"], exText["ComboTitle"], "Iconi")
+}
+
+ComboShowImportError(e) {
+    code := IsObject(e) ? e.Message : ""
+    if (code = "MISSING_SECTION") {
+        text := exText["ComboImportMissingSection"]
+    } else if (code = "UNSUPPORTED_VERSION") {
+        text := exText["ComboImportUnsupportedVersion"]
+    } else if (code = "EMPTY_PROFILES") {
+        text := exText["ComboImportNoValidProfiles"]
+    } else if (code = "MISSING_FILE") {
+        text := exText["ComboImportMissingFile"]
+    } else {
+        text := exText["ComboImportFailed"]
+    }
+    MsgBox(text, exText["ComboTitle"], "Icon!")
 }
 
 ComboApplyProfile(*) {
