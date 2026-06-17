@@ -57,6 +57,25 @@ PresetRegionPickPaintClient(hdc, hwnd) {
         DllCall("gdi32\SelectObject", "ptr", hdc, "ptr", oldPen, "ptr")
         DllCall("gdi32\DeleteObject", "ptr", pen)
     }
+
+    borderPen := DllCall("gdi32\CreatePen", "int", 0, "int", 1, "uint", 0x00000000, "ptr")
+    if !borderPen {
+        return
+    }
+    oldBorderPen := DllCall("gdi32\SelectObject", "ptr", hdc, "ptr", borderPen, "ptr")
+    hollowBrush := DllCall("gdi32\GetStockObject", "int", 5, "ptr")
+    oldBrush := hollowBrush ? DllCall("gdi32\SelectObject", "ptr", hdc, "ptr", hollowBrush, "ptr") : 0
+    try {
+        radius := AutoPresets_RegionCornerRadius(w, h)
+        diameter := Max(1, radius * 2)
+        DllCall("gdi32\RoundRect", "ptr", hdc, "int", 0, "int", 0, "int", w, "int", h, "int", diameter, "int", diameter)
+    } finally {
+        if oldBrush {
+            DllCall("gdi32\SelectObject", "ptr", hdc, "ptr", oldBrush, "ptr")
+        }
+        DllCall("gdi32\SelectObject", "ptr", hdc, "ptr", oldBorderPen, "ptr")
+        DllCall("gdi32\DeleteObject", "ptr", borderPen)
+    }
 }
 
 PresetRegionPickPaint(wParam, lParam, msg, hwnd) {
@@ -119,6 +138,30 @@ PresetRegionPickNCCalcSize(wParam, lParam, msg, hwnd) {
 
 PresetRegionPickSetOuterFromClientScreen(hwnd, sx, sy, cw, ch) {
     DllCall("user32\SetWindowPos", "ptr", hwnd, "ptr", 0, "int", sx, "int", sy, "int", cw, "int", ch, "uint", 0x0044)
+    PresetRegionPickApplyRoundRegion(hwnd, cw, ch)
+}
+
+PresetRegionPickApplyRoundRegion(hwnd, width := 0, height := 0) {
+    if !hwnd {
+        return
+    }
+    if (width < 1 || height < 1) {
+        rc := Buffer(16, 0)
+        if !DllCall("user32\GetClientRect", "ptr", hwnd, "ptr", rc) {
+            return
+        }
+        width := NumGet(rc, 8, "int") - NumGet(rc, 0, "int")
+        height := NumGet(rc, 12, "int") - NumGet(rc, 4, "int")
+    }
+    if (width < 1 || height < 1) {
+        return
+    }
+    radius := AutoPresets_RegionCornerRadius(width, height)
+    diameter := Max(1, radius * 2)
+    hrgn := DllCall("gdi32\CreateRoundRectRgn", "int", 0, "int", 0, "int", width + 1, "int", height + 1, "int", diameter, "int", diameter, "ptr")
+    if hrgn {
+        DllCall("user32\SetWindowRgn", "ptr", hwnd, "ptr", hrgn, "int", true)
+    }
 }
 
 PresetRegionPickLayoutHint(guiObj, minMax := 0, width := 0, height := 0) {
@@ -130,6 +173,7 @@ PresetRegionPickLayoutHint(guiObj, minMax := 0, width := 0, height := 0) {
         return
     }
     gAutoPresetsRegionPickHintText.Move(0, 0, width, height)
+    PresetRegionPickApplyRoundRegion(guiObj.Hwnd, width, height)
 }
 
 PresetRegionPickCommitIfOpen() {

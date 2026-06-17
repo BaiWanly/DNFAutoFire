@@ -8,6 +8,7 @@ class AutoPresets {
     static MaxRetryAttempts := 60
     static SkillImageVariation := 80
     static TownImageVariation := 20
+    static RegionCornerRadius := 12
     static _retryTimer := false
     static _startTimer := false
     static _registeredEsc := false
@@ -373,6 +374,10 @@ SaveAutoPresetRegion(x, y, w, h) {
     SaveAutoPresetRegionByKey("AutoPresetRegion", x, y, w, h)
 }
 
+AutoPresets_RegionCornerRadius(w, h) {
+    return Max(0, Min(AutoPresets.RegionCornerRadius, w // 2, h // 2))
+}
+
 AutoPresetsCaptureRegionToPng(path, x, y, w, h) {
     parentDir := RegExReplace(path, "\\[^\\]+$", "")
     if (parentDir != "" && parentDir != path && !DirExist(parentDir)) {
@@ -405,7 +410,7 @@ AutoPresetsCaptureRegionToPng(path, x, y, w, h) {
                 "ptr", hdc, "int", x, "int", y, "uint", 0x00CC0020) {
                 throw Error("BitBlt failed")
             }
-            _AutoPresetsGdipSaveHbitmapPng(hbm, path)
+            _AutoPresetsGdipSaveHbitmapPng(hbm, path, AutoPresets_RegionCornerRadius(w, h))
         } finally {
             if selected {
                 try DllCall("gdi32\SelectObject", "ptr", hdcMem, "ptr", obm, "ptr")
@@ -427,24 +432,70 @@ _AutoPresetsGdipStartup() {
     return GdiPlusSession.EnsureStarted()
 }
 
-_AutoPresetsGdipSaveHbitmapPng(hbm, path) {
+_AutoPresetsGdipSaveHbitmapPng(hbm, path, radius := 0) {
     _AutoPresetsGdipStartup()
     pBitmap := 0
     if DllCall("gdiplus\GdipCreateBitmapFromHBITMAP", "ptr", hbm, "int", 0, "ptr*", &pBitmap := 0) != 0 || !pBitmap {
         throw Error("GdipCreateBitmapFromHBITMAP failed")
     }
     try {
-        clsid := Buffer(16, 0)
-        if DllCall("ole32\CLSIDFromString", "wstr", "{557CF406-1A04-11D3-9A73-0000F81EF32E}", "ptr", clsid) != 0 {
-            throw Error("CLSIDFromString failed")
-        }
-        wpath := Buffer(2 * StrLen(path) + 2, 0)
-        StrPut(path, wpath, "UTF-16")
-        if DllCall("gdiplus\GdipSaveImageToFile", "ptr", pBitmap, "ptr", wpath.Ptr, "ptr", clsid, "ptr", 0) != 0 {
-            throw Error("GdipSaveImageToFile failed")
+        if (radius > 0) {
+            rounded := _AutoPresetsGdipCreateRoundedBitmap(pBitmap, radius)
+            try _AutoPresetsGdipSaveGpBitmapToPng(rounded, path)
+            finally DllCall("gdiplus\GdipDisposeImage", "ptr", rounded)
+        } else {
+            _AutoPresetsGdipSaveGpBitmapToPng(pBitmap, path)
         }
     } finally {
         DllCall("gdiplus\GdipDisposeImage", "ptr", pBitmap)
+    }
+}
+
+_AutoPresetsGdipCreateRoundedBitmap(pSrc, radius) {
+    sw := 0
+    sh := 0
+    DllCall("gdiplus\GdipGetImageWidth", "ptr", pSrc, "uint*", &sw := 0)
+    DllCall("gdiplus\GdipGetImageHeight", "ptr", pSrc, "uint*", &sh := 0)
+    if (sw < 1 || sh < 1) {
+        throw Error("GdipGetImageSize failed")
+    }
+    stride := sw * 4
+    pDst := 0
+    if DllCall("gdiplus\GdipCreateBitmapFromScan0", "int", sw, "int", sh, "int", stride, "int", GdipUiHelpers.PixelFormat32bppARGB, "ptr", 0, "ptr*", &pDst := 0) != 0 || !pDst {
+        throw Error("GdipCreateBitmapFromScan0 failed")
+    }
+    gr := 0
+    pPath := 0
+    try {
+        if DllCall("gdiplus\GdipGetImageGraphicsContext", "ptr", pDst, "ptr*", &gr := 0) != 0 || !gr {
+            throw Error("GdipGetImageGraphicsContext failed")
+        }
+        DllCall("gdiplus\GdipSetSmoothingMode", "ptr", gr, "int", 4)
+        DllCall("gdiplus\GdipSetPixelOffsetMode", "ptr", gr, "int", 4)
+        DllCall("gdiplus\GdipGraphicsClear", "ptr", gr, "uint", 0)
+        if DllCall("gdiplus\GdipCreatePath", "int", 0, "ptr*", &pPath := 0) != 0 || !pPath {
+            throw Error("GdipCreatePath failed")
+        }
+        GdipUiHelpers.AddPathRoundedRect(pPath, 0, 0, sw, sh, radius)
+        if DllCall("gdiplus\GdipSetClipPath", "ptr", gr, "ptr", pPath, "int", 0) != 0 {
+            throw Error("GdipSetClipPath failed")
+        }
+        if DllCall("gdiplus\GdipDrawImageRectI", "ptr", gr, "ptr", pSrc, "int", 0, "int", 0, "int", sw, "int", sh) != 0 {
+            throw Error("GdipDrawImageRectI failed")
+        }
+        return pDst
+    } catch Error as e {
+        if pDst {
+            DllCall("gdiplus\GdipDisposeImage", "ptr", pDst)
+        }
+        throw e
+    } finally {
+        if pPath {
+            DllCall("gdiplus\GdipDeletePath", "ptr", pPath)
+        }
+        if gr {
+            DllCall("gdiplus\GdipDeleteGraphics", "ptr", gr)
+        }
     }
 }
 

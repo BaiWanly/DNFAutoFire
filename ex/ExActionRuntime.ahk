@@ -26,12 +26,12 @@ class ExActionRuntime {
 
         this._ctx := {
             rules: rules,
-            edgeHotkeyIds: [],
+            actionHotkeyIds: [],
             guanYuProfiles: guanYuProfiles,
-            guanYuHotkeyIds: [],
             comboProfiles: comboProfiles,
-            comboHotkeyIds: [],
             runningComboIdx: 0,
+            comboQueue: [],
+            comboQueuePos: 0,
             comboAbortRequested: false,
             comboPendingTimer: "",
             autoRun: autoRun,
@@ -39,9 +39,7 @@ class ExActionRuntime {
         }
 
         this._StartRuleTimers()
-        this._EnableEdgeHooks()
-        this._EnableGuanYuHooks()
-        this._EnableComboHooks()
+        this._EnableActionHotkeys()
         this._EnableAutoRunHooks()
         Suspend(false)
 
@@ -54,7 +52,7 @@ class ExActionRuntime {
     static _StartRuleTimers() {
         ctx := this._ctx
         for rule in ctx.rules {
-            if (rule.policy = "onceOnPressEdge") {
+            if (rule.policy = "onceOnPressEdge" || rule.policy = "onceOnHoldEdge") {
                 continue
             }
             rule.tickFn := ObjBindMethod(ExActionRuntime, "RuleTick", rule)
@@ -72,108 +70,53 @@ class ExActionRuntime {
         }
     }
 
-    static _EnableEdgeHooks() {
+    static _EnableActionHotkeys() {
         ctx := this._ctx
-        seen := Map()
+        hotkeys := Map()
         for rule in ctx.rules {
-            if (rule.policy != "onceOnPressEdge") {
-                continue
-            }
-            for scID in rule.scIDs {
-                if seen.Has(scID) {
-                    continue
+            if IsObject(rule.scIDs) {
+                for scID in rule.scIDs {
+                    ExAction_MarkHotkey(hotkeys, scID, false)
                 }
-                seen[scID] := true
-                ctx.edgeHotkeyIds.Push(scID)
-                HotIfWinActive("ahk_group DNF")
-                Hotkey("~$" scID, ObjBindMethod(ExActionRuntime, "EdgeDownByScID", scID), "On")
-                Hotkey("~$" scID " up", ObjBindMethod(ExActionRuntime, "EdgeUpByScID", scID), "On")
-                HotIf()
             }
         }
-    }
-
-    static _DisableEdgeHooks() {
-        ctx := this._ctx
-        if !IsObject(ctx) {
-            return
-        }
-        for rule in ctx.rules {
-            if (rule.policy = "onceOnPressEdge") {
-                rule.heldScIDs := Map()
-            }
-        }
-        for scID in ctx.edgeHotkeyIds {
-            try {
-                HotIfWinActive("ahk_group DNF")
-                try Hotkey("~$" scID, "Off")
-                try Hotkey("~$" scID " up", "Off")
-                HotIf()
-            } catch {
-                try HotIf()
-            }
-        }
-        ctx.edgeHotkeyIds := []
-    }
-
-    static EdgeDownByScID(scID, *) {
-        ctx := this._ctx
-        if !IsObject(ctx) || !WinActive("ahk_group DNF") {
-            return
-        }
-        for rule in ctx.rules {
-            if (rule.policy != "onceOnPressEdge" || !ExAction_RuleHasScID(rule, scID)) {
-                continue
-            }
-            if (rule.heldScIDs.Has(scID) && rule.heldScIDs[scID]) {
-                continue
-            }
-            rule.heldScIDs[scID] := true
-            SendIP(rule.sendToken)
-        }
-    }
-
-    static EdgeUpByScID(scID, *) {
-        ctx := this._ctx
-        if !IsObject(ctx) {
-            return
-        }
-        for rule in ctx.rules {
-            if (rule.policy = "onceOnPressEdge" && rule.heldScIDs.Has(scID)) {
-                rule.heldScIDs[scID] := false
-            }
-        }
-    }
-
-    static _EnableGuanYuHooks() {
-        ctx := this._ctx
-        seen := Map()
         for profile in ctx.guanYuProfiles {
-            if seen.Has(profile.scID) {
-                continue
-            }
-            seen[profile.scID] := true
-            ctx.guanYuHotkeyIds.Push(profile.scID)
+            ExAction_MarkHotkey(hotkeys, profile.scID, false)
+        }
+        for profile in ctx.comboProfiles {
+            ExAction_MarkHotkey(hotkeys, profile.scID, profile.blockOriginal)
+        }
+        for scID, blockOriginal in hotkeys {
+            ctx.actionHotkeyIds.Push(scID)
+            prefix := blockOriginal ? "$" : "~$"
             HotIfWinActive("ahk_group DNF")
-            Hotkey("~$" profile.scID, ObjBindMethod(ExActionRuntime, "GuanYuDownByScID", profile.scID), "On")
-            Hotkey("~$" profile.scID " up", ObjBindMethod(ExActionRuntime, "GuanYuUpByScID", profile.scID), "On")
+            Hotkey(prefix scID, ObjBindMethod(ExActionRuntime, "ActionDownByScID", scID), "On")
+            Hotkey(prefix scID " up", ObjBindMethod(ExActionRuntime, "ActionUpByScID", scID), "On")
             HotIf()
         }
     }
 
-    static _DisableGuanYuHooks() {
+    static _DisableActionHotkeys() {
         ctx := this._ctx
         if !IsObject(ctx) {
             return
+        }
+        for rule in ctx.rules {
+            if IsObject(rule.heldScIDs) {
+                rule.heldScIDs := Map()
+            }
         }
         for profile in ctx.guanYuProfiles {
             try SetTimer(profile.pendingFn, 0)
             profile.pending := false
             profile.isHeld := false
         }
-        for scID in ctx.guanYuHotkeyIds {
+        this._ComboClearPendingTimer()
+        for scID in ctx.actionHotkeyIds {
             try {
                 HotIfWinActive("ahk_group DNF")
+                try Hotkey("$" scID, "Off")
+                try Hotkey("$" scID " up", "Off")
                 try Hotkey("~$" scID, "Off")
                 try Hotkey("~$" scID " up", "Off")
                 HotIf()
@@ -181,7 +124,60 @@ class ExActionRuntime {
                 try HotIf()
             }
         }
-        ctx.guanYuHotkeyIds := []
+        ctx.actionHotkeyIds := []
+        ctx.runningComboIdx := 0
+        ctx.comboQueue := []
+        ctx.comboQueuePos := 0
+        ctx.comboAbortRequested := false
+    }
+
+    static ActionDownByScID(scID, *) {
+        if !IsObject(this._ctx) || !WinActive("ahk_group DNF") {
+            return
+        }
+        this.RuleDownByScID(scID)
+        this.GuanYuDownByScID(scID)
+        this.ComboDownByScID(scID)
+    }
+
+    static ActionUpByScID(scID, *) {
+        if !IsObject(this._ctx) {
+            return
+        }
+        this.RuleUpByScID(scID)
+        this.GuanYuUpByScID(scID)
+        this.ComboUpByScID(scID)
+    }
+
+    static RuleDownByScID(scID, *) {
+        ctx := this._ctx
+        if !IsObject(ctx) || !WinActive("ahk_group DNF") {
+            return
+        }
+        for rule in ctx.rules {
+            if !ExAction_RuleHasScID(rule, scID) {
+                continue
+            }
+            if (rule.heldScIDs.Has(scID) && rule.heldScIDs[scID]) {
+                continue
+            }
+            rule.heldScIDs[scID] := true
+            if (rule.policy = "onceOnPressEdge" || rule.policy = "onceOnHoldEdge") {
+                SendIP(rule.sendToken)
+            }
+        }
+    }
+
+    static RuleUpByScID(scID, *) {
+        ctx := this._ctx
+        if !IsObject(ctx) {
+            return
+        }
+        for rule in ctx.rules {
+            if IsObject(rule.heldScIDs) && rule.heldScIDs.Has(scID) {
+                rule.heldScIDs[scID] := false
+            }
+        }
     }
 
     static GuanYuDownByScID(scID, *) {
@@ -267,17 +263,12 @@ class ExActionRuntime {
             return
         }
 
-        anyHeld := ExAction_AnyHeld(rule.pressKeys)
+        anyHeld := ExAction_RuleAnyHeld(rule)
         switch rule.policy {
         case "repeatWhileAnyHeld":
             if anyHeld {
                 SendIP(rule.sendToken)
             }
-        case "onceOnPollHoldEdge":
-            if (anyHeld && !rule.heldLast) {
-                SendIP(rule.sendToken)
-            }
-            rule.heldLast := anyHeld
         case "repeatAfterHoldDelay":
             if !anyHeld {
                 ExAction_ResetHoldRule(rule)
@@ -314,55 +305,24 @@ class ExActionRuntime {
         }
     }
 
-    static _EnableComboHooks() {
-        ctx := this._ctx
-        seen := Map()
-        for profile in ctx.comboProfiles {
-            if seen.Has(profile.scID) {
-                continue
-            }
-            seen[profile.scID] := true
-            ctx.comboHotkeyIds.Push(profile.scID)
-            prefix := profile.blockOriginal ? "$" : "~$"
-            HotIfWinActive("ahk_group DNF")
-            Hotkey(prefix profile.scID, ObjBindMethod(ExActionRuntime, "ComboDownByScID", profile.scID), "On")
-            Hotkey(prefix profile.scID " up", ObjBindMethod(ExActionRuntime, "ComboUpByScID", profile.scID), "On")
-            HotIf()
-        }
-    }
-
-    static _DisableComboHooks() {
-        ctx := this._ctx
-        if !IsObject(ctx) {
-            return
-        }
-        this._ComboClearPendingTimer()
-        for scID in ctx.comboHotkeyIds {
-            try {
-                HotIfWinActive("ahk_group DNF")
-                try Hotkey("$" scID, "Off")
-                try Hotkey("$" scID " up", "Off")
-                try Hotkey("~$" scID, "Off")
-                try Hotkey("~$" scID " up", "Off")
-                HotIf()
-            } catch {
-                try HotIf()
-            }
-        }
-        ctx.comboHotkeyIds := []
-        ctx.runningComboIdx := 0
-        ctx.comboAbortRequested := false
-    }
-
     static ComboDownByScID(scID, *) {
         ctx := this._ctx
         if !IsObject(ctx) {
             return
         }
+        profileIdxs := []
         loop ctx.comboProfiles.Length {
             if ctx.comboProfiles.Has(A_Index) && ctx.comboProfiles[A_Index].scID = scID {
-                this.ComboDown(A_Index)
+                profile := ctx.comboProfiles[A_Index]
+                if profile.isHeld {
+                    continue
+                }
+                profile.isHeld := true
+                profileIdxs.Push(A_Index)
             }
+        }
+        if (profileIdxs.Length > 0 && ctx.runningComboIdx = 0) {
+            this._ComboStartQueue(profileIdxs)
         }
     }
 
@@ -378,25 +338,6 @@ class ExActionRuntime {
         }
     }
 
-    static ComboDown(profileIdx, *) {
-        ctx := this._ctx
-        if !IsObject(ctx) || profileIdx < 1 || profileIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(profileIdx) {
-            return
-        }
-        profile := ctx.comboProfiles[profileIdx]
-        if profile.isHeld {
-            return
-        }
-        profile.isHeld := true
-        if profile.loop {
-            if (ctx.runningComboIdx = 0) {
-                this._ComboStartFromDown(profileIdx)
-            }
-            return
-        }
-        this._ComboStartFromDown(profileIdx)
-    }
-
     static ComboUp(profileIdx, *) {
         ctx := this._ctx
         if !IsObject(ctx) || profileIdx < 1 || profileIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(profileIdx) {
@@ -409,22 +350,45 @@ class ExActionRuntime {
         }
     }
 
-    static _ComboStartFromDown(profileIdx) {
+    static _ComboStartQueue(profileIdxs) {
         ctx := this._ctx
         if !IsObject(ctx) || ctx.runningComboIdx != 0 {
             return
         }
-        profile := ctx.comboProfiles[profileIdx]
-        if !profile.isHeld || !WinActive("ahk_group DNF") {
+        if !WinActive("ahk_group DNF") {
             return
         }
-        ctx.runningComboIdx := profileIdx
-        ctx.comboAbortRequested := false
-        if (profile.leadDelayMs > 0) {
-            this._ComboSchedule(ObjBindMethod(ExActionRuntime, "_ComboSendSkillAt", 1), profile.leadDelayMs)
-        } else {
-            this._ComboSendSkillAt(1)
+        ctx.comboQueue := profileIdxs
+        ctx.comboQueuePos := 0
+        this._ComboStartNextQueuedProfile(true)
+    }
+
+    static _ComboStartNextQueuedProfile(requireHeld) {
+        ctx := this._ctx
+        while (ctx.comboQueuePos < ctx.comboQueue.Length) {
+            ctx.comboQueuePos++
+            profileIdx := ctx.comboQueue[ctx.comboQueuePos]
+            if (profileIdx < 1 || profileIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(profileIdx)) {
+                continue
+            }
+            profile := ctx.comboProfiles[profileIdx]
+            if (requireHeld && !profile.isHeld) {
+                continue
+            }
+            if (profile.loop && !profile.isHeld) {
+                continue
+            }
+            ctx.runningComboIdx := profileIdx
+            ctx.comboAbortRequested := false
+            if (profile.leadDelayMs > 0) {
+                this._ComboSchedule(ObjBindMethod(ExActionRuntime, "_ComboSendSkillAt", 1), profile.leadDelayMs)
+            } else {
+                this._ComboSendSkillAt(1)
+            }
+            return true
         }
+        this._ComboFinish()
+        return false
     }
 
     static _ComboClearPendingTimer() {
@@ -500,7 +464,10 @@ class ExActionRuntime {
             }
             return
         }
-        this._ComboFinish()
+        ctx.runningComboIdx := 0
+        if this._ComboStartNextQueuedProfile(false) {
+            return
+        }
     }
 
     static _ComboAbortSequence() {
@@ -520,6 +487,8 @@ class ExActionRuntime {
         }
         this._ComboClearPendingTimer()
         ctx.runningComboIdx := 0
+        ctx.comboQueue := []
+        ctx.comboQueuePos := 0
         ctx.comboAbortRequested := false
     }
 
@@ -674,9 +643,7 @@ class ExActionRuntime {
 
     static OnExit(exitReason, exitCode) {
         this._StopRuleTimers()
-        this._DisableEdgeHooks()
-        this._DisableGuanYuHooks()
-        this._DisableComboHooks()
+        this._DisableActionHotkeys()
         this._DisableAutoRunHooks()
         try RestoreSystemTimeLimit()
     }
@@ -694,6 +661,13 @@ ExAction_HasRunnable(presetName) {
         || IsObject(ExAction_BuildAutoRun(presetName))
 }
 
+ExAction_MarkHotkey(hotkeys, scID, blockOriginal) {
+    if (scID = "") {
+        return
+    }
+    hotkeys[scID] := (hotkeys.Has(scID) && hotkeys[scID]) || blockOriginal
+}
+
 ExAction_BuildRules(presetName) {
     rules := []
     intervalMs := LoadAutoFireGlobalIntervalMs()
@@ -702,7 +676,7 @@ ExAction_BuildRules(presetName) {
     }
     if LoadPreset(presetName, "ZhanFaState", false) {
         ExAction_AddRepeatRule(rules, "ZhanFa", ZhanFaLoadKeys(presetName), LoadPreset(presetName, "ZhanFaShotKey", "Space"), intervalMs)
-        ExAction_AddPollEdgeRule(rules, "ZhanFaBig", ZhanFaLoadKeys(presetName), LoadPreset(presetName, "ZhanFaBigShotKey", ""), intervalMs)
+        ExAction_AddHoldEdgeRule(rules, "ZhanFaBig", ZhanFaLoadKeys(presetName), LoadPreset(presetName, "ZhanFaBigShotKey", ""))
     }
     if LoadPreset(presetName, "PetSkillState", false) {
         ExAction_AddEdgeRule(rules, "PetSkill", PetSkillLoadKeys(presetName), LoadPreset(presetName, "PetSkillShotKey", "Z"))
@@ -761,15 +735,16 @@ ExAction_BuildGuanYuProfiles(presetName) {
 }
 
 ExAction_AddRepeatRule(rules, name, triggerKeys, shotKey, intervalMs) {
-    pressKeys := ExAction_BuildPressKeys(triggerKeys)
+    scIDs := ExAction_BuildScIDs(triggerKeys)
     sendToken := ExAction_SendToken(shotKey)
-    if (pressKeys.Length = 0 || sendToken = "") {
+    if (scIDs.Length = 0 || sendToken = "") {
         return
     }
     rules.Push({
         name: name,
         policy: "repeatWhileAnyHeld",
-        pressKeys: pressKeys,
+        scIDs: scIDs,
+        heldScIDs: Map(),
         sendToken: sendToken,
         tickMs: ClampMsMin1(intervalMs),
         busy: false,
@@ -798,35 +773,36 @@ ExAction_AddEdgeRule(rules, name, triggerKeys, shotKey) {
     })
 }
 
-ExAction_AddPollEdgeRule(rules, name, triggerKeys, shotKey, intervalMs) {
-    pressKeys := ExAction_BuildPressKeys(triggerKeys)
+ExAction_AddHoldEdgeRule(rules, name, triggerKeys, shotKey) {
+    scIDs := ExAction_BuildScIDs(triggerKeys)
     sendToken := ExAction_SendToken(shotKey)
-    if (pressKeys.Length = 0 || sendToken = "") {
+    if (scIDs.Length = 0 || sendToken = "") {
         return
     }
     rules.Push({
         name: name,
-        policy: "onceOnPollHoldEdge",
-        pressKeys: pressKeys,
+        policy: "onceOnHoldEdge",
+        scIDs: scIDs,
         sendToken: sendToken,
-        tickMs: ClampMsMin1(intervalMs),
         busy: false,
         pendingStartTick: 0,
         sentForHold: false,
-        heldLast: false
+        heldLast: false,
+        heldScIDs: Map()
     })
 }
 
 ExAction_AddDelayRepeatRule(rules, name, triggerKeys, shotKey, delayMs, intervalMs) {
-    pressKeys := ExAction_BuildPressKeys(triggerKeys)
+    scIDs := ExAction_BuildScIDs(triggerKeys)
     sendToken := ExAction_SendToken(shotKey)
-    if (pressKeys.Length = 0 || sendToken = "") {
+    if (scIDs.Length = 0 || sendToken = "") {
         return
     }
     rules.Push({
         name: name,
         policy: "repeatAfterHoldDelay",
-        pressKeys: pressKeys,
+        scIDs: scIDs,
+        heldScIDs: Map(),
         sendToken: sendToken,
         tickMs: ClampMsMin1(intervalMs),
         busy: false,
@@ -838,7 +814,7 @@ ExAction_AddDelayRepeatRule(rules, name, triggerKeys, shotKey, delayMs, interval
 }
 
 ExAction_AddXiuLuoRule(rules, name, triggerKey, xKey, waveKeys, intervalMs) {
-    pressKeys := ExAction_BuildPressKeys([triggerKey])
+    scIDs := ExAction_BuildScIDs([triggerKey])
     xSendToken := ExAction_SendToken(xKey)
     waveSendTokens := []
     for key in waveKeys {
@@ -847,7 +823,7 @@ ExAction_AddXiuLuoRule(rules, name, triggerKey, xKey, waveKeys, intervalMs) {
             waveSendTokens.Push(sendToken)
         }
     }
-    if (pressKeys.Length = 0 || xSendToken = "" || waveSendTokens.Length = 0) {
+    if (scIDs.Length = 0 || xSendToken = "" || waveSendTokens.Length = 0) {
         return
     }
     fastMs := ClampMsMin1(intervalMs)
@@ -855,7 +831,8 @@ ExAction_AddXiuLuoRule(rules, name, triggerKey, xKey, waveKeys, intervalMs) {
     rules.Push({
         name: name,
         policy: "xiuLuoBurstRepeat",
-        pressKeys: pressKeys,
+        scIDs: scIDs,
+        heldScIDs: Map(),
         xSendToken: xSendToken,
         waveSendTokens: waveSendTokens,
         tickMs: fastMs,
@@ -918,12 +895,16 @@ ExAction_BuildComboProfile(profile, mainIntervalMs) {
     if (skills.Length = 0) {
         return 0
     }
+    leadDelayMs := ComboNormalizeLeadDelay(HasProp(profile, "leadDelay") ? profile.leadDelay : 0)
+    if (leadDelayMs < 20) {
+        leadDelayMs := 20
+    }
     return {
         scID: scID,
         loop: profile.loop ? true : false,
         breakOnRelease: profile.loop ? true : false,
         blockOriginal: (HasProp(profile, "blockOriginal") && profile.blockOriginal) ? true : false,
-        leadDelayMs: 0,
+        leadDelayMs: leadDelayMs,
         mainIntervalMs: mainIntervalMs,
         isHeld: false,
         skills: skills
@@ -966,25 +947,6 @@ ExAction_BuildAutoRun(presetName) {
     ar.rightTickFn := ObjBindMethod(ExActionRuntime, "AutoRunRightTick")
     ar.leftTickFn := ObjBindMethod(ExActionRuntime, "AutoRunLeftTick")
     return ar
-}
-
-ExAction_BuildPressKeys(keys) {
-    pressKeys := []
-    if !IsObject(keys) {
-        return pressKeys
-    }
-    for key in keys {
-        key := Trim(String(key))
-        if (key = "") {
-            continue
-        }
-        pressKey := Key2PressKey(GetOriginKeyName(key))
-        if (StrLen(pressKey) >= 4 && SubStr(pressKey, 1, 2) = "sc") {
-            pressKey := Format("{:L}", pressKey)
-        }
-        pressKeys.Push(pressKey)
-    }
-    return pressKeys
 }
 
 ExAction_BuildScIDs(keys) {
@@ -1076,9 +1038,12 @@ ExAction_UniqueKeysByPressKey(keys) {
     return out
 }
 
-ExAction_AnyHeld(pressKeys) {
-    for pressKey in pressKeys {
-        if (GetKeyState(pressKey, "P") || GetKeyState(pressKey)) {
+ExAction_RuleAnyHeld(rule) {
+    if !IsObject(rule) || !IsObject(rule.heldScIDs) {
+        return false
+    }
+    for scID, isHeld in rule.heldScIDs {
+        if isHeld {
             return true
         }
     }
@@ -1096,7 +1061,8 @@ ExAction_ResetRuleForInactive(rule) {
     if (rule.policy = "xiuLuoBurstRepeat") {
         rule.lastXTick := 0
         rule.lastWaveTick := 0
-    } else if (rule.policy = "onceOnPressEdge") {
+    }
+    if IsObject(rule.heldScIDs) {
         rule.heldScIDs := Map()
     }
 }
