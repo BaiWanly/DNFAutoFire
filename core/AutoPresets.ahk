@@ -9,6 +9,7 @@ class AutoPresets {
     static SkillImageVariation := 80
     static TownImageVariation := 20
     static RegionCornerRadius := 12
+    static RegionMaskRgb := "White"
     static _retryTimer := false
     static _startTimer := false
     static _registeredEsc := false
@@ -378,6 +379,10 @@ AutoPresets_RegionCornerRadius(w, h) {
     return Max(0, Min(AutoPresets.RegionCornerRadius, w // 2, h // 2))
 }
 
+AutoPresets_ImageSearchPrefix(variation) {
+    return "*" variation " *Trans" AutoPresets.RegionMaskRgb " "
+}
+
 AutoPresetsCaptureRegionToPng(path, x, y, w, h) {
     parentDir := RegExReplace(path, "\\[^\\]+$", "")
     if (parentDir != "" && parentDir != path && !DirExist(parentDir)) {
@@ -470,9 +475,9 @@ _AutoPresetsGdipCreateRoundedBitmap(pSrc, radius) {
         if DllCall("gdiplus\GdipGetImageGraphicsContext", "ptr", pDst, "ptr*", &gr := 0) != 0 || !gr {
             throw Error("GdipGetImageGraphicsContext failed")
         }
-        DllCall("gdiplus\GdipSetSmoothingMode", "ptr", gr, "int", 4)
-        DllCall("gdiplus\GdipSetPixelOffsetMode", "ptr", gr, "int", 4)
-        DllCall("gdiplus\GdipGraphicsClear", "ptr", gr, "uint", 0)
+        DllCall("gdiplus\GdipSetSmoothingMode", "ptr", gr, "int", 3)
+        DllCall("gdiplus\GdipSetPixelOffsetMode", "ptr", gr, "int", 3)
+        DllCall("gdiplus\GdipGraphicsClear", "ptr", gr, "uint", 0xFFFFFFFF)
         if DllCall("gdiplus\GdipCreatePath", "int", 0, "ptr*", &pPath := 0) != 0 || !pPath {
             throw Error("GdipCreatePath failed")
         }
@@ -594,7 +599,7 @@ AutoPresetsTownIconMatches() {
     x2 := x1 + r["w"] - 1
     y2 := y1 + r["h"] - 1
     variation := AutoPresets.TownImageVariation
-    optPrefix := "*" variation " "
+    optPrefix := AutoPresets_ImageSearchPrefix(variation)
     needle := optPrefix . path
     prevPixel := CoordMode("Pixel", "Screen")
     try {
@@ -632,7 +637,7 @@ AutoPresetsFindPresetBySkillIcon() {
     x2 := x1 + r["w"] - 1
     y2 := y1 + r["h"] - 1
     variation := AutoPresets.SkillImageVariation
-    optPrefix := "*" variation " "
+    optPrefix := AutoPresets_ImageSearchPrefix(variation)
     prevPixel := CoordMode("Pixel", "Screen")
     try {
         for presetName in LoadAllPreset() {

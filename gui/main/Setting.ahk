@@ -19,11 +19,13 @@ gSettingGui.Add("Button", "x310 y250 w80 h40", MainText["Save"]).OnEvent("Click"
 gSettingCtrls["Tab"].UseTab(MainText["SettingTabHelp"])
 gSettingGui.Add("Text", "x16 y32 w368 h268", MainText["SettingHelp"])
 gSettingCtrls["Tab"].UseTab(MainText["SettingTabAbout"])
-gSettingGui.Add("Text", "x16 y32 w368 h120", MainText["AboutCredits"])
-gSettingGui.Add("Text", "x16 y60 w368 h24 +0x200", MainText["Source"])
-gSettingGui.Add("Link", "x16 y82 w368 h24", "<a href=`"" MainText["SourceUrl"] "`">" MainText["SourceUrl"] "</a>")
-gSettingGui.Add("Text", "x16 y104 w368 h24 +0x200", MainText["OriginalPost"])
-gSettingGui.Add("Link", "x16 y126 w368 h24", "<a href=`"" MainText["OriginalPostUrl"] "`">" MainText["OriginalPostUrl"] "</a>")
+gSettingGui.Add("Text", "x16 y32 w368 h24 +0x200", MainText["CurrentMaintainedPost"])
+gSettingGui.Add("Link", "x16 y54 w368 h24", "<a href=`"" MainText["CurrentMaintainedPostUrl"] "`">" MainText["CurrentMaintainedPostUrl"] "</a>")
+gSettingGui.Add("Text", "x16 y88 w368 h24 +0x200", MainText["AboutCredits"])
+gSettingGui.Add("Text", "x16 y120 w368 h24 +0x200", MainText["Source"])
+gSettingGui.Add("Link", "x16 y142 w368 h24", "<a href=`"" MainText["SourceUrl"] "`">" MainText["SourceUrl"] "</a>")
+gSettingGui.Add("Text", "x16 y164 w368 h24 +0x200", MainText["OriginalPost"])
+gSettingGui.Add("Link", "x16 y186 w368 h24", "<a href=`"" MainText["OriginalPostUrl"] "`">" MainText["OriginalPostUrl"] "</a>")
 gSettingCtrls["Tab"].UseTab()
 
 SettingGetCtrl(name) {

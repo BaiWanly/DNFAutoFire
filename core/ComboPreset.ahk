@@ -73,7 +73,7 @@ ComboNormalizeDelay(raw) {
 }
 
 ComboNormalizeLeadDelay(raw) {
-    delay := Round((Trim(String(raw)) = "" ? 0 : raw) + 0)
+    delay := Round((Trim(String(raw)) = "" ? 20 : raw) + 0)
     if (delay < 0) {
         delay := 0
     }
@@ -99,7 +99,7 @@ ComboBlankProfileMarker() {
 }
 
 ComboBlankProfile() {
-    return { trigger: "", loop: false, blockOriginal: false, leadDelay: 0, skills: [] }
+    return { trigger: "", loop: false, blockOriginal: false, leadDelay: 20, skills: [] }
 }
 
 ComboNormalizeStoredKey(raw) {
@@ -116,9 +116,9 @@ ComboIsBlankProfile(p) {
     trigger := HasProp(p, "trigger") ? ComboNormalizeStoredKey(p.trigger) : ""
     loopOn := HasProp(p, "loop") && p.loop
     blockOriginal := HasProp(p, "blockOriginal") && p.blockOriginal
-    leadDelay := HasProp(p, "leadDelay") ? ComboNormalizeLeadDelay(p.leadDelay) : 0
+    leadDelay := HasProp(p, "leadDelay") ? ComboNormalizeLeadDelay(p.leadDelay) : 20
     skills := (HasProp(p, "skills") && IsObject(p.skills)) ? p.skills : []
-    return trigger = "" && !loopOn && !blockOriginal && leadDelay = 0 && ComboSerializeSkills(skills) = ""
+    return trigger = "" && !loopOn && !blockOriginal && (leadDelay = 0 || leadDelay = 20) && ComboSerializeSkills(skills) = ""
 }
 
 ComboWriteExportFile(filePath, profiles) {
@@ -220,7 +220,7 @@ ComboSerializeProfiles(profiles) {
         trig := HasProp(p, "trigger") ? ComboNormalizeStoredKey(p.trigger) : ""
         loopOn := (HasProp(p, "loop") && p.loop) ? "1" : "0"
         blockOriginal := (HasProp(p, "blockOriginal") && p.blockOriginal) ? "1" : "0"
-        leadDelay := HasProp(p, "leadDelay") ? ComboNormalizeLeadDelay(p.leadDelay) : 0
+        leadDelay := HasProp(p, "leadDelay") ? ComboNormalizeLeadDelay(p.leadDelay) : 20
         skills := (HasProp(p, "skills") && IsObject(p.skills)) ? p.skills : []
         skillsStr := ComboSerializeSkills(skills)
         rec := trig us loopOn us blockOriginal us leadDelay us skillsStr
@@ -256,7 +256,7 @@ ComboParseProfiles(raw) {
         trigger := ComboCanonMainKey(Trim(parts[1]))
         loopOn := (parts.Length >= 2 && Trim(parts[2]) = "1")
         blockOriginal := false
-        leadDelay := 0
+        leadDelay := 20
         skillsRaw := ""
         if (parts.Length >= 5) {
             blockOriginal := Trim(parts[3]) = "1"

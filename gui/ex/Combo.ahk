@@ -136,7 +136,7 @@ ComboMakeDisplay(item) {
 
 ComboNormalizeProfileLeadDelay(profile) {
     if !IsObject(profile) || !HasProp(profile, "leadDelay") {
-        return 0
+        return 20
     }
     return ComboNormalizeLeadDelay(profile.leadDelay)
 }
@@ -242,7 +242,7 @@ ComboProfileSummary(p) {
     }
     skills := IsObject(p.skills) ? p.skills : []
     delay := ComboNormalizeProfileLeadDelay(p)
-    suffix := delay > 0 ? " / " exText["ComboLeadDelay"] delay "ms" : ""
+    suffix := (delay != 0 && delay != 20) ? " / " exText["ComboLeadDelay"] delay "ms" : ""
     return t " : " skills.Length exText["ComboSkillCountSuffix"] suffix
 }
 
@@ -268,7 +268,7 @@ ComboLoadProfileToEditor(idx) {
     p := __ComboProfiles[idx]
     __ComboSkillItems := ComboCloneSkillItems(p.skills)
     if !HasProp(p, "leadDelay") {
-        p.leadDelay := 0
+        p.leadDelay := 20
     }
     ComboRefreshList()
     ComboGetCtrl("ComboTriggerKey").Text := p.trigger
@@ -389,7 +389,7 @@ ComboProfileChangeToIndex(newIdx) {
 ComboAddProfile(*) {
     global __ComboProfiles, __ComboProfileIndex
     ComboFlushEditorToProfileAt(__ComboProfileIndex)
-    __ComboProfiles.Push({ trigger: "", loop: false, blockOriginal: false, leadDelay: 0, skills: [] })
+    __ComboProfiles.Push({ trigger: "", loop: false, blockOriginal: false, leadDelay: 20, skills: [] })
     __ComboProfileIndex := __ComboProfiles.Length
     ComboRefreshProfileList()
     ComboLoadProfileToEditor(__ComboProfileIndex)

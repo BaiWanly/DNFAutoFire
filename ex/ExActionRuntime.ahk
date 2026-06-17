@@ -922,8 +922,8 @@ ExAction_BuildComboProfile(profile, mainIntervalMs) {
     if (skills.Length = 0) {
         return 0
     }
-    leadDelayMs := ComboNormalizeLeadDelay(HasProp(profile, "leadDelay") ? profile.leadDelay : 0)
-    if (leadDelayMs < 20) {
+    leadDelayMs := ComboNormalizeLeadDelay(HasProp(profile, "leadDelay") ? profile.leadDelay : 20)
+    if (leadDelayMs > 0 && leadDelayMs < 20) {
         leadDelayMs := 20
     }
     return {
