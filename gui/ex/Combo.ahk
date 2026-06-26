@@ -61,6 +61,8 @@ UiLabel(gComboEditGui, UiLayoutRect(gComboEditLayout, 16, 16, 120, 22, "+0x200")
 UiPressKeyEdit(gComboEditCtrls, gComboEditGui, "ComboEditCurrentKey", UiLayoutRect(gComboEditLayout, 16, 38, 120, 24), ComboCanonSkillPressKeyCaptured)
 UiLabel(gComboEditGui, UiLayoutRect(gComboEditLayout, 148, 16, 100, 22, "+0x200"), exText["ComboEditDelay"])
 UiEdit(gComboEditCtrls, gComboEditGui, "ComboEditDelay", UiLayoutRect(gComboEditLayout, 148, 38, 100, 24, "+Number -E0x200"))
+UiLabel(gComboEditGui, UiLayoutRect(gComboEditLayout, 260, 16, 100, 22, "+0x200"), exText["ComboEditHold"])
+UiEdit(gComboEditCtrls, gComboEditGui, "ComboEditHold", UiLayoutRect(gComboEditLayout, 260, 38, 100, 24, "+Number -E0x200"))
 UiPlainButton(gComboEditGui, UiLayoutRect(gComboEditLayout, 148, 68, 48, ExLayout.ControlHeight()), exText["ComboEditOk"], ComboEditSave, "primary")
 UiPlainButton(gComboEditGui, UiLayoutRect(gComboEditLayout, 200, 68, 48, ExLayout.ControlHeight()), exText["ComboEditCancel"], ComboEditCancel)
 
@@ -110,7 +112,12 @@ ComboCanonSkillPressKeyCaptured(key) {
 }
 
 ComboMakeDisplay(item) {
-    return item.key " - " item.delay "ms"
+    text := item.key " - 间隔 " item.delay "ms"
+    hold := HasProp(item, "hold") ? ComboNormalizeHold(item.hold) : ComboSkillHoldDefault()
+    if (hold != ComboSkillHoldDefault()) {
+        text .= " / 按下 " hold "ms"
+    }
+    return text
 }
 
 ComboRefreshList() {
@@ -151,7 +158,7 @@ ComboAddSkill(*) {
     if (key = "") {
         return
     }
-    __ComboSkillItems.Push({ key: key, delay: 20 })
+    __ComboSkillItems.Push({ key: key, delay: 20, hold: ComboSkillHoldDefault() })
     ComboRefreshList()
 }
 
@@ -196,7 +203,8 @@ ComboCloneSkillItems(items) {
             continue
         }
         delay := HasProp(it, "delay") ? ComboNormalizeDelay(it.delay) : 20
-        out.Push({ key: key, delay: delay })
+        hold := HasProp(it, "hold") ? ComboNormalizeHold(it.hold) : ComboSkillHoldDefault()
+        out.Push({ key: key, delay: delay, hold: hold })
     }
     return out
 }
@@ -487,6 +495,7 @@ ComboShowEditDialog(item) {
     gComboEditKey := item.key
     gComboEditCtrls["ComboEditCurrentKey"].Text := gComboEditKey
     gComboEditCtrls["ComboEditDelay"].Text := ComboNormalizeDelay(item.delay)
+    gComboEditCtrls["ComboEditHold"].Text := HasProp(item, "hold") ? ComboNormalizeHold(item.hold) : ComboSkillHoldDefault()
     if IsObject(gComboGui) {
         gComboEditGui.Opt("+Owner" gComboGui.Hwnd)
     }
@@ -501,13 +510,14 @@ ComboEditSave(*) {
         return
     }
     delay := ComboNormalizeDelay(gComboEditCtrls["ComboEditDelay"].Text)
+    hold := ComboNormalizeHold(gComboEditCtrls["ComboEditHold"].Text)
     key := UiPressKeyEdit_Value(gComboEditCtrls["ComboEditCurrentKey"])
     if (key != "") {
         gComboEditKey := key
     } else if (gComboEditKey = "") {
         gComboEditKey := __ComboSkillItems[gComboEditIndex].key
     }
-    __ComboSkillItems[gComboEditIndex] := { key: gComboEditKey, delay: delay }
+    __ComboSkillItems[gComboEditIndex] := { key: gComboEditKey, delay: delay, hold: hold }
     ComboRefreshList()
     try ComboGetCtrl("ComboSkillsListBox").Choose(gComboEditIndex)
     ComboEditCancel()
@@ -545,7 +555,7 @@ ComboDragGetItems(*) {
             continue
         }
         item := __ComboSkillItems[A_Index]
-        items.Push({ key: item.key, delay: item.delay })
+        items.Push({ key: item.key, delay: item.delay, hold: HasProp(item, "hold") ? item.hold : ComboSkillHoldDefault() })
     }
     return items
 }

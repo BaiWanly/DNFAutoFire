@@ -23,6 +23,22 @@ ComboNormalizeDelay(raw) {
     return delay
 }
 
+ComboSkillHoldDefault() {
+    return 12
+}
+
+ComboNormalizeHold(raw) {
+    s := Trim(String(raw))
+    if (s = "") {
+        return ComboSkillHoldDefault()
+    }
+    hold := Round(s + 0)
+    if (hold < 0) {
+        hold := 0
+    }
+    return hold
+}
+
 ComboProfileRecordSeparator() {
     static rs := Chr(30)
     return rs
@@ -104,6 +120,7 @@ ComboSerializeSkills(items) {
     }
     rs := ComboSkillRecordSeparator()
     us := ComboSkillUnitSeparator()
+    defaultHold := ComboSkillHoldDefault()
     loop items.Length {
         if !items.Has(A_Index) {
             continue
@@ -117,10 +134,16 @@ ComboSerializeSkills(items) {
             continue
         }
         delay := HasProp(item, "delay") ? ComboNormalizeDelay(item.delay) : 20
+        hold := HasProp(item, "hold") ? ComboNormalizeHold(item.hold) : defaultHold
         if (data != "") {
             data .= rs
         }
-        data .= key us delay
+        ; hold 等于默认值时省略第三段，旧版本仍能正常读取 key 与 delay
+        if (hold = defaultHold) {
+            data .= key us delay
+        } else {
+            data .= key us delay us hold
+        }
     }
     return data
 }
@@ -129,12 +152,13 @@ ComboParseSkills(raw) {
     items := []
     rs := ComboSkillRecordSeparator()
     us := ComboSkillUnitSeparator()
+    defaultHold := ComboSkillHoldDefault()
     for unit in StrSplit(raw, rs) {
         unit := Trim(unit)
         if (unit = "") {
             continue
         }
-        parts := StrSplit(unit, us,, 2)
+        parts := StrSplit(unit, us,, 3)
         if (parts.Length < 1) {
             continue
         }
@@ -143,7 +167,8 @@ ComboParseSkills(raw) {
             continue
         }
         delayRaw := parts.Length >= 2 ? parts[2] : 20
-        items.Push({ key: key, delay: ComboNormalizeDelay(delayRaw) })
+        holdRaw := parts.Length >= 3 ? parts[3] : ""
+        items.Push({ key: key, delay: ComboNormalizeDelay(delayRaw), hold: ComboNormalizeHold(holdRaw) })
     }
     return items
 }

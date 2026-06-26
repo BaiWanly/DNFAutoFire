@@ -80,6 +80,7 @@ global exText := Map(
     "ComboSaveClose", "保存",
     "ComboEditSkillKey", "技能键",
     "ComboEditDelay", "间隔(ms)",
+    "ComboEditHold", "按下(ms)",
     "ComboEditOk", "确定",
     "ComboEditCancel", "取消",
     "ComboTitle", "一键连招设置",

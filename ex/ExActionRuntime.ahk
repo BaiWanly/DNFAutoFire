@@ -450,7 +450,7 @@ class ExActionRuntime {
             this._ComboSendSkillAt(idx + 1)
             return
         }
-        try SendIP(item.sendToken, ExAction_SequenceKeyHoldMs())
+        try SendIP(item.sendToken, item.hold)
         delay := item.delay + 0
         if (delay <= 0) {
             this._ComboSendSkillAt(idx + 1)
@@ -750,7 +750,7 @@ ExAction_BuildGuanYuProfiles(presetName) {
             leadDelayMs: delayMs,
             isHeld: false,
             pending: false,
-            skills: [{ sendToken: sendToken, delay: 0 }]
+            skills: [{ sendToken: sendToken, delay: 0, hold: ComboSkillHoldDefault() }]
         })
         profiles[profiles.Length].pendingFn := ObjBindMethod(ExActionRuntime, "GuanYuSend", profiles.Length)
     }
@@ -913,7 +913,7 @@ ExAction_BuildComboProfile(profile, mainIntervalMs) {
         if (sendToken = "") {
             continue
         }
-        skills.Push({ sendToken: sendToken, delay: ComboNormalizeDelay(item.delay) })
+        skills.Push({ sendToken: sendToken, delay: ComboNormalizeDelay(item.delay), hold: ComboNormalizeHold(item.hold) })
     }
     if (skills.Length = 0) {
         return 0
@@ -1008,10 +1008,6 @@ ExAction_SendToken(key) {
     return Key2NoVkSC(GetOriginKeyName(key))
 }
 
-ExAction_SequenceKeyHoldMs() {
-    return 12
-}
-
 ExAction_RunSequence(profile) {
     if !IsObject(profile) || !IsObject(profile.skills) {
         return
@@ -1020,7 +1016,7 @@ ExAction_RunSequence(profile) {
         if !IsObject(item) {
             continue
         }
-        try SendIP(item.sendToken, ExAction_SequenceKeyHoldMs())
+        try SendIP(item.sendToken, item.hold)
         delay := item.delay + 0
         if (delay <= 0) {
             continue
