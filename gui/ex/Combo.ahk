@@ -10,11 +10,8 @@ global gComboProfileDragCurrentProfile := ""
 global gComboEditCtrls := Map()
 global gComboEditIndex := 0
 global gComboEditKey := ""
-global gComboProfileEditCtrls := Map()
-global gComboProfileEditIndex := 0
 global gComboLayout := ExLayout.Window()
 global gComboEditLayout := ExLayout.Window()
-global gComboProfileEditLayout := ExLayout.Window()
 
 UiApplyWindow(gComboGui)
 gComboGui.OnEvent("Escape", ComboGuiEscape)
@@ -32,7 +29,6 @@ UiExPageTitle(gComboGui, exText["ComboTitleLine"], contentRight, gComboLayout, C
 
 UiLabel(gComboGui, UiLayoutRect(gComboLayout, profileColX, 52, profileColW, 22, "+0x200"), exText["ComboProfileList"])
 UiListBox(gComboCtrls, gComboGui, "ComboProfilesListBox", UiLayoutRect(gComboLayout, profileColX, 74, profileColW, 210), ComboProfileListChange)
-gComboCtrls["ComboProfilesListBox"].OnEvent("DoubleClick", ComboEditProfile)
 UiListBoxDragSort_Attach(gComboCtrls["ComboProfilesListBox"], ComboProfileDragGetItems, ComboProfileDragRender, ComboProfileDragCommit, ComboProfileDragClick)
 profileBtnRects := UiExSplitButtonRects(gComboLayout, profileColX, 292, profileColW, 8)
 UiPlainButton(gComboGui, profileBtnRects[1], exText["ComboAddProfile"], ComboAddProfile)
@@ -67,15 +63,6 @@ UiLabel(gComboEditGui, UiLayoutRect(gComboEditLayout, 148, 16, 100, 22, "+0x200"
 UiEdit(gComboEditCtrls, gComboEditGui, "ComboEditDelay", UiLayoutRect(gComboEditLayout, 148, 38, 100, 24, "+Number -E0x200"))
 UiPlainButton(gComboEditGui, UiLayoutRect(gComboEditLayout, 148, 68, 48, ExLayout.ControlHeight()), exText["ComboEditOk"], ComboEditSave, "primary")
 UiPlainButton(gComboEditGui, UiLayoutRect(gComboEditLayout, 200, 68, 48, ExLayout.ControlHeight()), exText["ComboEditCancel"], ComboEditCancel)
-
-gComboProfileEditGui := Gui("-MinimizeBox -MaximizeBox")
-UiApplyWindow(gComboProfileEditGui)
-gComboProfileEditGui.OnEvent("Escape", ComboProfileEditCancel)
-gComboProfileEditGui.OnEvent("Close", ComboProfileEditCancel)
-UiLabel(gComboProfileEditGui, UiLayoutRect(gComboProfileEditLayout, 16, 16, 120, 22, "+0x200"), exText["ComboProfileEditDelay"])
-UiEdit(gComboProfileEditCtrls, gComboProfileEditGui, "ComboProfileEditDelay", UiLayoutRect(gComboProfileEditLayout, 16, 38, 120, 24, "+Number -E0x200"))
-UiPlainButton(gComboProfileEditGui, UiLayoutRect(gComboProfileEditLayout, 148, 38, 48, ExLayout.ControlHeight()), exText["ComboEditOk"], ComboProfileEditSave, "primary")
-UiPlainButton(gComboProfileEditGui, UiLayoutRect(gComboProfileEditLayout, 200, 38, 48, ExLayout.ControlHeight()), exText["ComboEditCancel"], ComboProfileEditCancel)
 
 ComboGetCtrl(name) {
     global gComboCtrls
@@ -124,13 +111,6 @@ ComboCanonSkillPressKeyCaptured(key) {
 
 ComboMakeDisplay(item) {
     return item.key " - " item.delay "ms"
-}
-
-ComboNormalizeProfileLeadDelay(profile) {
-    if !IsObject(profile) || !HasProp(profile, "leadDelay") {
-        return 20
-    }
-    return ComboNormalizeLeadDelay(profile.leadDelay)
 }
 
 ComboRefreshList() {
@@ -230,9 +210,7 @@ ComboProfileSummary(p) {
         t := exText["ComboUnsetTrigger"]
     }
     skills := IsObject(p.skills) ? p.skills : []
-    delay := ComboNormalizeProfileLeadDelay(p)
-    suffix := (delay != 0 && delay != 20) ? " / " exText["ComboLeadDelay"] delay "ms" : ""
-    return t " : " skills.Length exText["ComboSkillCountSuffix"] suffix
+    return t " : " skills.Length exText["ComboSkillCountSuffix"]
 }
 
 ComboFlushEditorToProfileAt(idx) {
@@ -244,7 +222,6 @@ ComboFlushEditorToProfileAt(idx) {
     p.trigger := ComboCanonMainKey(UiPressKeyEdit_Value(ComboGetCtrl("ComboTriggerKey")))
     p.loop := ComboGetCtrl("ComboLoopMode").Value
     p.blockOriginal := ComboGetCtrl("ComboBlockOriginal").Value
-    p.leadDelay := ComboNormalizeProfileLeadDelay(p)
     p.skills := ComboCloneSkillItems(__ComboSkillItems)
 }
 
@@ -256,9 +233,6 @@ ComboLoadProfileToEditor(idx) {
     }
     p := __ComboProfiles[idx]
     __ComboSkillItems := ComboCloneSkillItems(p.skills)
-    if !HasProp(p, "leadDelay") {
-        p.leadDelay := 20
-    }
     ComboRefreshList()
     ComboGetCtrl("ComboTriggerKey").Text := p.trigger
     ComboGetCtrl("ComboLoopMode").Value := p.loop
@@ -378,7 +352,7 @@ ComboProfileChangeToIndex(newIdx) {
 ComboAddProfile(*) {
     global __ComboProfiles, __ComboProfileIndex
     ComboFlushEditorToProfileAt(__ComboProfileIndex)
-    __ComboProfiles.Push({ trigger: "", loop: false, blockOriginal: false, leadDelay: 20, skills: [] })
+    __ComboProfiles.Push({ trigger: "", loop: false, blockOriginal: false, skills: [] })
     __ComboProfileIndex := __ComboProfiles.Length
     ComboRefreshProfileList()
     ComboLoadProfileToEditor(__ComboProfileIndex)
@@ -425,7 +399,6 @@ ComboImportProfiles(*) {
             trigger: p.trigger,
             loop: p.loop ? true : false,
             blockOriginal: (HasProp(p, "blockOriginal") && p.blockOriginal) ? true : false,
-            leadDelay: ComboNormalizeProfileLeadDelay(p),
             skills: ComboCloneSkillItems(p.skills)
         })
         added++
@@ -504,49 +477,6 @@ ComboLoadConfig() {
     __ComboProfileIndex := __ComboProfiles.Length > 0 ? 1 : 0
     ComboRefreshProfileList()
     ComboLoadProfileToEditor(__ComboProfileIndex)
-}
-
-ComboEditProfile(ctrl, *) {
-    global __ComboProfiles, __ComboProfileIndex, gComboProfileEditIndex
-    idx := ctrl.Value
-    if (idx < 1 || idx > __ComboProfiles.Length || !__ComboProfiles.Has(idx)) {
-        return
-    }
-    ComboFlushEditorToProfileAt(__ComboProfileIndex)
-    gComboProfileEditIndex := idx
-    ComboShowProfileEditDialog(__ComboProfiles[idx])
-}
-
-ComboShowProfileEditDialog(profile) {
-    global gComboGui, gComboProfileEditGui, gComboProfileEditCtrls, gComboProfileEditLayout
-    if !IsObject(profile) {
-        return
-    }
-    gComboProfileEditCtrls["ComboProfileEditDelay"].Text := ComboNormalizeProfileLeadDelay(profile)
-    if IsObject(gComboGui) {
-        gComboProfileEditGui.Opt("+Owner" gComboGui.Hwnd)
-    }
-    gComboProfileEditGui.Title := exText["ComboProfileEditTitle"]
-    gComboProfileEditGui.Show("w" gComboProfileEditLayout.Width() " h" gComboProfileEditLayout.Height())
-}
-
-ComboProfileEditSave(*) {
-    global __ComboProfiles, __ComboProfileIndex, gComboProfileEditCtrls, gComboProfileEditIndex
-    if (gComboProfileEditIndex < 1 || gComboProfileEditIndex > __ComboProfiles.Length || !__ComboProfiles.Has(gComboProfileEditIndex)) {
-        ComboProfileEditCancel()
-        return
-    }
-    __ComboProfiles[gComboProfileEditIndex].leadDelay := ComboNormalizeLeadDelay(gComboProfileEditCtrls["ComboProfileEditDelay"].Text)
-    __ComboProfileIndex := gComboProfileEditIndex
-    ComboRefreshProfileList()
-    ComboLoadProfileToEditor(__ComboProfileIndex)
-    ComboProfileEditCancel()
-}
-
-ComboProfileEditCancel(*) {
-    global gComboProfileEditGui, gComboProfileEditIndex
-    gComboProfileEditIndex := 0
-    gComboProfileEditGui.Hide()
 }
 
 ComboShowEditDialog(item) {

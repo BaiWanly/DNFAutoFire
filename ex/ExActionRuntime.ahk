@@ -394,11 +394,7 @@ class ExActionRuntime {
             }
             ctx.runningComboIdx := profileIdx
             ctx.comboAbortRequested := false
-            if (profile.leadDelayMs > 0) {
-                this._ComboSchedule(ObjBindMethod(ExActionRuntime, "_ComboSendSkillAt", 1), profile.leadDelayMs)
-            } else {
-                this._ComboSendSkillAt(1)
-            }
+            this._ComboSendSkillAt(1)
             return true
         }
         this._ComboFinish()
@@ -922,16 +918,11 @@ ExAction_BuildComboProfile(profile, mainIntervalMs) {
     if (skills.Length = 0) {
         return 0
     }
-    leadDelayMs := ComboNormalizeLeadDelay(HasProp(profile, "leadDelay") ? profile.leadDelay : 20)
-    if (leadDelayMs > 0 && leadDelayMs < 20) {
-        leadDelayMs := 20
-    }
     return {
         scID: scID,
         loop: profile.loop ? true : false,
         breakOnRelease: profile.loop ? true : false,
         blockOriginal: (HasProp(profile, "blockOriginal") && profile.blockOriginal) ? true : false,
-        leadDelayMs: leadDelayMs,
         mainIntervalMs: mainIntervalMs,
         isHeld: false,
         skills: skills

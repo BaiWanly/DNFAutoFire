@@ -65,7 +65,7 @@ global exText := Map(
     "AutoRunHelpTitle", "自动奔跑说明",
     "AutoRunHelp", "设置自动奔跑要监听的左右键，以及按住方向键后补发双击的延迟（毫秒）。`n默认 30ms；范围 1～400ms。`n如果游戏里方向键不是 Left/Right，请改成你的实际按键后保存。`n可设置「暂停键」：按住该键时，不会触发自动奔跑；留空表示不使用。",
     "ComboTitleLine", "一键连招设置",
-    "ComboProfileList", "连招方案（双击设置出手延迟）",
+    "ComboProfileList", "连招方案",
     "ComboAddProfile", "新建方案",
     "ComboRemoveProfile", "删除方案",
     "ComboImportProfiles", "导入",
@@ -76,7 +76,6 @@ global exText := Map(
     "ComboTriggerKey", "触发键",
     "ComboLoopMode", "循环",
     "ComboBlockOriginal", "屏蔽原键",
-    "ComboLeadDelay", "延迟",
     "ComboApply", "应用方案",
     "ComboSaveClose", "保存",
     "ComboEditSkillKey", "技能键",
@@ -98,7 +97,5 @@ global exText := Map(
     "ComboImportFailed", "导入连招方案失败。",
     "ComboExportSuccess", "连招方案已导出。",
     "ComboExportFailed", "导出连招方案失败。",
-    "ComboEditTitle", "编辑连招技能",
-    "ComboProfileEditTitle", "编辑连招方案",
-    "ComboProfileEditDelay", "延迟(ms)"
+    "ComboEditTitle", "编辑连招技能"
 )

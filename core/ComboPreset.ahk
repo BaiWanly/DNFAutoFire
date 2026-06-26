@@ -23,14 +23,6 @@ ComboNormalizeDelay(raw) {
     return delay
 }
 
-ComboNormalizeLeadDelay(raw) {
-    delay := Round((Trim(String(raw)) = "" ? 20 : raw) + 0)
-    if (delay < 0) {
-        delay := 0
-    }
-    return delay
-}
-
 ComboProfileRecordSeparator() {
     static rs := Chr(30)
     return rs
@@ -58,7 +50,7 @@ ComboBlankProfileMarker() {
 }
 
 ComboBlankProfile() {
-    return { trigger: "", loop: false, blockOriginal: false, leadDelay: 20, skills: [] }
+    return { trigger: "", loop: false, blockOriginal: false, skills: [] }
 }
 
 ComboNormalizeStoredKey(raw) {
@@ -75,9 +67,8 @@ ComboIsBlankProfile(p) {
     trigger := HasProp(p, "trigger") ? ComboNormalizeStoredKey(p.trigger) : ""
     loopOn := HasProp(p, "loop") && p.loop
     blockOriginal := HasProp(p, "blockOriginal") && p.blockOriginal
-    leadDelay := HasProp(p, "leadDelay") ? ComboNormalizeLeadDelay(p.leadDelay) : 20
     skills := (HasProp(p, "skills") && IsObject(p.skills)) ? p.skills : []
-    return trigger = "" && !loopOn && !blockOriginal && (leadDelay = 0 || leadDelay = 20) && ComboSerializeSkills(skills) = ""
+    return trigger = "" && !loopOn && !blockOriginal && ComboSerializeSkills(skills) = ""
 }
 
 ComboWriteExportFile(filePath, profiles) {
@@ -183,10 +174,9 @@ ComboSerializeProfiles(profiles) {
         trig := HasProp(p, "trigger") ? ComboNormalizeStoredKey(p.trigger) : ""
         loopOn := (HasProp(p, "loop") && p.loop) ? "1" : "0"
         blockOriginal := (HasProp(p, "blockOriginal") && p.blockOriginal) ? "1" : "0"
-        leadDelay := HasProp(p, "leadDelay") ? ComboNormalizeLeadDelay(p.leadDelay) : 20
         skills := (HasProp(p, "skills") && IsObject(p.skills)) ? p.skills : []
         skillsStr := ComboSerializeSkills(skills)
-        rec := trig us loopOn us blockOriginal us leadDelay us skillsStr
+        rec := trig us loopOn us blockOriginal us skillsStr
         if (out != "") {
             out .= rs
         }
@@ -212,16 +202,15 @@ ComboParseProfiles(raw) {
             out.Push(ComboBlankProfile())
             continue
         }
-        parts := StrSplit(rec, us,, 5)
-        if (parts.Length < 5) {
+        parts := StrSplit(rec, us)
+        if (parts.Length != 4) {
             continue
         }
         trigger := ComboCanonMainKey(Trim(parts[1]))
         loopOn := Trim(parts[2]) = "1"
         blockOriginal := Trim(parts[3]) = "1"
-        leadDelay := ComboNormalizeLeadDelay(parts[4])
-        skillsRaw := parts[5]
-        out.Push({ trigger: trigger, loop: loopOn, blockOriginal: blockOriginal, leadDelay: leadDelay, skills: ComboParseSkills(skillsRaw) })
+        skillsRaw := parts[4]
+        out.Push({ trigger: trigger, loop: loopOn, blockOriginal: blockOriginal, skills: ComboParseSkills(skillsRaw) })
     }
     return out
 }
