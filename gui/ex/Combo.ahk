@@ -144,7 +144,11 @@ ComboRefreshList() {
 }
 
 ComboAddSkill(*) {
-    global __ComboSkillItems
+    global __ComboProfiles, __ComboSkillItems
+    ; 没有方案时先自动新建一个承接录入的技能
+    if (__ComboProfiles.Length = 0) {
+        ComboAddProfile()
+    }
     btn := ComboGetCtrl("ComboAddSkillButton")
     if IsObject(btn) {
         try btn.Text := exText["ComboAddSkillEscTip"]
@@ -157,8 +161,6 @@ ComboAddSkill(*) {
         }
     }
     if (raw = "Escape") {
-        __ComboSkillItems.Push({ key: ComboEmptySkillKey(), delay: 20, hold: ComboSkillHoldDefault() })
-        ComboRefreshList()
         return
     }
     key := ComboCanonMainKey(raw)
@@ -364,12 +366,7 @@ ComboProfileChangeToIndex(newIdx) {
 ComboAddProfile(*) {
     global __ComboProfiles, __ComboProfileIndex
     ComboFlushEditorToProfileAt(__ComboProfileIndex)
-    __ComboProfiles.Push({
-        trigger: "",
-        loop: false,
-        blockOriginal: false,
-        skills: [{ key: ComboEmptySkillKey(), delay: 20, hold: ComboSkillHoldDefault() }]
-    })
+    __ComboProfiles.Push({ trigger: "", loop: false, blockOriginal: false, skills: [] })
     __ComboProfileIndex := __ComboProfiles.Length
     ComboRefreshProfileList()
     ComboLoadProfileToEditor(__ComboProfileIndex)
