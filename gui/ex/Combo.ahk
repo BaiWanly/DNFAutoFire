@@ -364,7 +364,12 @@ ComboProfileChangeToIndex(newIdx) {
 ComboAddProfile(*) {
     global __ComboProfiles, __ComboProfileIndex
     ComboFlushEditorToProfileAt(__ComboProfileIndex)
-    __ComboProfiles.Push({ trigger: "", loop: false, blockOriginal: false, skills: [] })
+    __ComboProfiles.Push({
+        trigger: "",
+        loop: false,
+        blockOriginal: false,
+        skills: [{ key: ComboEmptySkillKey(), delay: 20, hold: ComboSkillHoldDefault() }]
+    })
     __ComboProfileIndex := __ComboProfiles.Length
     ComboRefreshProfileList()
     ComboLoadProfileToEditor(__ComboProfileIndex)
