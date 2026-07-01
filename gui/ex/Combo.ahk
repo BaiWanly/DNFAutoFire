@@ -112,7 +112,9 @@ ComboCanonSkillPressKeyCaptured(key) {
 }
 
 ComboMakeDisplay(item) {
-    text := item.key " - 间隔 " item.delay "ms"
+    rawKey := HasProp(item, "key") ? Trim(String(item.key)) : ""
+    displayKey := ComboIsEmptySkillKey(rawKey) ? exText["ComboEmptySkillDisplay"] : rawKey
+    text := displayKey " - 间隔 " item.delay "ms"
     hold := HasProp(item, "hold") ? ComboNormalizeHold(item.hold) : ComboSkillHoldDefault()
     if (hold != ComboSkillHoldDefault()) {
         text .= " / 按下 " hold "ms"
@@ -145,7 +147,7 @@ ComboAddSkill(*) {
     global __ComboSkillItems
     btn := ComboGetCtrl("ComboAddSkillButton")
     if IsObject(btn) {
-        try btn.Text := exText["PressKeyPrompt"]
+        try btn.Text := exText["ComboAddSkillEscTip"]
     }
     try {
         raw := GetPressKey(false)
@@ -153,6 +155,11 @@ ComboAddSkill(*) {
         if IsObject(btn) {
             try btn.Text := exText["ComboAddSkill"]
         }
+    }
+    if (raw = "Escape") {
+        __ComboSkillItems.Push({ key: ComboEmptySkillKey(), delay: 20, hold: ComboSkillHoldDefault() })
+        ComboRefreshList()
+        return
     }
     key := ComboCanonMainKey(raw)
     if (key = "") {
@@ -493,7 +500,8 @@ ComboShowEditDialog(item) {
         return
     }
     gComboEditKey := item.key
-    gComboEditCtrls["ComboEditCurrentKey"].Text := gComboEditKey
+    displayKey := ComboIsEmptySkillKey(item.key) ? "" : item.key
+    gComboEditCtrls["ComboEditCurrentKey"].Text := displayKey
     gComboEditCtrls["ComboEditDelay"].Text := ComboNormalizeDelay(item.delay)
     gComboEditCtrls["ComboEditHold"].Text := HasProp(item, "hold") ? ComboNormalizeHold(item.hold) : ComboSkillHoldDefault()
     if IsObject(gComboGui) {
@@ -514,8 +522,9 @@ ComboEditSave(*) {
     key := UiPressKeyEdit_Value(gComboEditCtrls["ComboEditCurrentKey"])
     if (key != "") {
         gComboEditKey := key
-    } else if (gComboEditKey = "") {
-        gComboEditKey := __ComboSkillItems[gComboEditIndex].key
+    } else {
+        ; 输入框被 ESC 清空时，落到空技能占位符，保留延迟占位语义
+        gComboEditKey := ComboEmptySkillKey()
     }
     __ComboSkillItems[gComboEditIndex] := { key: gComboEditKey, delay: delay, hold: hold }
     ComboRefreshList()

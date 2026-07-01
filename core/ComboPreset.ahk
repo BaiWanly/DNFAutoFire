@@ -18,6 +18,15 @@ ComboCanonMainKey(raw) {
     return s
 }
 
+; 空技能占位符：UI 中清空技能键时使用，序列化/解析/克隆层不需特殊处理
+ComboEmptySkillKey() {
+    return "<NONE>"
+}
+
+ComboIsEmptySkillKey(key) {
+    return Trim(String(key)) = ComboEmptySkillKey()
+}
+
 ComboNormalizeDelay(raw) {
     delay := Round((Trim(String(raw)) = "" ? 20 : raw) + 0)
     return delay

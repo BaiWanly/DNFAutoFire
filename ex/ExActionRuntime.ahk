@@ -450,7 +450,9 @@ class ExActionRuntime {
             this._ComboSendSkillAt(idx + 1)
             return
         }
-        try SendIP(item.sendToken, item.hold)
+        if (item.sendToken != "") {
+            try SendIP(item.sendToken, item.hold)
+        }
         delay := item.delay + 0
         if (delay <= 0) {
             this._ComboSendSkillAt(idx + 1)
@@ -907,6 +909,11 @@ ExAction_BuildComboProfile(profile, mainIntervalMs) {
         }
         skillKey := ComboCanonMainKey(item.key)
         if (skillKey = "") {
+            continue
+        }
+        ; 空技能占位符：保留延迟占位，不发送按键
+        if (ComboIsEmptySkillKey(skillKey)) {
+            skills.Push({ sendToken: "", delay: ComboNormalizeDelay(item.delay), hold: 0 })
             continue
         }
         sendToken := ExAction_SendToken(skillKey)
