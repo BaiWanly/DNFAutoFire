@@ -263,8 +263,8 @@ PresetRegionPickOpen(kind := "skill") {
     gAutoPresetsRegionPickGui.Show("Hide w200 h90")
     PresetRegionPickLayoutHint(gAutoPresetsRegionPickGui, 0, 200, 90)
     hwnd := gAutoPresetsRegionPickGui.Hwnd
-    if (kind = "town") {
-        r := ParseAutoPresetTownRegion()
+    if (kind = "dungeon") {
+        r := ParseAutoPresetDungeonRegion()
     } else {
         r := ParseAutoPresetRegion()
     }
@@ -369,8 +369,8 @@ PresetRegionPickOk(*) {
     h := cr["h"]
     kind := gAutoPresetsRegionPickKind
     try {
-        if (kind = "town") {
-            SaveAutoPresetTownRegion(x, y, w, h)
+        if (kind = "dungeon") {
+            SaveAutoPresetDungeonRegion(x, y, w, h)
         } else {
             SaveAutoPresetRegion(x, y, w, h)
         }

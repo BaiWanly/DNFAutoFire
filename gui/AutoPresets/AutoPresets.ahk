@@ -4,9 +4,9 @@ global gAutoPresetsGui := Gui("-MinimizeBox -MaximizeBox")
 global gAutoPresetsCtrls := Map()
 global gAutoPresetsSelectedPreset := ""
 global gAutoPresetsSelectedSkillId := ""
-global gAutoPresetsSelectedTownPath := ""
+global gAutoPresetsSelectedDungeonPath := ""
 global gAutoPresetsSkillItems := []
-global gAutoPresetsTownItems := []
+global gAutoPresetsDungeonItems := []
 global gAutoPresetsLayout := AutoPresetsLayout.Window()
 
 UiApplyWindow(gAutoPresetsGui)
@@ -24,46 +24,43 @@ rightW := AutoPresetsLayout.RightWidth()
 pvW := AutoPresetsLayout.PreviewWidth()
 pvH := AutoPresetsLayout.PreviewHeight()
 pvY := AutoPresetsLayout.PreviewY()
-townX := AutoPresetsLayout.TownX()
-townListX := AutoPresetsLayout.TownListX()
-townListW := AutoPresetsLayout.TownListWidth()
-townListH := AutoPresetsLayout.TownListHeight()
-townPvW := AutoPresetsLayout.TownPreviewWidth()
-townPvH := AutoPresetsLayout.TownPreviewHeight()
+DungeonX := AutoPresetsLayout.DungeonX()
+DungeonListX := AutoPresetsLayout.DungeonListX()
+DungeonListW := AutoPresetsLayout.DungeonListWidth()
+DungeonListH := AutoPresetsLayout.DungeonListHeight()
+DungeonPvW := AutoPresetsLayout.DungeonPreviewWidth()
+DungeonPvH := AutoPresetsLayout.DungeonPreviewHeight()
 rowActionY := AutoPresetsLayout.RowActionY()
 apEnableY := AutoPresetsLayout.EnableY()
 apHotkeyY := AutoPresetsLayout.HotkeyY()
-middleLabelY := AutoPresetsLayout.MiddleLabelY()
-townY := AutoPresetsLayout.TownY()
+DungeonY := AutoPresetsLayout.DungeonY()
 pickBtnY := AutoPresetsLayout.PickBtnY()
-townBtnY := AutoPresetsLayout.TownBtnY()
+DungeonBtnY := AutoPresetsLayout.DungeonBtnY()
 lowerY := AutoPresetsLayout.LowerY()
 listY := AutoPresetsLayout.ListY()
 listH := AutoPresetsLayout.ListHeight()
 saveY := AutoPresetsLayout.SaveY()
 
 UiSectionWithHelp(gAutoPresetsGui, gAutoPresetsLayout, marginX, 12, AutoPresetsText["SectionTitle"], AutoPresetsHelp, contentR)
-gAutoPresetsCtrls["AutoPresetsEnableVisible"] := gAutoPresetsGui.Add("CheckBox", UiLayoutRect(gAutoPresetsLayout, marginX, apEnableY, 310, 20, "vAutoPresetsEnableVisible"), AutoPresetsText["Enable"])
+gAutoPresetsCtrls["AutoPresetsEnableVisible"] := gAutoPresetsGui.Add("CheckBox", UiLayoutRect(gAutoPresetsLayout, marginX, apEnableY, contentR - marginX, 20, "vAutoPresetsEnableVisible"), AutoPresetsText["Enable"])
 gAutoPresetsCtrls["AutoPresetsEnableVisible"].OnEvent("Click", AutoPresetsSyncEnableFromUi)
 UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, apHotkeyY, 140, 20), AutoPresetsText["ExtraHotkey"])
-UiPressKeyEdit(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetHotkey", UiLayoutRect(gAutoPresetsLayout, 144, apHotkeyY, 192, ExLayout.ControlHeight()))
+UiPressKeyEdit(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetHotkey", UiLayoutRect(gAutoPresetsLayout, 144, apHotkeyY, contentR - 144, ExLayout.ControlHeight()))
 
 UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, pickBtnY, (contentR - marginX - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["PickSkillRegion"], (*) => PresetRegionPickOpen("skill"), "secondary")
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX + (contentR - marginX + 8) // 2, pickBtnY, (contentR - marginX - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["PickTownRegion"], (*) => PresetRegionPickOpen("town"), "secondary")
-UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, middleLabelY, contentR - marginX, 18), AutoPresetsText["TownReference"])
-UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, townListX, townY - 18, townListW, 18), AutoPresetsText["TownResolutionList"])
-UiListBox(gAutoPresetsCtrls, gAutoPresetsGui, "TownResolutionList", UiLayoutRect(gAutoPresetsLayout, townListX, townY, townListW, townListH), AutoPresetsOnTownResolutionChange)
-gAutoPresetsCtrls["TownPreview"] := gAutoPresetsGui.Add("Picture", UiLayoutRect(gAutoPresetsLayout, townX, townY, townPvW, townPvH), "")
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, townX, townBtnY, (townPvW - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["CaptureTown"], AutoPresetsCaptureTownIcon, "secondary")
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, townX + (townPvW + 8) // 2, townBtnY, (townPvW - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["DeleteTown"], AutoPresetsDeleteTownIcon, "secondary")
+UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX + (contentR - marginX + 8) // 2, pickBtnY, (contentR - marginX - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["PickDungeonRegion"], (*) => PresetRegionPickOpen("dungeon"), "secondary")
+UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, DungeonListX, DungeonY - 24, DungeonListW, 20), AutoPresetsText["DungeonResolutionList"])
+UiListBox(gAutoPresetsCtrls, gAutoPresetsGui, "DungeonResolutionList", UiLayoutRect(gAutoPresetsLayout, DungeonListX, DungeonY, DungeonListW, DungeonListH), AutoPresetsOnDungeonResolutionChange)
+gAutoPresetsCtrls["DungeonPreview"] := gAutoPresetsGui.Add("Picture", UiLayoutRect(gAutoPresetsLayout, DungeonX, DungeonY, DungeonPvW, DungeonPvH), "")
+UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, DungeonX, DungeonBtnY, (DungeonPvW - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["CaptureDungeon"], AutoPresetsCaptureDungeonIcon, "secondary")
+UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, DungeonX + (DungeonPvW + 8) // 2, DungeonBtnY, (DungeonPvW - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["DeleteDungeon"], AutoPresetsDeleteDungeonIcon, "secondary")
 
 UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, lowerY, listW, 20), AutoPresetsText["PresetList"])
 UiListBox(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetPresetList", UiLayoutRect(gAutoPresetsLayout, marginX, listY, listW, listH), AutoPresetsOnPresetListChange)
-UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, skillListX, lowerY, skillListW, 20), AutoPresetsText["SkillIconList"])
+UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, skillListX, lowerY, contentR - skillListX, 20), AutoPresetsText["SkillIconList"])
 UiListBox(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetSkillIconList", UiLayoutRect(gAutoPresetsLayout, skillListX, listY, skillListW, listH), AutoPresetsOnSkillIconListChange)
 gAutoPresetsCtrls["AutoPresetSkillIconList"].OnEvent("DoubleClick", AutoPresetsRenameSkillIcon)
 OnMessage(0x0202, AutoPresetsSkillIconListOnLButtonUp)
-UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, rightX, lowerY, rightW, 20), AutoPresetsText["SkillReference"])
 UiEdit(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetSelectedName", UiLayoutRect(gAutoPresetsLayout, rightX, lowerY + 1, 1, 1, "+ReadOnly Hidden -E0x200"))
 gAutoPresetsCtrls["SkillPreview"] := gAutoPresetsGui.Add("Picture", UiLayoutRect(gAutoPresetsLayout, rightX, pvY, pvW, pvH), "")
 UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, rightX, rowActionY, (pvW - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["CaptureReference"], AutoPresetsUpdateSkillIcon, "secondary")
@@ -81,9 +78,9 @@ AutoPresetsLockSkillPreview(pic) {
     }
 }
 
-AutoPresetsLockTownPreview(pic) {
+AutoPresetsLockDungeonPreview(pic) {
     if IsObject(pic) {
-        pic.Move(AutoPresetsLayout.TownX(), AutoPresetsLayout.TownY(), AutoPresetsLayout.TownPreviewWidth(), AutoPresetsLayout.TownPreviewHeight())
+        pic.Move(AutoPresetsLayout.DungeonX(), AutoPresetsLayout.DungeonY(), AutoPresetsLayout.DungeonPreviewWidth(), AutoPresetsLayout.DungeonPreviewHeight())
     }
 }
 
@@ -126,19 +123,19 @@ AutoPresetsSelectSkillIconById(skillId) {
     AutoPresetsRefreshSkillPreview()
 }
 
-AutoPresetsTownPathToResolution(path) {
+AutoPresetsDungeonPathToResolution(path) {
     SplitPath(path, &fileName)
     return RegExReplace(fileName, "\.png$")
 }
 
-AutoPresetsSyncTownResolutionList(selectPath := "") {
-    global gAutoPresetsTownItems, gAutoPresetsSelectedTownPath
-    gAutoPresetsTownItems := AutoPresetsTownIconPaths()
+AutoPresetsSyncDungeonResolutionList(selectPath := "") {
+    global gAutoPresetsDungeonItems, gAutoPresetsSelectedDungeonPath
+    gAutoPresetsDungeonItems := AutoPresetsDungeonIconPaths()
     names := []
-    for path in gAutoPresetsTownItems {
-        names.Push(AutoPresetsTownPathToResolution(path))
+    for path in gAutoPresetsDungeonItems {
+        names.Push(AutoPresetsDungeonPathToResolution(path))
     }
-    listCtrl := AutoPresetsGetCtrl("TownResolutionList")
+    listCtrl := AutoPresetsGetCtrl("DungeonResolutionList")
     if !IsObject(listCtrl) {
         return
     }
@@ -146,8 +143,8 @@ AutoPresetsSyncTownResolutionList(selectPath := "") {
     pickPath := selectPath
     if (pickPath = "") {
         try {
-            curPath := AutoPresetsTownIconCurrentPath()
-            for path in gAutoPresetsTownItems {
+            curPath := AutoPresetsDungeonIconCurrentPath()
+            for path in gAutoPresetsDungeonItems {
                 if (path = curPath) {
                     pickPath := path
                     break
@@ -156,13 +153,13 @@ AutoPresetsSyncTownResolutionList(selectPath := "") {
         } catch {
         }
     }
-    if (pickPath = "" && gAutoPresetsTownItems.Length > 0) {
-        pickPath := gAutoPresetsTownItems[1]
+    if (pickPath = "" && gAutoPresetsDungeonItems.Length > 0) {
+        pickPath := gAutoPresetsDungeonItems[1]
     }
-    gAutoPresetsSelectedTownPath := pickPath
+    gAutoPresetsSelectedDungeonPath := pickPath
     idx := 0
-    loop gAutoPresetsTownItems.Length {
-        if (gAutoPresetsTownItems[A_Index] = pickPath) {
+    loop gAutoPresetsDungeonItems.Length {
+        if (gAutoPresetsDungeonItems[A_Index] = pickPath) {
             idx := A_Index
             break
         }
@@ -170,24 +167,24 @@ AutoPresetsSyncTownResolutionList(selectPath := "") {
     if (idx > 0) {
         listCtrl.Value := idx
     }
-    AutoPresetsRefreshTownPreview()
+    AutoPresetsRefreshDungeonPreview()
 }
 
-AutoPresetsOnTownResolutionChange(*) {
-    global gAutoPresetsTownItems, gAutoPresetsSelectedTownPath
-    listCtrl := AutoPresetsGetCtrl("TownResolutionList")
+AutoPresetsOnDungeonResolutionChange(*) {
+    global gAutoPresetsDungeonItems, gAutoPresetsSelectedDungeonPath
+    listCtrl := AutoPresetsGetCtrl("DungeonResolutionList")
     if !IsObject(listCtrl) {
-        gAutoPresetsSelectedTownPath := ""
-        AutoPresetsRefreshTownPreview()
+        gAutoPresetsSelectedDungeonPath := ""
+        AutoPresetsRefreshDungeonPreview()
         return
     }
     idx := listCtrl.Value
-    if (idx >= 1 && idx <= gAutoPresetsTownItems.Length) {
-        gAutoPresetsSelectedTownPath := gAutoPresetsTownItems[idx]
+    if (idx >= 1 && idx <= gAutoPresetsDungeonItems.Length) {
+        gAutoPresetsSelectedDungeonPath := gAutoPresetsDungeonItems[idx]
     } else {
-        gAutoPresetsSelectedTownPath := ""
+        gAutoPresetsSelectedDungeonPath := ""
     }
-    AutoPresetsRefreshTownPreview()
+    AutoPresetsRefreshDungeonPreview()
 }
 
 AutoPresetsSyncSkillIconList(selectSkillId := "") {
@@ -343,33 +340,33 @@ AutoPresetsRefreshSkillPreview() {
     }
 }
 
-AutoPresetsRefreshTownPreview() {
-    global gAutoPresetsSelectedTownPath
-    picT := AutoPresetsGetCtrl("TownPreview")
+AutoPresetsRefreshDungeonPreview() {
+    global gAutoPresetsSelectedDungeonPath
+    picT := AutoPresetsGetCtrl("DungeonPreview")
     if !IsObject(picT) {
         return
     }
     picT.Value := ""
-    AutoPresetsLockTownPreview(picT)
-    p := gAutoPresetsSelectedTownPath
+    AutoPresetsLockDungeonPreview(picT)
+    p := gAutoPresetsSelectedDungeonPath
     if (p = "") {
-        p := AutoPresetsTownIconPreviewPath()
+        p := AutoPresetsDungeonIconPreviewPath()
     }
     if (p != "" && FileExist(p)) {
-        tmp := A_Temp "\DAF_town_fit_preview.png"
-        if AutoPresetsSkillIcon_RenderFitPreviewToFile(p, AutoPresetsLayout.TownPreviewWidth(), AutoPresetsLayout.TownPreviewHeight(), tmp) && FileExist(tmp) {
+        tmp := A_Temp "\DAF_dungeon_fit_preview.png"
+        if AutoPresetsSkillIcon_RenderFitPreviewToFile(p, AutoPresetsLayout.DungeonPreviewWidth(), AutoPresetsLayout.DungeonPreviewHeight(), tmp) && FileExist(tmp) {
             picT.Value := tmp
         } else {
             picT.Value := p
         }
-        AutoPresetsLockTownPreview(picT)
+        AutoPresetsLockDungeonPreview(picT)
     }
 }
 
 AutoPresetsAfterRegionPick(kind) {
     global gAutoPresetsGui, gAutoPresetsSelectedSkillId
     if IsObject(gAutoPresetsGui) && WinExist("ahk_id " gAutoPresetsGui.Hwnd) {
-        AutoPresetsRefreshTownPreview()
+        AutoPresetsRefreshDungeonPreview()
         if (kind = "skill") {
             item := AutoPresetsResolveSelectedSkillItem()
             if IsObject(item) {
@@ -391,7 +388,7 @@ AutoPresetsLoadToGui() {
     AutoPresetsGetCtrl("AutoPresetHotkey").Text := hk
     AutoPresetsRefreshEnableCheckbox()
     AutoPresetsSyncSkillIconList()
-    AutoPresetsSyncTownResolutionList()
+    AutoPresetsSyncDungeonResolutionList()
 }
 
 AutoPresetsSyncEnableFromUi(*) {
@@ -492,25 +489,25 @@ AutoPresetsRenameSkillIcon(*) {
     AutoPresetsSyncSkillIconList(item["id"])
 }
 
-AutoPresetsCaptureTownIcon(*) {
+AutoPresetsCaptureDungeonIcon(*) {
     PresetRegionPickCommitIfOpen()
     try {
-        path := AutoPresetsTownIcon_UpdateCurrent()
-        AutoPresetsSyncTownResolutionList(path)
+        path := AutoPresetsDungeonIcon_UpdateCurrent()
+        AutoPresetsSyncDungeonResolutionList(path)
     } catch Error as e {
         MsgBox(e.Message,, "Icon!")
     }
 }
 
-AutoPresetsDeleteTownIcon(*) {
-    global gAutoPresetsSelectedTownPath
-    path := gAutoPresetsSelectedTownPath
+AutoPresetsDeleteDungeonIcon(*) {
+    global gAutoPresetsSelectedDungeonPath
+    path := gAutoPresetsSelectedDungeonPath
     if (path = "" || !FileExist(path)) {
         return
     }
     try FileDelete(path)
-    gAutoPresetsSelectedTownPath := ""
-    AutoPresetsSyncTownResolutionList()
+    gAutoPresetsSelectedDungeonPath := ""
+    AutoPresetsSyncDungeonResolutionList()
 }
 
 #Include ./AutoPresetsRegionPick.ahk

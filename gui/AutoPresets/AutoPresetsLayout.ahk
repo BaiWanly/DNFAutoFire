@@ -1,38 +1,47 @@
 #Requires AutoHotkey v2.0
 
 class AutoPresetsLayout {
+    ; 窗口与内容边界
     static Window() => UiContentLayout(16, 24)
     static MarginX() => 16
-    static WindowWidth() => 360
-    static ContentRight() => 344
+    static WindowWidth() => this.ContentRight() + 16
+
+    ; 下部配置列表、技能图列表与右侧技能预览列
     static ListWidth() => 80
-    static SkillIconListGap() => 8
+    static SkillIconListGap() => 4
     static SkillIconListX() => this.MarginX() + this.ListWidth() + this.SkillIconListGap()
     static SkillIconListWidth() => this.ListWidth()
-    static RightX() => 224
+    static RightGap() => 8
+    static RightX() => this.SkillIconListX() + this.SkillIconListWidth() + this.RightGap()
     static RightWidth() => 120
+    static ContentRight() => this.RightX() + this.RightWidth()
     static PreviewWidth() => 120
     static PreviewHeight() => 120
     static PreviewY() => this.ListY()
-    static TownListWidth() => 96
-    static TownPreviewGap() => 16
-    static TownX() => this.MarginX() + this.TownListWidth() + this.TownPreviewGap()
-    static TownPreviewWidth() => 120
-    static TownPreviewHeight() => 120
-    static TownListX() => this.MarginX()
-    static TownListY() => this.TownY()
-    static TownListHeight() => this.TownPreviewHeight()
+
+    ; 中部列表与预览
+    static DungeonListWidth() => 120
+    static DungeonPreviewGap() => 52
+    static DungeonX() => this.MarginX() + this.DungeonListWidth() + this.DungeonPreviewGap()
+    static DungeonPreviewWidth() => 120
+    static DungeonPreviewHeight() => 120
+    static DungeonListX() => this.MarginX()
+    static DungeonListY() => this.DungeonY()
+    static DungeonListHeight() => 160
     static RowActionY() => this.PreviewY() + this.PreviewHeight() + 12
+
+    ; 顶部启用开关、热键输入与框选按钮
     static EnableY() => 44
     static HotkeyY() => 78
     static PickBtnY() => this.HotkeyY() + ExLayout.ControlHeight() + 8
+
+    ; 中部、下部和保存区的纵向位置
     static MiddleY() => this.PickBtnY() + ExLayout.ControlHeight() + 16
-    static MiddleLabelY() => this.MiddleY()
-    static MiddlePreviewY() => this.MiddleY() + 30
-    static TownY() => this.MiddlePreviewY()
-    static TownBtnY() => this.TownY() + this.TownPreviewHeight() + 12
-    static LowerY() => this.TownBtnY() + ExLayout.ControlHeight() + 4
+    static MiddlePreviewY() => this.MiddleY() + 16
+    static DungeonY() => this.MiddlePreviewY()
+    static DungeonBtnY() => this.DungeonY() + this.DungeonPreviewHeight() + 12
+    static LowerY() => this.DungeonBtnY() + ExLayout.ControlHeight() + 4
     static ListY() => this.LowerY() + 24
-    static ListHeight() => 120
-    static SaveY() => this.ListY() + this.ListHeight() + 48
+    static ListHeight() => 160
+    static SaveY() => this.ListY() + this.ListHeight() + 8
 }

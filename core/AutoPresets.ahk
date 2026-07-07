@@ -1,13 +1,13 @@
 #Requires AutoHotkey v2.0
 
-; 自动识别配置：搜图匹配城镇与技能栏参考图后切换预设
+; 自动识别配置：搜图匹配地下城与技能栏参考图后切换预设
 
 class AutoPresets {
     static StartDelayMs := 500
     static RetryIntervalMs := 500
     static MaxRetryAttempts := 60
     static SkillImageVariation := 80
-    static TownImageVariation := 20
+    static DungeonImageVariation := 20
     static RegionCornerRadius := 12
     static RegionMaskRgb := "White"
     static SearchExpandRatio := 0.05
@@ -315,19 +315,19 @@ AutoPresets_OnPresetDeleted(presetName) {
     }
 }
 
-AutoPresetsTownIconDir() => AutoPresetsAssetDir() "\town"
+AutoPresetsDungeonIconDir() => AutoPresetsAssetDir() "\dungeon"
 
-AutoPresetsTownIconCurrentPath() {
+AutoPresetsDungeonIconCurrentPath() {
     resKey := AutoPresetsResolutionKey()
     if (resKey = "") {
-        throw Error("未找到 DNF 游戏窗口，无法按分辨率保存城镇识别图。")
+        throw Error("未找到 DNF 游戏窗口，无法按分辨率保存地下城识别图。")
     }
-    return AutoPresetsTownIconDir() "\" resKey ".png"
+    return AutoPresetsDungeonIconDir() "\" resKey ".png"
 }
 
-AutoPresetsTownIconPaths() {
+AutoPresetsDungeonIconPaths() {
     paths := []
-    dir := AutoPresetsTownIconDir()
+    dir := AutoPresetsDungeonIconDir()
     if !DirExist(dir) {
         return paths
     }
@@ -340,15 +340,15 @@ AutoPresetsTownIconPaths() {
     return paths
 }
 
-AutoPresetsTownIconPreviewPath() {
+AutoPresetsDungeonIconPreviewPath() {
     try {
-        p := AutoPresetsTownIconCurrentPath()
+        p := AutoPresetsDungeonIconCurrentPath()
         if FileExist(p) {
             return p
         }
     } catch {
     }
-    for p in AutoPresetsTownIconPaths() {
+    for p in AutoPresetsDungeonIconPaths() {
         return p
     }
     return ""
@@ -464,16 +464,16 @@ SaveAutoPresetRegionByKey(configKey, x, y, w, h) {
         Round(rx, 6) "|" Round(ry, 6) "|" Round(rw, 6) "|" Round(rh, 6))
 }
 
-ParseAutoPresetTownRegion() {
-    return ParseAutoPresetRegionByKey("AutoPresetTownRegion")
+ParseAutoPresetDungeonRegion() {
+    return ParseAutoPresetRegionByKey("AutoPresetDungeonRegion")
 }
 
-SaveAutoPresetTownRegion(x, y, w, h) {
-    SaveAutoPresetRegionByKey("AutoPresetTownRegion", x, y, w, h)
+SaveAutoPresetDungeonRegion(x, y, w, h) {
+    SaveAutoPresetRegionByKey("AutoPresetDungeonRegion", x, y, w, h)
 }
 
-AutoPresets_HasAnyTownPng() {
-    return AutoPresetsTownIconPaths().Length > 0
+AutoPresets_HasAnyDungeonPng() {
+    return AutoPresetsDungeonIconPaths().Length > 0
 }
 
 AutoPresets_GameActive() {
@@ -703,16 +703,16 @@ AutoPresetsSkillIcon_RenderFitPreviewToFile(srcPath, boxW, boxH, destPath) {
     return true
 }
 
-AutoPresetsTownIcon_UpdateCurrent() {
-    r := AutoPresets_ResolveRegion(ParseAutoPresetTownRegion())
-    path := AutoPresetsTownIconCurrentPath()
+AutoPresetsDungeonIcon_UpdateCurrent() {
+    r := AutoPresets_ResolveRegion(ParseAutoPresetDungeonRegion())
+    path := AutoPresetsDungeonIconCurrentPath()
     AutoPresetsCaptureRegionToPng(path, r["x"], r["y"], r["w"], r["h"])
     return path
 }
 
-AutoPresetsTownIconMatches() {
-    r := AutoPresets_ResolveRegion(ParseAutoPresetTownRegion(), true)
-    paths := AutoPresetsTownIconPaths()
+AutoPresetsDungeonIconMatches() {
+    r := AutoPresets_ResolveRegion(ParseAutoPresetDungeonRegion(), true)
+    paths := AutoPresetsDungeonIconPaths()
     if (paths.Length = 0) {
         return false
     }
@@ -720,7 +720,7 @@ AutoPresetsTownIconMatches() {
     y1 := r["y"]
     x2 := x1 + r["w"] - 1
     y2 := y1 + r["h"] - 1
-    variation := AutoPresets.TownImageVariation
+    variation := AutoPresets.DungeonImageVariation
     optPrefix := AutoPresets_ImageSearchPrefix(variation)
     prevPixel := CoordMode("Pixel", "Screen")
     try {
@@ -905,7 +905,7 @@ AutoPresets_RunAttempt(sessionId, sequenceId, attemptIdx) {
         AutoPresets_ScheduleNextAttempt(sessionId, sequenceId, attemptIdx)
         return
     }
-    if AutoPresets_HasAnyTownPng() && AutoPresetsTownIconMatches() {
+    if AutoPresets_HasAnyDungeonPng() && AutoPresetsDungeonIconMatches() {
         AutoPresets_ClearRetryTimer()
         return
     }
