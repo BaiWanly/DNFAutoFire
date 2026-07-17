@@ -128,6 +128,11 @@ AutoPresetsDungeonPathToResolution(path) {
     return RegExReplace(fileName, "\.png$")
 }
 
+AutoPresetsResolveSelectedResolution() {
+    global gAutoPresetsSelectedDungeonPath
+    return gAutoPresetsSelectedDungeonPath = "" ? "" : AutoPresetsDungeonPathToResolution(gAutoPresetsSelectedDungeonPath)
+}
+
 AutoPresetsSyncDungeonResolutionList(selectPath := "") {
     global gAutoPresetsDungeonItems, gAutoPresetsSelectedDungeonPath
     gAutoPresetsDungeonItems := AutoPresetsDungeonIconPaths()
@@ -168,6 +173,7 @@ AutoPresetsSyncDungeonResolutionList(selectPath := "") {
         listCtrl.Value := idx
     }
     AutoPresetsRefreshDungeonPreview()
+    AutoPresetsSyncSkillIconList()
 }
 
 AutoPresetsOnDungeonResolutionChange(*) {
@@ -176,6 +182,7 @@ AutoPresetsOnDungeonResolutionChange(*) {
     if !IsObject(listCtrl) {
         gAutoPresetsSelectedDungeonPath := ""
         AutoPresetsRefreshDungeonPreview()
+        AutoPresetsSyncSkillIconList()
         return
     }
     idx := listCtrl.Value
@@ -185,12 +192,14 @@ AutoPresetsOnDungeonResolutionChange(*) {
         gAutoPresetsSelectedDungeonPath := ""
     }
     AutoPresetsRefreshDungeonPreview()
+    AutoPresetsSyncSkillIconList()
 }
 
 AutoPresetsSyncSkillIconList(selectSkillId := "") {
     global gAutoPresetsSkillItems, gAutoPresetsSelectedSkillId
     presetName := AutoPresetsResolveSelectedPreset()
-    gAutoPresetsSkillItems := AutoPresetsSkillIcons_Load(presetName)
+    resolutionKey := AutoPresetsResolveSelectedResolution()
+    gAutoPresetsSkillItems := AutoPresetsSkillIcons_Load(presetName, resolutionKey)
     names := []
     for item in gAutoPresetsSkillItems {
         names.Push(item["name"])
@@ -370,7 +379,7 @@ AutoPresetsAfterRegionPick(kind) {
         if (kind = "skill") {
             item := AutoPresetsResolveSelectedSkillItem()
             if IsObject(item) {
-                AutoPresetsSkillIcon_UpdateForPreset(AutoPresetsResolveSelectedPreset(), item["id"])
+                AutoPresetsSkillIcon_UpdateForPreset(AutoPresetsResolveSelectedPreset(), item["id"], AutoPresetsResolveSelectedResolution())
             }
             AutoPresetsSyncSkillIconList(gAutoPresetsSelectedSkillId)
         }
@@ -387,7 +396,6 @@ AutoPresetsLoadToGui() {
     }
     AutoPresetsGetCtrl("AutoPresetHotkey").Text := hk
     AutoPresetsRefreshEnableCheckbox()
-    AutoPresetsSyncSkillIconList()
     AutoPresetsSyncDungeonResolutionList()
 }
 
@@ -452,7 +460,7 @@ AutoPresetsHelp(*) {
 AutoPresetsUpdateSkillIcon(*) {
     PresetRegionPickCommitIfOpen()
     try {
-        added := AutoPresetsSkillIcon_Add(AutoPresetsResolveSelectedPreset())
+        added := AutoPresetsSkillIcon_Add(AutoPresetsResolveSelectedPreset(), AutoPresetsResolveSelectedResolution())
         AutoPresetsSyncSkillIconList(added["id"])
     } catch Error as e {
         MsgBox(e.Message,, "Icon!")
@@ -465,7 +473,7 @@ AutoPresetsDeleteSkillIcon(*) {
     if (name = "" || !IsObject(item)) {
         return
     }
-    AutoPresetsSkillIcon_Delete(name, item["id"])
+    AutoPresetsSkillIcon_Delete(name, item["id"], AutoPresetsResolveSelectedResolution())
     AutoPresetsSyncSkillIconList()
 }
 
@@ -483,7 +491,7 @@ AutoPresetsRenameSkillIcon(*) {
     if (newName = "") {
         return
     }
-    if !AutoPresetsSkillIcon_Rename(name, item["id"], newName) {
+    if !AutoPresetsSkillIcon_Rename(name, item["id"], newName, AutoPresetsResolveSelectedResolution()) {
         return
     }
     AutoPresetsSyncSkillIconList(item["id"])

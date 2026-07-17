@@ -411,22 +411,27 @@ ShowTipDisplay() {
     marginY := 16
     tipH := 24
     tipW := ShowTipEstimateWidth(text)
-    title := FindDNFGameWindowTitle()
-    if title {
-        try {
-            WinGetClientPos(&cx, &cy, &cw, &ch, title)
-            tipX := cx + cw - tipW - marginX
-            tipY := cy + ch - tipH - marginY
-            if (tipX < cx)
-                tipX := cx + marginX
-            if (tipY < cy)
-                tipY := cy + marginY
-            ToolTip(text, tipX, tipY)
-        } catch {
+    prevToolTipCoordMode := CoordMode("ToolTip", "Screen")
+    try {
+        title := FindDNFGameWindowTitle()
+        if title {
+            try {
+                WinGetClientPos(&cx, &cy, &cw, &ch, title)
+                tipX := cx + cw - tipW - marginX
+                tipY := cy + ch - tipH - marginY
+                if (tipX < cx)
+                    tipX := cx + marginX
+                if (tipY < cy)
+                    tipY := cy + marginY
+                ToolTip(text, tipX, tipY)
+            } catch {
+                ToolTip(text)
+            }
+        } else {
             ToolTip(text)
         }
-    } else {
-        ToolTip(text)
+    } finally {
+        CoordMode("ToolTip", prevToolTipCoordMode)
     }
     SetTimer(CloseTip, -1000)
 }

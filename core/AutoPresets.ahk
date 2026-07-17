@@ -69,19 +69,33 @@ AutoPresetsResolutionKey(client := "") {
     return client["w"] "x" client["h"]
 }
 
-AutoPresetsSkillPresetDir(presetName) {
-    return AutoPresetsSkillIconDir() "\" AutoPresetsSkillIcon_SafeName(presetName)
-}
-
-AutoPresetsSkillIconPathForId(presetName, skillId) {
-    return AutoPresetsSkillPresetDir(presetName) "\" skillId ".png"
-}
-
-AutoPresetsSkillIcon_EnsureDir() {
-    dir := AutoPresetsSkillIconDir()
-    if !DirExist(dir) {
-        DirCreate(dir)
+AutoPresetsSkillResolutionKey(resolutionKey := false) {
+    if (Type(resolutionKey) = "Integer" && resolutionKey = false) {
+        key := AutoPresetsResolutionKey()
+    } else {
+        key := Trim(resolutionKey)
     }
+    return RegExMatch(key, "^\d+x\d+$") ? key : ""
+}
+
+AutoPresetsSkillResolutionDir(resolutionKey := false) {
+    key := AutoPresetsSkillResolutionKey(resolutionKey)
+    return key = "" ? "" : AutoPresetsSkillIconDir() "\" key
+}
+
+AutoPresetsSkillPresetDir(presetName, resolutionKey := false) {
+    resolutionDir := AutoPresetsSkillResolutionDir(resolutionKey)
+    return resolutionDir = "" ? "" : resolutionDir "\" AutoPresetsSkillIcon_SafeName(presetName)
+}
+
+AutoPresetsSkillIconPathForId(presetName, skillId, resolutionKey := false) {
+    dir := AutoPresetsSkillPresetDir(presetName, resolutionKey)
+    return dir = "" ? "" : dir "\" skillId ".png"
+}
+
+AutoPresetsSkillIconsConfigKey(resolutionKey := false) {
+    key := AutoPresetsSkillResolutionKey(resolutionKey)
+    return key = "" ? "" : "AutoPresetSkillIcons_" key
 }
 
 AutoPresetsSkillIcons_ParseStored(raw) {
@@ -160,14 +174,15 @@ AutoPresetsSkillIcons_SortItems(items) {
     return sorted
 }
 
-AutoPresetsSkillIcons_Load(presetName) {
+AutoPresetsSkillIcons_Load(presetName, resolutionKey := false) {
     name := Trim(presetName)
-    if (name = "") {
+    key := AutoPresetsSkillResolutionKey(resolutionKey)
+    if (name = "" || key = "") {
         return []
     }
-    nameMap := AutoPresetsSkillIcons_ParseStored(LoadPreset(name, "AutoPresetSkillIcons", ""))
+    nameMap := AutoPresetsSkillIcons_ParseStored(LoadPreset(name, AutoPresetsSkillIconsConfigKey(key), ""))
     items := []
-    dir := AutoPresetsSkillPresetDir(name)
+    dir := AutoPresetsSkillPresetDir(name, key)
     if !DirExist(dir) {
         return items
     }
@@ -183,17 +198,18 @@ AutoPresetsSkillIcons_Load(presetName) {
     return AutoPresetsSkillIcons_SortItems(items)
 }
 
-AutoPresetsSkillIcons_Save(presetName, items) {
+AutoPresetsSkillIcons_Save(presetName, items, resolutionKey := false) {
     name := Trim(presetName)
-    if (name = "") {
+    key := AutoPresetsSkillResolutionKey(resolutionKey)
+    if (name = "" || key = "") {
         return
     }
-    SavePreset(name, "AutoPresetSkillIcons", AutoPresetsSkillIcons_FormatStored(items))
+    SavePreset(name, AutoPresetsSkillIconsConfigKey(key), AutoPresetsSkillIcons_FormatStored(items))
 }
 
-AutoPresetsSkillIcons_NextId(presetName) {
+AutoPresetsSkillIcons_NextId(presetName, resolutionKey := false) {
     maxId := 0
-    for item in AutoPresetsSkillIcons_Load(presetName) {
+    for item in AutoPresetsSkillIcons_Load(presetName, resolutionKey) {
         try n := Integer(item["id"])
         catch {
             n := 0
@@ -205,9 +221,9 @@ AutoPresetsSkillIcons_NextId(presetName) {
     return String(maxId + 1)
 }
 
-AutoPresetsSkillIcons_NextDefaultName(presetName) {
+AutoPresetsSkillIcons_NextDefaultName(presetName, resolutionKey := false) {
     maxN := 0
-    for item in AutoPresetsSkillIcons_Load(presetName) {
+    for item in AutoPresetsSkillIcons_Load(presetName, resolutionKey) {
         try n := Integer(item["id"])
         catch {
             n := 0
@@ -225,52 +241,63 @@ AutoPresetsSkillIcons_NextDefaultName(presetName) {
     return "角色" (maxN + 1)
 }
 
-AutoPresetsSkillIcon_Add(presetName) {
+AutoPresetsSkillIcon_Add(presetName, resolutionKey := false) {
     name := Trim(presetName)
     if (name = "") {
         throw Error("当前没有选中的配置。")
     }
-    AutoPresetsSkillIcon_EnsureDir()
-    dir := AutoPresetsSkillPresetDir(name)
+    key := AutoPresetsSkillResolutionKey(resolutionKey)
+    if (key = "") {
+        throw Error("当前没有选中的分辨率。")
+    }
+    dir := AutoPresetsSkillPresetDir(name, key)
     if !DirExist(dir) {
         DirCreate(dir)
     }
-    skillId := AutoPresetsSkillIcons_NextId(name)
-    displayName := AutoPresetsSkillIcons_NextDefaultName(name)
-    path := AutoPresetsSkillIconPathForId(name, skillId)
+    skillId := AutoPresetsSkillIcons_NextId(name, key)
+    displayName := AutoPresetsSkillIcons_NextDefaultName(name, key)
+    path := AutoPresetsSkillIconPathForId(name, skillId, key)
     r := AutoPresets_ResolveRegion(ParseAutoPresetRegion())
     AutoPresetsCaptureRegionToPng(path, r["x"], r["y"], r["w"], r["h"])
-    AutoPresetsSkillIcons_Save(name, AutoPresetsSkillIcons_Load(name))
+    AutoPresetsSkillIcons_Save(name, AutoPresetsSkillIcons_Load(name, key), key)
     return Map("id", skillId, "name", displayName, "path", path)
 }
 
-AutoPresetsSkillIcon_Delete(presetName, skillId) {
+AutoPresetsSkillIcon_Delete(presetName, skillId, resolutionKey := false) {
     name := Trim(presetName)
     skillId := Trim(skillId)
     if (name = "" || skillId = "") {
         return
     }
-    path := AutoPresetsSkillIconPathForId(name, skillId)
+    key := AutoPresetsSkillResolutionKey(resolutionKey)
+    if (key = "") {
+        return
+    }
+    path := AutoPresetsSkillIconPathForId(name, skillId, key)
     if FileExist(path) {
         try FileDelete(path)
     }
     kept := []
-    for item in AutoPresetsSkillIcons_Load(name) {
+    for item in AutoPresetsSkillIcons_Load(name, key) {
         if (item["id"] != skillId) {
             kept.Push(item)
         }
     }
-    AutoPresetsSkillIcons_Save(name, kept)
+    AutoPresetsSkillIcons_Save(name, kept, key)
 }
 
-AutoPresetsSkillIcon_Rename(presetName, skillId, newName) {
+AutoPresetsSkillIcon_Rename(presetName, skillId, newName, resolutionKey := false) {
     name := Trim(presetName)
     skillId := Trim(skillId)
     newName := Trim(newName)
     if (name = "" || skillId = "" || newName = "") {
         return false
     }
-    items := AutoPresetsSkillIcons_Load(name)
+    key := AutoPresetsSkillResolutionKey(resolutionKey)
+    if (key = "") {
+        return false
+    }
+    items := AutoPresetsSkillIcons_Load(name, key)
     found := false
     for item in items {
         if (item["id"] = skillId) {
@@ -282,25 +309,33 @@ AutoPresetsSkillIcon_Rename(presetName, skillId, newName) {
     if !found {
         return false
     }
-    AutoPresetsSkillIcons_Save(name, items)
+    AutoPresetsSkillIcons_Save(name, items, key)
     return true
 }
 
-AutoPresetsSkillIcons_CopyDir(srcPreset, destPreset) {
-    srcDir := AutoPresetsSkillPresetDir(srcPreset)
-    destDir := AutoPresetsSkillPresetDir(destPreset)
-    if DirExist(destDir) {
-        try DirDelete(destDir, true)
+AutoPresetsSkillIcons_CopyDirs(srcPreset, destPreset) {
+    root := AutoPresetsSkillIconDir()
+    if !DirExist(root) {
+        return
     }
-    if DirExist(srcDir) {
-        AutoPresetsSkillIcon_EnsureDir()
-        try DirCopy(srcDir, destDir, true)
+    Loop Files root "\*", "D" {
+        resolutionKey := A_LoopFileName
+        if (AutoPresetsSkillResolutionKey(resolutionKey) != resolutionKey) {
+            continue
+        }
+        srcDir := AutoPresetsSkillPresetDir(srcPreset, resolutionKey)
+        destDir := AutoPresetsSkillPresetDir(destPreset, resolutionKey)
+        if DirExist(destDir) {
+            try DirDelete(destDir, true)
+        }
+        if DirExist(srcDir) {
+            try DirCopy(srcDir, destDir, true)
+        }
     }
 }
 
 AutoPresets_OnPresetCloned(oldName, newName) {
-    AutoPresetsSkillIcons_CopyDir(oldName, newName)
-    SavePreset(newName, "AutoPresetSkillIcons", LoadPreset(oldName, "AutoPresetSkillIcons", ""))
+    AutoPresetsSkillIcons_CopyDirs(oldName, newName)
 }
 
 AutoPresets_OnPresetRenamed(oldName, newName) {
@@ -309,9 +344,19 @@ AutoPresets_OnPresetRenamed(oldName, newName) {
 }
 
 AutoPresets_OnPresetDeleted(presetName) {
-    dir := AutoPresetsSkillPresetDir(presetName)
-    if DirExist(dir) {
-        try DirDelete(dir, true)
+    root := AutoPresetsSkillIconDir()
+    if !DirExist(root) {
+        return
+    }
+    Loop Files root "\*", "D" {
+        resolutionKey := A_LoopFileName
+        if (AutoPresetsSkillResolutionKey(resolutionKey) != resolutionKey) {
+            continue
+        }
+        dir := AutoPresetsSkillPresetDir(presetName, resolutionKey)
+        if DirExist(dir) {
+            try DirDelete(dir, true)
+        }
     }
 }
 
@@ -739,16 +784,19 @@ AutoPresetsDungeonIconMatches() {
     }
 }
 
-AutoPresetsSkillIcon_UpdateForPreset(presetName, skillId := "") {
+AutoPresetsSkillIcon_UpdateForPreset(presetName, skillId := "", resolutionKey := false) {
     name := Trim(presetName)
     if (name = "") {
         throw Error("当前没有选中的配置。")
     }
     skillId := Trim(skillId)
     if (skillId = "") {
-        return AutoPresetsSkillIcon_Add(name)
+        return AutoPresetsSkillIcon_Add(name, resolutionKey)
     }
-    path := AutoPresetsSkillIconPathForId(name, skillId)
+    path := AutoPresetsSkillIconPathForId(name, skillId, resolutionKey)
+    if (path = "") {
+        throw Error("当前没有选中的分辨率。")
+    }
     r := AutoPresets_ResolveRegion(ParseAutoPresetRegion())
     AutoPresetsCaptureRegionToPng(path, r["x"], r["y"], r["w"], r["h"])
     return path

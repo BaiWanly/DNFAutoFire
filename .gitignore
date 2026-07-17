@@ -1,14 +1,7 @@
 .vscode
 .idea
 .codex
+/.workbuddy
 
 /assets/preset-recognition/
 config.ini
-subprocess-error.log
-
-/原始更新日志.txt
-/任务达人.txt
-
-/DNFAutoFire-0.2.8/
-/任务达人.md
-/.workbuddy/
