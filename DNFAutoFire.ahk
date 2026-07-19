@@ -30,6 +30,7 @@ global __Version := APP_VERSION
 #Include <Keys>
 #Include <Time>
 #Include <GetPressKey>
+#Include ./core/GlobalPause.ahk
 #Include ./core/SendIP.ahk
 #Include ./core/KeyConvert.ahk
 #Include ./core/Config.ahk

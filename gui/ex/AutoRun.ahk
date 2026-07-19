@@ -23,10 +23,7 @@ UiPressKeyEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunRightKey", UiLayoutRect(gAuto
 UiLabel(gAutoRunGui, UiLayoutRect(gAutoRunLayout, ExLayout.MarginLeft(), 118, labelW, 26), exText["AutoRunDelay"])
 UiEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunDelay", UiLayoutRect(gAutoRunLayout, fieldX, 118, fieldW, ExLayout.ControlHeight(), "+Number -E0x200 Border"))
 
-UiLabel(gAutoRunGui, UiLayoutRect(gAutoRunLayout, ExLayout.MarginLeft(), 152, labelW, 26), exText["AutoRunPauseKey"])
-UiPressKeyEdit(gAutoRunCtrls, gAutoRunGui, "AutoRunPauseKey", UiLayoutRect(gAutoRunLayout, fieldX, 152, fieldW, ExLayout.ControlHeight()))
-
-autoRunSaveRects := UiExSplitButtonRects(gAutoRunLayout, ExLayout.MarginLeft(), 190, contentRight - ExLayout.MarginLeft(), 8, ExLayout.SaveButtonHeight())
+autoRunSaveRects := UiExSplitButtonRects(gAutoRunLayout, ExLayout.MarginLeft(), 158, contentRight - ExLayout.MarginLeft(), 8, ExLayout.SaveButtonHeight())
 UiPlainButton(gAutoRunGui, autoRunSaveRects[1], exText["CommonSaveToAll"], AutoRunSaveToAll, "secondary")
 UiPlainButton(gAutoRunGui, autoRunSaveRects[2], exText["CommonSave"], AutoRunSave, "primary")
 
@@ -74,8 +71,7 @@ AutoRunReadFields() {
     return Map(
         "AutoRunLeftKey", UiPressKeyEdit_Value(AutoRunGetCtrl("AutoRunLeftKey")),
         "AutoRunRightKey", UiPressKeyEdit_Value(AutoRunGetCtrl("AutoRunRightKey")),
-        "AutoRunDelay", delay,
-        "AutoRunPauseKey", Trim(UiPressKeyEdit_Value(AutoRunGetCtrl("AutoRunPauseKey")))
+        "AutoRunDelay", delay
     )
 }
 
@@ -83,7 +79,6 @@ AutoRunWritePreset(presetName, fields) {
     SavePreset(presetName, "AutoRunLeftKey", fields["AutoRunLeftKey"])
     SavePreset(presetName, "AutoRunRightKey", fields["AutoRunRightKey"])
     SavePreset(presetName, "AutoRunDelay", fields["AutoRunDelay"])
-    SavePreset(presetName, "AutoRunPauseKey", fields["AutoRunPauseKey"])
 }
 
 AutoRunSave(*) {
@@ -108,6 +103,5 @@ AutoRunLoadConfig() {
     }
     AutoRunGetCtrl("AutoRunLeftKey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunLeftKey", "Left")
     AutoRunGetCtrl("AutoRunRightKey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunRightKey", "Right")
-    AutoRunGetCtrl("AutoRunPauseKey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunPauseKey", "")
     AutoRunGetCtrl("AutoRunDelay").Text := delay
 }

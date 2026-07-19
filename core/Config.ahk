@@ -267,6 +267,7 @@ _CreateDefaultConfigIni() {
     SaveConfig("SettingBlockWin", false)
     SaveConfig("SettingSubprocessErrorLog", false)
     SaveConfig("SettingCloseToTray", false)
+    SaveConfig("SettingGlobalPauseHotkey", "F11")
     SaveLastPreset(DEFAULT_PRESET_NAME)
     CreateBlankPreset(DEFAULT_PRESET_NAME)
 }
@@ -357,7 +358,6 @@ CreateBlankPreset(presetName) {
     SavePreset(presetName, "AutoRunLeftKey", "Left")
     SavePreset(presetName, "AutoRunRightKey", "Right")
     SavePreset(presetName, "AutoRunDelay", 30)
-    SavePreset(presetName, "AutoRunPauseKey", "")
     SavePreset(presetName, "AutoFireKeyIntervals", "")
     SavePreset(presetName, "AutoFireKeyDelays", "")
 }

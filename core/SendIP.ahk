@@ -1,4 +1,7 @@
 SendIP(keyCode, keyDelayMs := 8){
+    if GlobalPause_IsPaused() {
+        return
+    }
     keyDelayMs := Round(keyDelayMs + 0)
     if (keyDelayMs < 0) {
         keyDelayMs := 0

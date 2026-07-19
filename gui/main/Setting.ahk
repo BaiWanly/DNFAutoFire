@@ -15,6 +15,8 @@ gSettingCtrls["SettingOnSystemStart"] := gSettingGui.Add("CheckBox", "vSettingOn
 gSettingCtrls["SettingBlockWin"] := gSettingGui.Add("CheckBox", "vSettingBlockWin x16 y76 h20", MainText["SettingBlockWin"])
 gSettingCtrls["SettingSubprocessErrorLog"] := gSettingGui.Add("CheckBox", "vSettingSubprocessErrorLog x16 y98 h20", MainText["SettingSubprocessErrorLog"])
 gSettingCtrls["SettingCloseToTray"] := gSettingGui.Add("CheckBox", "vSettingCloseToTray x16 y120 h20", MainText["SettingCloseToTray"])
+gSettingGui.Add("Text", "x16 y150 w120 h22 +0x200", MainText["SettingGlobalPauseHotkey"])
+gSettingCtrls["SettingGlobalPauseHotkey"] := gSettingGui.Add("Hotkey", "vSettingGlobalPauseHotkey x142 y150 w120 h22")
 gSettingGui.Add("Button", "x310 y250 w80 h40", MainText["Save"]).OnEvent("Click", SettingSave)
 gSettingCtrls["Tab"].UseTab(MainText["SettingTabHelp"])
 gSettingGui.Add("Text", "x16 y32 w368 h268", MainText["SettingHelp"])
@@ -58,24 +60,28 @@ HideGuiSetting() {
 }
 
 SettingSave(*) {
-    global _OnSystemStart, _BlockWin, _CloseToTray
+    global _OnSystemStart, _BlockWin, _CloseToTray, _GlobalPauseHotkey
     settingAutoStart := SettingGetCtrl("SettingAutoStart").Value
     settingOnSystemStart := SettingGetCtrl("SettingOnSystemStart").Value
     settingBlockWin := SettingGetCtrl("SettingBlockWin").Value
     settingSubprocessErrorLog := SettingGetCtrl("SettingSubprocessErrorLog").Value
     settingCloseToTray := SettingGetCtrl("SettingCloseToTray").Value
+    settingGlobalPauseHotkey := SettingGetCtrl("SettingGlobalPauseHotkey").Value
 
     SaveConfig("SettingAutoStart", settingAutoStart)
     SaveConfig("SettingOnSystemStart", settingOnSystemStart)
     SaveConfig("SettingBlockWin", settingBlockWin)
     SaveConfig("SettingSubprocessErrorLog", settingSubprocessErrorLog)
     SaveConfig("SettingCloseToTray", settingCloseToTray)
+    SaveConfig("SettingGlobalPauseHotkey", settingGlobalPauseHotkey)
 
     _OnSystemStart := settingOnSystemStart
     _BlockWin := settingBlockWin
     _CloseToTray := settingCloseToTray
+    _GlobalPauseHotkey := settingGlobalPauseHotkey
 
     SettingNow()
+    GlobalPause_RegisterHotkey(_GlobalPauseHotkey)
     HideGuiSetting()
 }
 
@@ -85,6 +91,7 @@ SettingLoad() {
     SettingGetCtrl("SettingBlockWin").Value := LoadConfig("SettingBlockWin", false)
     SettingGetCtrl("SettingSubprocessErrorLog").Value := LoadConfig("SettingSubprocessErrorLog", false)
     SettingGetCtrl("SettingCloseToTray").Value := LoadConfig("SettingCloseToTray", false)
+    SettingGetCtrl("SettingGlobalPauseHotkey").Value := LoadConfig("SettingGlobalPauseHotkey", "F11")
 }
 
 SettingNow() {
@@ -105,12 +112,39 @@ SettingNow() {
 BlockWin(*) {
 }
 
+GlobalPause_RegisterHotkey(hotkeyName) {
+    global __GlobalPauseHotkeyId
+    try {
+        HotIfWinActive("ahk_group DNF")
+        if (__GlobalPauseHotkeyId != "") {
+            try Hotkey(__GlobalPauseHotkeyId, "Off")
+        }
+        __GlobalPauseHotkeyId := ""
+        hotkeyName := Trim(hotkeyName)
+        if (hotkeyName != "") {
+            __GlobalPauseHotkeyId := "~$" hotkeyName
+            Hotkey(__GlobalPauseHotkeyId, GlobalPause_OnHotkey, "On")
+        }
+        HotIf()
+    } catch {
+        try HotIf()
+    }
+}
+
+GlobalPause_OnHotkey(*) {
+    paused := GlobalPause_Toggle()
+    ShowTip(MainText[paused ? "GlobalPauseOn" : "GlobalPauseOff"])
+}
+
 global _AutoStart := LoadConfig("SettingAutoStart", false)
 global _OnSystemStart := LoadConfig("SettingOnSystemStart", false)
 global _BlockWin := LoadConfig("SettingBlockWin", false)
 global _CloseToTray := LoadConfig("SettingCloseToTray", false)
+global _GlobalPauseHotkey := LoadConfig("SettingGlobalPauseHotkey", "F11")
+global __GlobalPauseHotkeyId := ""
 
 if (_BlockWin) {
     Hotkey("$*LWin", BlockWin, "On")
     Hotkey("$*RWin", BlockWin, "On")
 }
+GlobalPause_RegisterHotkey(_GlobalPauseHotkey)

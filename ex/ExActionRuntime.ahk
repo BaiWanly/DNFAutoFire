@@ -89,11 +89,19 @@ class ExActionRuntime {
         }
         for scID, blockOriginal in hotkeys {
             ctx.actionHotkeyIds.Push(scID)
-            prefix := blockOriginal ? "$" : "~$"
-            HotIfWinActive("ahk_group DNF")
-            Hotkey(prefix scID, ObjBindMethod(ExActionRuntime, "ActionDownByScID", scID), "On")
-            Hotkey(prefix scID " up", ObjBindMethod(ExActionRuntime, "ActionUpByScID", scID), "On")
-            HotIf()
+            if blockOriginal {
+                HotIf(ExAction_BlockHotkeyActive)
+                Hotkey("$" scID, ObjBindMethod(ExActionRuntime, "ActionDownByScID", scID), "On")
+                HotIf()
+                HotIfWinActive("ahk_group DNF")
+                Hotkey("~$" scID " up", ObjBindMethod(ExActionRuntime, "ActionUpByScID", scID), "On")
+                HotIf()
+            } else {
+                HotIfWinActive("ahk_group DNF")
+                Hotkey("~$" scID, ObjBindMethod(ExActionRuntime, "ActionDownByScID", scID), "On")
+                Hotkey("~$" scID " up", ObjBindMethod(ExActionRuntime, "ActionUpByScID", scID), "On")
+                HotIf()
+            }
         }
     }
 
@@ -115,9 +123,10 @@ class ExActionRuntime {
         this._ComboClearPendingTimer()
         for scID in ctx.actionHotkeyIds {
             try {
-                HotIfWinActive("ahk_group DNF")
+                HotIf(ExAction_BlockHotkeyActive)
                 try Hotkey("$" scID, "Off")
-                try Hotkey("$" scID " up", "Off")
+                HotIf()
+                HotIfWinActive("ahk_group DNF")
                 try Hotkey("~$" scID, "Off")
                 try Hotkey("~$" scID " up", "Off")
                 HotIf()
@@ -561,13 +570,13 @@ class ExActionRuntime {
         try SetTimer(ar.leftTickFn, 0)
     }
 
-    static _AutoRunPauseHeld(ar) {
-        return ar.pauseKey != "" && GetKeyState(Key2PressKey(GetOriginKeyName(ar.pauseKey)), "P")
+    static _AutoRunPaused() {
+        return GlobalPause_IsPaused()
     }
 
     static AutoRunRightDown(*) {
         ar := this._ctx.autoRun
-        if this._AutoRunPauseHeld(ar) {
+        if this._AutoRunPaused() {
             return
         }
         if !ar.pressingRight {
@@ -587,7 +596,7 @@ class ExActionRuntime {
 
     static AutoRunRightTick(*) {
         ar := this._ctx.autoRun
-        if this._AutoRunPauseHeld(ar) {
+        if this._AutoRunPaused() {
             return
         }
         ar.rightCounter++
@@ -602,7 +611,7 @@ class ExActionRuntime {
 
     static AutoRunLeftDown(*) {
         ar := this._ctx.autoRun
-        if this._AutoRunPauseHeld(ar) {
+        if this._AutoRunPaused() {
             return
         }
         if !ar.pressingLeft {
@@ -622,7 +631,7 @@ class ExActionRuntime {
 
     static AutoRunLeftTick(*) {
         ar := this._ctx.autoRun
-        if this._AutoRunPauseHeld(ar) {
+        if this._AutoRunPaused() {
             return
         }
         ar.leftCounter++
@@ -691,6 +700,10 @@ ExAction_MarkHotkey(hotkeys, scID, blockOriginal) {
         return
     }
     hotkeys[scID] := (hotkeys.Has(scID) && hotkeys[scID]) || blockOriginal
+}
+
+ExAction_BlockHotkeyActive(*) {
+    return WinActive("ahk_group DNF") && !GlobalPause_IsPaused()
 }
 
 ExAction_BuildRules(presetName) {
@@ -949,14 +962,9 @@ ExAction_BuildAutoRun(presetName) {
         rightKey := "Right"
     }
     tickMs := ExAction_Clamp(LoadPreset(presetName, "AutoRunDelay", 30), 1, 400)
-    pauseKey := Trim(LoadPreset(presetName, "AutoRunPauseKey", ""))
-    if (pauseKey = leftKey || pauseKey = rightKey) {
-        pauseKey := ""
-    }
     ar := {
         leftKey: leftKey,
         rightKey: rightKey,
-        pauseKey: pauseKey,
         tickMs: tickMs,
         rightPulseSend: "{" rightKey " Down}{" rightKey " Up}{" rightKey " Down}",
         rightUpSend: "{" rightKey " Up}",

@@ -134,6 +134,7 @@ SetTrayRunningIcon(state){
 StartAutoFire(){
     global _AutoFireEnableKeys
     global _AutoFireThreads
+    GlobalPause_SetPaused(false)
     AutoFireThreads_StopAll()
     _AutoFireThreads := []
     nowSelectPreset := ResolvePresetName()
@@ -183,6 +184,7 @@ StopAutoFire(){
     try AutoPresets_OnSessionStopped()
     AutoFireThreads_StopAll()
     _AutoFireThreads := []
+    GlobalPause_SetPaused(false)
     SetTrayRunningIcon(false)
 }
 
