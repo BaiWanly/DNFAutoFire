@@ -536,6 +536,9 @@ class ExActionRuntime {
         Hotkey("~" ar.rightKey " Up", ObjBindMethod(ExActionRuntime, "AutoRunRightUp"), "On")
         Hotkey("~" ar.leftKey, ObjBindMethod(ExActionRuntime, "AutoRunLeftDown"), "On")
         Hotkey("~" ar.leftKey " Up", ObjBindMethod(ExActionRuntime, "AutoRunLeftUp"), "On")
+        if (ar.pauseHotkey != "") {
+            Hotkey("~$" ar.pauseHotkey, ObjBindMethod(ExActionRuntime, "AutoRunTogglePause"), "On")
+        }
         HotIf()
     }
 
@@ -553,6 +556,9 @@ class ExActionRuntime {
             try Hotkey("~" ar.rightKey " Up", "Off")
             try Hotkey("~" ar.leftKey, "Off")
             try Hotkey("~" ar.leftKey " Up", "Off")
+            if (ar.pauseHotkey != "") {
+                try Hotkey("~$" ar.pauseHotkey, "Off")
+            }
             HotIf()
         } catch {
             try HotIf()
@@ -571,7 +577,13 @@ class ExActionRuntime {
     }
 
     static _AutoRunPaused() {
-        return GlobalPause_IsPaused()
+        ar := this._ctx.autoRun
+        return ar.paused || GlobalPause_IsPaused()
+    }
+
+    static AutoRunTogglePause(*) {
+        ar := this._ctx.autoRun
+        ar.paused := !ar.paused
     }
 
     static AutoRunRightDown(*) {
@@ -962,9 +974,13 @@ ExAction_BuildAutoRun(presetName) {
         rightKey := "Right"
     }
     tickMs := ExAction_Clamp(LoadPreset(presetName, "AutoRunDelay", 30), 1, 400)
+    pauseHotkeyName := Trim(LoadPreset(presetName, "AutoRunPauseHotkey", ""))
+    pauseHotkey := pauseHotkeyName = "" ? "" : Key2PressKey(GetOriginKeyName(pauseHotkeyName))
     ar := {
         leftKey: leftKey,
         rightKey: rightKey,
+        pauseHotkey: pauseHotkey,
+        paused: false,
         tickMs: tickMs,
         rightPulseSend: "{" rightKey " Down}{" rightKey " Up}{" rightKey " Down}",
         rightUpSend: "{" rightKey " Up}",

@@ -358,6 +358,7 @@ CreateBlankPreset(presetName) {
     SavePreset(presetName, "AutoRunLeftKey", "Left")
     SavePreset(presetName, "AutoRunRightKey", "Right")
     SavePreset(presetName, "AutoRunDelay", 30)
+    SavePreset(presetName, "AutoRunPauseHotkey", "")
     SavePreset(presetName, "AutoFireKeyIntervals", "")
     SavePreset(presetName, "AutoFireKeyDelays", "")
 }

@@ -47,8 +47,8 @@ gAutoPresetsCtrls["AutoPresetsEnableVisible"].OnEvent("Click", AutoPresetsSyncEn
 UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, apHotkeyY, 140, 20), AutoPresetsText["ExtraHotkey"])
 UiPressKeyEdit(gAutoPresetsCtrls, gAutoPresetsGui, "AutoPresetHotkey", UiLayoutRect(gAutoPresetsLayout, 144, apHotkeyY, contentR - 144, ExLayout.ControlHeight()))
 
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, pickBtnY, (contentR - marginX - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["PickSkillRegion"], (*) => PresetRegionPickOpen("skill"), "secondary")
-UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX + (contentR - marginX + 8) // 2, pickBtnY, (contentR - marginX - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["PickDungeonRegion"], (*) => PresetRegionPickOpen("dungeon"), "secondary")
+UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX, pickBtnY, (contentR - marginX - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["PickSkillRegion"], AutoPresetsPickRegion.Bind("skill"), "secondary")
+UiPlainButton(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, marginX + (contentR - marginX + 8) // 2, pickBtnY, (contentR - marginX - 8) // 2, ExLayout.ControlHeight()), AutoPresetsText["PickDungeonRegion"], AutoPresetsPickRegion.Bind("dungeon"), "secondary")
 UiLabel(gAutoPresetsGui, UiLayoutRect(gAutoPresetsLayout, DungeonListX, DungeonY - 24, DungeonListW, 20), AutoPresetsText["DungeonResolutionList"])
 UiListBox(gAutoPresetsCtrls, gAutoPresetsGui, "DungeonResolutionList", UiLayoutRect(gAutoPresetsLayout, DungeonListX, DungeonY, DungeonListW, DungeonListH), AutoPresetsOnDungeonResolutionChange)
 gAutoPresetsCtrls["DungeonPreview"] := gAutoPresetsGui.Add("Picture", UiLayoutRect(gAutoPresetsLayout, DungeonX, DungeonY, DungeonPvW, DungeonPvH), "")
@@ -70,6 +70,39 @@ UiPlainButton(gAutoPresetsGui, UiExSaveButtonRect(gAutoPresetsLayout, saveY, con
 AutoPresetsGetCtrl(name) {
     global gAutoPresetsCtrls
     return gAutoPresetsCtrls.Has(name) ? gAutoPresetsCtrls[name] : ""
+}
+
+AutoPresetsPickRegion(kind, *) {
+    global gAutoPresetsDungeonItems
+    if (gAutoPresetsDungeonItems.Length > 0 && !AutoPresetsConfirmResetRegion()) {
+        return
+    }
+    PresetRegionPickOpen(kind)
+}
+
+AutoPresetsConfirmResetRegion() {
+    global gAutoPresetsGui, UiTheme
+    result := {confirmed: false}
+    options := "+AlwaysOnTop -MinimizeBox -MaximizeBox"
+    if IsObject(gAutoPresetsGui) {
+        options .= " +Owner" gAutoPresetsGui.Hwnd
+    }
+    dlg := Gui(options, AutoPresetsText["ResetRegionConfirmTitle"])
+    UiApplyWindow(dlg)
+    UiSetDefaultFont(dlg, "s10 " UiTheme["TextColor"])
+    dlg.Add("Text", "x16 y16 w368", AutoPresetsText["ResetRegionConfirm"])
+    UiPlainButton(dlg, "x16 y+16 w176 h28 Default", AutoPresetsText["ResetRegionConfirmAction"], AutoPresetsConfirmResetRegionAccept.Bind(dlg, result), "primary")
+    UiPlainButton(dlg, "x+16 yp w176 h28", AutoPresetsText["Cancel"], (*) => dlg.Destroy(), "secondary")
+    dlg.OnEvent("Close", (*) => dlg.Destroy())
+    dlg.OnEvent("Escape", (*) => dlg.Destroy())
+    dlg.Show("AutoSize Center")
+    WinWaitClose("ahk_id " dlg.Hwnd)
+    return result.confirmed
+}
+
+AutoPresetsConfirmResetRegionAccept(dlg, result, *) {
+    result.confirmed := true
+    dlg.Destroy()
 }
 
 AutoPresetsLockSkillPreview(pic) {
@@ -514,6 +547,8 @@ AutoPresetsDeleteDungeonIcon(*) {
         return
     }
     try FileDelete(path)
+    resolutionKey := AutoPresetsDungeonPathToResolution(path)
+    try DirDelete(AutoPresetsSkillResolutionDir(resolutionKey), true)
     gAutoPresetsSelectedDungeonPath := ""
     AutoPresetsSyncDungeonResolutionList()
 }
