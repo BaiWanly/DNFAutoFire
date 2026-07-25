@@ -30,11 +30,6 @@ class ExActionRuntime {
             actionHeldScIDs: Map(),
             guanYuProfiles: guanYuProfiles,
             comboProfiles: comboProfiles,
-            runningComboIdx: 0,
-            comboQueue: [],
-            comboQueuePos: 0,
-            comboAbortRequested: false,
-            comboPendingTimer: "",
             autoRun: autoRun,
             wasActive: WinActive("ahk_group DNF") != 0
         }
@@ -120,7 +115,7 @@ class ExActionRuntime {
             profile.pending := false
             profile.isHeld := false
         }
-        this._ComboClearPendingTimer()
+        this.ComboStopAll()
         for scID in ctx.actionHotkeyIds {
             try {
                 HotIf(ExAction_BlockHotkeyActive)
@@ -136,10 +131,6 @@ class ExActionRuntime {
         }
         ctx.actionHeldScIDs := Map()
         ctx.actionHotkeyIds := []
-        ctx.runningComboIdx := 0
-        ctx.comboQueue := []
-        ctx.comboQueuePos := 0
-        ctx.comboAbortRequested := false
     }
 
     static ActionDownByScID(scID, *) {
@@ -330,7 +321,6 @@ class ExActionRuntime {
         if !IsObject(ctx) {
             return
         }
-        profileIdxs := []
         loop ctx.comboProfiles.Length {
             if ctx.comboProfiles.Has(A_Index) && ctx.comboProfiles[A_Index].scID = scID {
                 profile := ctx.comboProfiles[A_Index]
@@ -338,14 +328,8 @@ class ExActionRuntime {
                     continue
                 }
                 profile.isHeld := true
-                profileIdxs.Push(A_Index)
+                this.ComboStart(A_Index)
             }
-        }
-        if (profileIdxs.Length > 0) {
-            if (ctx.runningComboIdx != 0) {
-                this._ComboInterruptForRestart()
-            }
-            this._ComboStartQueue(profileIdxs)
         }
     }
 
@@ -368,95 +352,75 @@ class ExActionRuntime {
         }
         profile := ctx.comboProfiles[profileIdx]
         profile.isHeld := false
-        if (ctx.runningComboIdx = profileIdx && profile.breakOnRelease) {
-            this._ComboAbortSequence()
+        if profile.loop {
+            this.ComboStop(profileIdx)
         }
     }
 
-    static _ComboStartQueue(profileIdxs) {
+    static ComboStart(profileIdx) {
         ctx := this._ctx
-        if !IsObject(ctx) || ctx.runningComboIdx != 0 {
+        if !IsObject(ctx) || profileIdx < 1 || profileIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(profileIdx) {
             return
         }
         if !WinActive("ahk_group DNF") {
             return
         }
-        ctx.comboQueue := profileIdxs
-        ctx.comboQueuePos := 0
-        this._ComboStartNextQueuedProfile(true)
+        this.ComboStop(profileIdx)
+        profile := ctx.comboProfiles[profileIdx]
+        profile.running := true
+        this.ComboSchedule(profileIdx, 1, 1, profile.runId)
     }
 
-    static _ComboStartNextQueuedProfile(requireHeld) {
+    static ComboClearPendingTimer(profileIdx) {
         ctx := this._ctx
-        while (ctx.comboQueuePos < ctx.comboQueue.Length) {
-            ctx.comboQueuePos++
-            profileIdx := ctx.comboQueue[ctx.comboQueuePos]
-            if (profileIdx < 1 || profileIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(profileIdx)) {
-                continue
-            }
-            profile := ctx.comboProfiles[profileIdx]
-            if (requireHeld && !profile.isHeld) {
-                continue
-            }
-            if (profile.loop && !profile.isHeld) {
-                continue
-            }
-            ctx.runningComboIdx := profileIdx
-            ctx.comboAbortRequested := false
-            this._ComboSendSkillAt(1)
-            return true
-        }
-        this._ComboFinish()
-        return false
-    }
-
-    static _ComboClearPendingTimer() {
-        ctx := this._ctx
-        if !IsObject(ctx) {
+        if !IsObject(ctx) || profileIdx < 1 || profileIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(profileIdx) {
             return
         }
-        if (ctx.comboPendingTimer != "") {
-            try SetTimer(ctx.comboPendingTimer, 0)
-            ctx.comboPendingTimer := ""
+        profile := ctx.comboProfiles[profileIdx]
+        if (profile.pendingTimer != "") {
+            try SetTimer(profile.pendingTimer, 0)
+            profile.pendingTimer := ""
         }
     }
 
-    static _ComboSchedule(fn, delayMs) {
+    static ComboSchedule(profileIdx, skillIdx, delayMs, runId) {
         ctx := this._ctx
-        this._ComboClearPendingTimer()
-        ctx.comboPendingTimer := fn
+        if !this.ComboIsRunning(profileIdx, runId) {
+            return
+        }
+        this.ComboClearPendingTimer(profileIdx)
+        profile := ctx.comboProfiles[profileIdx]
+        fn := ObjBindMethod(ExActionRuntime, "ComboSendSkillAt", profileIdx, skillIdx, runId)
+        profile.pendingTimer := fn
         SetTimer(fn, -delayMs)
     }
 
-    static _ComboShouldAbort() {
+    static ComboIsRunning(profileIdx, runId) {
         ctx := this._ctx
-        if !IsObject(ctx) || ctx.comboAbortRequested || !WinActive("ahk_group DNF") {
-            return true
+        if !IsObject(ctx) || profileIdx < 1 || profileIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(profileIdx) {
+            return false
         }
-        if (ctx.runningComboIdx = 0 || ctx.runningComboIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(ctx.runningComboIdx)) {
-            return true
+        profile := ctx.comboProfiles[profileIdx]
+        if !profile.running || profile.runId != runId || !WinActive("ahk_group DNF") {
+            return false
         }
-        profile := ctx.comboProfiles[ctx.runningComboIdx]
-        if (profile.breakOnRelease && !profile.isHeld) {
-            return true
-        }
-        return false
+        return !profile.loop || profile.isHeld
     }
 
-    static _ComboSendSkillAt(idx, *) {
+    static ComboSendSkillAt(profileIdx, idx, runId, *) {
         ctx := this._ctx
-        if this._ComboShouldAbort() {
-            this._ComboFinish()
+        if !this.ComboIsRunning(profileIdx, runId) {
+            this.ComboStopRun(profileIdx, runId)
             return
         }
-        profile := ctx.comboProfiles[ctx.runningComboIdx]
+        profile := ctx.comboProfiles[profileIdx]
         if (idx > profile.skills.Length || !profile.skills.Has(idx)) {
-            this._ComboChainComplete()
+            this.ComboChainComplete(profileIdx, runId)
             return
         }
         item := profile.skills[idx]
         if !IsObject(item) {
-            this._ComboSendSkillAt(idx + 1)
+            this.ComboSendSkillAt(profileIdx, idx + 1, runId)
             return
         }
         if (item.sendToken != "") {
@@ -464,65 +428,62 @@ class ExActionRuntime {
         }
         delay := item.delay + 0
         if (delay <= 0) {
-            this._ComboSendSkillAt(idx + 1)
+            this.ComboSendSkillAt(profileIdx, idx + 1, runId)
             return
         }
-        this._ComboSchedule(ObjBindMethod(ExActionRuntime, "_ComboSendSkillAt", idx + 1), delay)
+        this.ComboSchedule(profileIdx, idx + 1, delay, runId)
     }
 
-    static _ComboChainComplete(*) {
+    static ComboChainComplete(profileIdx, runId, *) {
         ctx := this._ctx
-        if this._ComboShouldAbort() {
-            this._ComboFinish()
+        if !this.ComboIsRunning(profileIdx, runId) {
+            this.ComboStopRun(profileIdx, runId)
             return
         }
-        profile := ctx.comboProfiles[ctx.runningComboIdx]
+        profile := ctx.comboProfiles[profileIdx]
         if (profile.loop && profile.isHeld) {
             if (profile.mainIntervalMs > 0) {
-                this._ComboSchedule(ObjBindMethod(ExActionRuntime, "_ComboSendSkillAt", 1), profile.mainIntervalMs)
+                this.ComboSchedule(profileIdx, 1, profile.mainIntervalMs, runId)
             } else {
-                this._ComboSendSkillAt(1)
+                this.ComboSendSkillAt(profileIdx, 1, runId)
             }
             return
         }
-        ctx.runningComboIdx := 0
-        if this._ComboStartNextQueuedProfile(false) {
+        this.ComboStopRun(profileIdx, runId)
+    }
+
+    static ComboStopRun(profileIdx, runId) {
+        ctx := this._ctx
+        if !IsObject(ctx) || profileIdx < 1 || profileIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(profileIdx) {
             return
+        }
+        if (ctx.comboProfiles[profileIdx].runId = runId) {
+            this.ComboStop(profileIdx)
         }
     }
 
-    static _ComboAbortSequence() {
+    static ComboStop(profileIdx) {
+        ctx := this._ctx
+        if !IsObject(ctx) || profileIdx < 1 || profileIdx > ctx.comboProfiles.Length || !ctx.comboProfiles.Has(profileIdx) {
+            return
+        }
+        profile := ctx.comboProfiles[profileIdx]
+        this.ComboClearPendingTimer(profileIdx)
+        profile.running := false
+        profile.runId += 1
+    }
+
+    static ComboStopAll() {
         ctx := this._ctx
         if !IsObject(ctx) {
             return
         }
-        ctx.comboAbortRequested := true
-        this._ComboClearPendingTimer()
-        this._ComboFinish()
-    }
-
-    static _ComboInterruptForRestart() {
-        ctx := this._ctx
-        if !IsObject(ctx) {
-            return
+        loop ctx.comboProfiles.Length {
+            if ctx.comboProfiles.Has(A_Index) {
+                ctx.comboProfiles[A_Index].isHeld := false
+                this.ComboStop(A_Index)
+            }
         }
-        this._ComboClearPendingTimer()
-        ctx.runningComboIdx := 0
-        ctx.comboQueue := []
-        ctx.comboQueuePos := 0
-        ctx.comboAbortRequested := false
-    }
-
-    static _ComboFinish() {
-        ctx := this._ctx
-        if !IsObject(ctx) {
-            return
-        }
-        this._ComboClearPendingTimer()
-        ctx.runningComboIdx := 0
-        ctx.comboQueue := []
-        ctx.comboQueuePos := 0
-        ctx.comboAbortRequested := false
     }
 
     static _EnableAutoRunHooks() {
@@ -667,18 +628,11 @@ class ExActionRuntime {
                 ExAction_ResetRuleForInactive(rule)
             }
             ctx.actionHeldScIDs := Map()
-            for profile in ctx.comboProfiles {
-                profile.isHeld := false
-            }
+            this.ComboStopAll()
             for profile in ctx.guanYuProfiles {
                 try SetTimer(profile.pendingFn, 0)
                 profile.pending := false
                 profile.isHeld := false
-            }
-            if (ctx.runningComboIdx != 0) {
-                this._ComboAbortSequence()
-            } else {
-                this._ComboClearPendingTimer()
             }
             if IsObject(ctx.autoRun) {
                 this._AutoRunStopActive(ctx.autoRun)
@@ -953,10 +907,12 @@ ExAction_BuildComboProfile(profile, mainIntervalMs) {
     return {
         scID: scID,
         loop: profile.loop ? true : false,
-        breakOnRelease: profile.loop ? true : false,
         blockOriginal: (HasProp(profile, "blockOriginal") && profile.blockOriginal) ? true : false,
         mainIntervalMs: mainIntervalMs,
         isHeld: false,
+        running: false,
+        runId: 0,
+        pendingTimer: "",
         skills: skills
     }
 }

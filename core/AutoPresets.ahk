@@ -3,9 +3,9 @@
 ; 自动识别配置：搜图匹配地下城与技能栏参考图后切换预设
 
 class AutoPresets {
-    static StartDelayMs := 500
-    static RetryIntervalMs := 500
-    static MaxRetryAttempts := 60
+    static StartDelayMs := 200
+    static RetryIntervalMs := 200
+    static MaxRetryAttempts := 300
     static SkillImageVariation := 80
     static DungeonImageVariation := 20
     static RegionCornerRadius := 12
