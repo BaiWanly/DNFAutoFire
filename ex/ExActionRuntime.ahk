@@ -493,10 +493,10 @@ class ExActionRuntime {
         }
         ar := ctx.autoRun
         HotIfWinActive("ahk_group DNF")
-        Hotkey("~" ar.rightKey, ObjBindMethod(ExActionRuntime, "AutoRunRightDown"), "On")
-        Hotkey("~" ar.rightKey " Up", ObjBindMethod(ExActionRuntime, "AutoRunRightUp"), "On")
-        Hotkey("~" ar.leftKey, ObjBindMethod(ExActionRuntime, "AutoRunLeftDown"), "On")
-        Hotkey("~" ar.leftKey " Up", ObjBindMethod(ExActionRuntime, "AutoRunLeftUp"), "On")
+        Hotkey("~$" ar.rightKey, ObjBindMethod(ExActionRuntime, "AutoRunRightDown"), "On")
+        Hotkey("~$" ar.rightKey " Up", ObjBindMethod(ExActionRuntime, "AutoRunRightUp"), "On")
+        Hotkey("~$" ar.leftKey, ObjBindMethod(ExActionRuntime, "AutoRunLeftDown"), "On")
+        Hotkey("~$" ar.leftKey " Up", ObjBindMethod(ExActionRuntime, "AutoRunLeftUp"), "On")
         if (ar.pauseHotkey != "") {
             Hotkey("~$" ar.pauseHotkey, ObjBindMethod(ExActionRuntime, "AutoRunTogglePause"), "On")
         }
@@ -513,10 +513,10 @@ class ExActionRuntime {
         try SetTimer(ar.leftTickFn, 0)
         try {
             HotIfWinActive("ahk_group DNF")
-            try Hotkey("~" ar.rightKey, "Off")
-            try Hotkey("~" ar.rightKey " Up", "Off")
-            try Hotkey("~" ar.leftKey, "Off")
-            try Hotkey("~" ar.leftKey " Up", "Off")
+            try Hotkey("~$" ar.rightKey, "Off")
+            try Hotkey("~$" ar.rightKey " Up", "Off")
+            try Hotkey("~$" ar.leftKey, "Off")
+            try Hotkey("~$" ar.leftKey " Up", "Off")
             if (ar.pauseHotkey != "") {
                 try Hotkey("~$" ar.pauseHotkey, "Off")
             }
@@ -932,16 +932,18 @@ ExAction_BuildAutoRun(presetName) {
     tickMs := ExAction_Clamp(LoadPreset(presetName, "AutoRunDelay", 30), 1, 400)
     pauseHotkeyName := Trim(LoadPreset(presetName, "AutoRunPauseHotkey", ""))
     pauseHotkey := pauseHotkeyName = "" ? "" : Key2PressKey(GetOriginKeyName(pauseHotkeyName))
+    leftSendKey := ExAction_AutoRunSendKey(leftKey)
+    rightSendKey := ExAction_AutoRunSendKey(rightKey)
     ar := {
         leftKey: leftKey,
         rightKey: rightKey,
         pauseHotkey: pauseHotkey,
         paused: false,
         tickMs: tickMs,
-        rightPulseSend: "{" rightKey " Down}{" rightKey " Up}{" rightKey " Down}",
-        rightUpSend: "{" rightKey " Up}",
-        leftPulseSend: "{" leftKey " Down}{" leftKey " Up}{" leftKey " Down}",
-        leftUpSend: "{" leftKey " Up}",
+        rightPulseSend: "{" rightSendKey " Down}{" rightSendKey " Up}{" rightSendKey " Down}",
+        rightUpSend: "{" rightSendKey " Up}",
+        leftPulseSend: "{" leftSendKey " Down}{" leftSendKey " Up}{" leftSendKey " Down}",
+        leftUpSend: "{" leftSendKey " Up}",
         pressingRight: false,
         doubleRight: false,
         rightCounter: 0,
@@ -952,6 +954,14 @@ ExAction_BuildAutoRun(presetName) {
     ar.rightTickFn := ObjBindMethod(ExActionRuntime, "AutoRunRightTick")
     ar.leftTickFn := ObjBindMethod(ExActionRuntime, "AutoRunLeftTick")
     return ar
+}
+
+ExAction_AutoRunSendKey(key) {
+    key := GetOriginKeyName(key)
+    if (key = "Left" || key = "Right" || key = "Up" || key = "Down") {
+        return key
+    }
+    return Key2NoVkSC(key)
 }
 
 ExAction_BuildScIDs(keys) {
