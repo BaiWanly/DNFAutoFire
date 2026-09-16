@@ -39,6 +39,7 @@ EnsureConfigInitialized()
 #Include ./core/AutoFire.ahk
 #Include ./core/ComboPreset.ahk
 #Include ./ex/ExActionRuntime.ahk
+#Include ./ex/AutoRunRuntime.ahk
 
 ; 子进程 /Run=… 仅解析到此为止即进入连发逻辑；主进程在返回后继续加载 GUI 等大段代码
 SubProcessThread.ScriptStart()

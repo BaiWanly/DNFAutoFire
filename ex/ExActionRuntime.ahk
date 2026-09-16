@@ -1,7 +1,8 @@
 #Requires AutoHotkey v2.0
 
-; EX 输入动作运行时：统一承载战法、旅人、关羽、宠物技能、剑宗、修罗、自动奔跑和一键连招。
-; 主键连发仍由 MainAutoFire 独立子进程承载，避免高频主连发被扩展动作影响。
+; EX 输入动作运行时：统一承载战法、旅人、关羽、宠物技能、剑宗、修罗和一键连招。
+; 主键连发由 MainAutoFire 独立子进程承载，自动奔跑由 AutoRunRuntime 独立子进程承载，
+; 避免高频主连发和方向键补发被扩展动作影响。
 
 class ExActionRuntime {
     static _ctx := 0
@@ -18,9 +19,8 @@ class ExActionRuntime {
         rules := ExAction_BuildRules(presetName)
         guanYuProfiles := ExAction_BuildGuanYuProfiles(presetName)
         comboProfiles := ExAction_BuildComboProfiles(presetName)
-        autoRun := ExAction_BuildAutoRun(presetName)
 
-        if (rules.Length = 0 && guanYuProfiles.Length = 0 && comboProfiles.Length = 0 && !IsObject(autoRun)) {
+        if (rules.Length = 0 && guanYuProfiles.Length = 0 && comboProfiles.Length = 0) {
             return
         }
 
@@ -30,13 +30,11 @@ class ExActionRuntime {
             actionHeldScIDs: Map(),
             guanYuProfiles: guanYuProfiles,
             comboProfiles: comboProfiles,
-            autoRun: autoRun,
             wasActive: WinActive("ahk_group DNF") != 0
         }
 
         this._StartRuleTimers()
         this._EnableActionHotkeys()
-        this._EnableAutoRunHooks()
         Suspend(false)
 
         loop {
@@ -486,137 +484,6 @@ class ExActionRuntime {
         }
     }
 
-    static _EnableAutoRunHooks() {
-        ctx := this._ctx
-        if !IsObject(ctx.autoRun) {
-            return
-        }
-        ar := ctx.autoRun
-        HotIfWinActive("ahk_group DNF")
-        Hotkey("~$" ar.rightKey, ObjBindMethod(ExActionRuntime, "AutoRunRightDown"), "On")
-        Hotkey("~$" ar.rightKey " Up", ObjBindMethod(ExActionRuntime, "AutoRunRightUp"), "On")
-        Hotkey("~$" ar.leftKey, ObjBindMethod(ExActionRuntime, "AutoRunLeftDown"), "On")
-        Hotkey("~$" ar.leftKey " Up", ObjBindMethod(ExActionRuntime, "AutoRunLeftUp"), "On")
-        if (ar.pauseHotkey != "") {
-            Hotkey("~$" ar.pauseHotkey, ObjBindMethod(ExActionRuntime, "AutoRunTogglePause"), "On")
-        }
-        HotIf()
-    }
-
-    static _DisableAutoRunHooks() {
-        ctx := this._ctx
-        if !IsObject(ctx) || !IsObject(ctx.autoRun) {
-            return
-        }
-        ar := ctx.autoRun
-        try SetTimer(ar.rightTickFn, 0)
-        try SetTimer(ar.leftTickFn, 0)
-        try {
-            HotIfWinActive("ahk_group DNF")
-            try Hotkey("~$" ar.rightKey, "Off")
-            try Hotkey("~$" ar.rightKey " Up", "Off")
-            try Hotkey("~$" ar.leftKey, "Off")
-            try Hotkey("~$" ar.leftKey " Up", "Off")
-            if (ar.pauseHotkey != "") {
-                try Hotkey("~$" ar.pauseHotkey, "Off")
-            }
-            HotIf()
-        } catch {
-            try HotIf()
-        }
-    }
-
-    static _AutoRunStopActive(ar) {
-        ar.pressingRight := false
-        ar.pressingLeft := false
-        ar.doubleRight := false
-        ar.doubleLeft := false
-        ar.rightCounter := 0
-        ar.leftCounter := 0
-        try SetTimer(ar.rightTickFn, 0)
-        try SetTimer(ar.leftTickFn, 0)
-    }
-
-    static _AutoRunPaused() {
-        ar := this._ctx.autoRun
-        return ar.paused || GlobalPause_IsPaused()
-    }
-
-    static AutoRunTogglePause(*) {
-        ar := this._ctx.autoRun
-        ar.paused := !ar.paused
-    }
-
-    static AutoRunRightDown(*) {
-        ar := this._ctx.autoRun
-        if this._AutoRunPaused() {
-            return
-        }
-        if !ar.pressingRight {
-            ar.pressingRight := true
-            ar.doubleRight := false
-            ar.rightCounter := 0
-            SetTimer(ar.rightTickFn, ar.tickMs)
-        }
-    }
-
-    static AutoRunRightUp(*) {
-        ar := this._ctx.autoRun
-        ar.pressingRight := false
-        SetTimer(ar.rightTickFn, 0)
-        SendEvent(ar.rightUpSend)
-    }
-
-    static AutoRunRightTick(*) {
-        ar := this._ctx.autoRun
-        if this._AutoRunPaused() {
-            return
-        }
-        ar.rightCounter++
-        if (ar.pressingRight && !ar.doubleRight) {
-            SendEvent(ar.rightPulseSend)
-            ar.doubleRight := true
-        }
-        if (ar.rightCounter >= 3) {
-            SetTimer(ar.rightTickFn, 0)
-        }
-    }
-
-    static AutoRunLeftDown(*) {
-        ar := this._ctx.autoRun
-        if this._AutoRunPaused() {
-            return
-        }
-        if !ar.pressingLeft {
-            ar.pressingLeft := true
-            ar.doubleLeft := false
-            ar.leftCounter := 0
-            SetTimer(ar.leftTickFn, ar.tickMs)
-        }
-    }
-
-    static AutoRunLeftUp(*) {
-        ar := this._ctx.autoRun
-        ar.pressingLeft := false
-        SetTimer(ar.leftTickFn, 0)
-        SendEvent(ar.leftUpSend)
-    }
-
-    static AutoRunLeftTick(*) {
-        ar := this._ctx.autoRun
-        if this._AutoRunPaused() {
-            return
-        }
-        ar.leftCounter++
-        if (ar.pressingLeft && !ar.doubleLeft) {
-            SendEvent(ar.leftPulseSend)
-            ar.doubleLeft := true
-        }
-        if (ar.leftCounter >= 3) {
-            SetTimer(ar.leftTickFn, 0)
-        }
-    }
-
     static _WatchFocusLoss() {
         ctx := this._ctx
         if !IsObject(ctx) {
@@ -634,9 +501,6 @@ class ExActionRuntime {
                 profile.pending := false
                 profile.isHeld := false
             }
-            if IsObject(ctx.autoRun) {
-                this._AutoRunStopActive(ctx.autoRun)
-            }
         }
         ctx.wasActive := isActive
     }
@@ -644,7 +508,6 @@ class ExActionRuntime {
     static OnExit(exitReason, exitCode) {
         this._StopRuleTimers()
         this._DisableActionHotkeys()
-        this._DisableAutoRunHooks()
         try RestoreSystemTimeLimit()
     }
 }
@@ -658,7 +521,6 @@ ExAction_HasRunnable(presetName) {
     return ExAction_BuildRules(presetName).Length > 0
         || ExAction_BuildGuanYuProfiles(presetName).Length > 0
         || ExAction_BuildComboProfiles(presetName).Length > 0
-        || IsObject(ExAction_BuildAutoRun(presetName))
 }
 
 ExAction_MarkHotkey(hotkeys, scID, blockOriginal) {
@@ -915,53 +777,6 @@ ExAction_BuildComboProfile(profile, mainIntervalMs) {
         pendingTimer: "",
         skills: skills
     }
-}
-
-ExAction_BuildAutoRun(presetName) {
-    if !LoadPreset(presetName, "AutoRunState", false) {
-        return 0
-    }
-    leftKey := LoadPreset(presetName, "AutoRunLeftKey", "Left")
-    rightKey := LoadPreset(presetName, "AutoRunRightKey", "Right")
-    if (leftKey = "") {
-        leftKey := "Left"
-    }
-    if (rightKey = "") {
-        rightKey := "Right"
-    }
-    tickMs := ExAction_Clamp(LoadPreset(presetName, "AutoRunDelay", 30), 1, 400)
-    pauseHotkeyName := Trim(LoadPreset(presetName, "AutoRunPauseHotkey", ""))
-    pauseHotkey := pauseHotkeyName = "" ? "" : Key2PressKey(GetOriginKeyName(pauseHotkeyName))
-    leftSendKey := ExAction_AutoRunSendKey(leftKey)
-    rightSendKey := ExAction_AutoRunSendKey(rightKey)
-    ar := {
-        leftKey: leftKey,
-        rightKey: rightKey,
-        pauseHotkey: pauseHotkey,
-        paused: false,
-        tickMs: tickMs,
-        rightPulseSend: "{" rightSendKey " Down}{" rightSendKey " Up}{" rightSendKey " Down}",
-        rightUpSend: "{" rightSendKey " Up}",
-        leftPulseSend: "{" leftSendKey " Down}{" leftSendKey " Up}{" leftSendKey " Down}",
-        leftUpSend: "{" leftSendKey " Up}",
-        pressingRight: false,
-        doubleRight: false,
-        rightCounter: 0,
-        pressingLeft: false,
-        doubleLeft: false,
-        leftCounter: 0
-    }
-    ar.rightTickFn := ObjBindMethod(ExActionRuntime, "AutoRunRightTick")
-    ar.leftTickFn := ObjBindMethod(ExActionRuntime, "AutoRunLeftTick")
-    return ar
-}
-
-ExAction_AutoRunSendKey(key) {
-    key := GetOriginKeyName(key)
-    if (key = "Left" || key = "Right" || key = "Up" || key = "Down") {
-        return key
-    }
-    return Key2NoVkSC(key)
 }
 
 ExAction_BuildScIDs(keys) {

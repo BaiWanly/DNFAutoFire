@@ -91,6 +91,7 @@ class SubProcessThread
         try {
             dispatch := Map(
                 "MainAutoFire", MainAutoFire,
+                "AutoRunRuntime", AutoRunRuntime_Run,
                 "ExActionRuntime", ExActionRuntime_Run
             )
             if (dispatch.Has(k)) {

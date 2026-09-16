@@ -146,6 +146,7 @@ StartAutoFire(){
     if (enableKeyCount > 0) {
         _AutoFireThreads.Push(SubProcessThread("MainAutoFire", nowSelectPreset))
     }
+    StartAutoRun(nowSelectPreset)
     StartEx(nowSelectPreset)
     if (_AutoFireThreads.Length = 0) {
         try AutoPresets_OnSessionStopped()
@@ -167,6 +168,14 @@ EnterRunningMode(presetName := "") {
         SwitchToStoppedState()
         gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
         SetTimer(MainMutedLinkPoll, 100)
+    }
+}
+
+StartAutoRun(presetName := ""){
+    global _AutoFireThreads
+    presetName := ResolvePresetName(presetName)
+    if AutoRunRuntime_HasRunnable(presetName) {
+        _AutoFireThreads.Push(SubProcessThread("AutoRunRuntime", presetName))
     }
 }
 
