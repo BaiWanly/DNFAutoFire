@@ -101,8 +101,10 @@ UiSetButtonFont(gui, kind := "secondary") {
 ; 主界面键帽字号（与参考项目 DNFAutoFire 一致）
 UiMainKeyLabelFontSize(keyName) {
     switch keyName {
-        case "Backspace", "Backslash", "Enter", "LShift", "RShift", "LCtrl", "RCtrl", "LAlt", "RAlt", "Space", "NumLk", "NumEnter":
+        case "Backspace", "Backslash", "Enter", "LShift", "RShift", "LCtrl", "RCtrl", "LAlt", "RAlt", "Space", "NumEnter":
             return "s10"
+        case "NumLk":
+            return "s9"
         case "Caps", "Tab":
             return "s10"
         case "Up", "Down", "Left", "Right":
