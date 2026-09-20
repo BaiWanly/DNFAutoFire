@@ -37,9 +37,7 @@ QuickSwitchStart(*) {
 
 QuickSwitchStop(*) {
     HideGuiQuickSwitch()
-    SwitchToStoppedState()
-    gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
-    SetTimer(MainMutedLinkPoll, 100)
+    ShowGuiMain()
 }
 
 ShowGuiQuickSwitch(*) {

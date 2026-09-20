@@ -99,7 +99,7 @@ CreateMainIpcListener() {
 
 OnIpcRevealMain(wParam, lParam, msg, hwnd) {
     ; 复用托盘“连发设置”同一套停止连发并显示主界面的逻辑
-    try RevealStoppedMainGui()
+    try ShowGuiMain()
 }
 
 #Include ./lib/GdiPlusSession.ahk
@@ -144,7 +144,7 @@ global _NowSelectPreset := LoadLastPreset()
 ;@Ahk2Exe-IgnoreEnd
 
 A_TrayMenu.Delete()
-A_TrayMenu.Add(MainText["TraySettings"], RevealStoppedMainGui)
+A_TrayMenu.Add(MainText["TraySettings"], ShowGuiMain)
 A_TrayMenu.Default := MainText["TraySettings"]
 A_TrayMenu.Add()
 A_TrayMenu.Add(MainText["TrayExit"], Exit)
@@ -158,9 +158,9 @@ Exit(*) {
     ExitApp()
 }
 
-RevealStoppedMainGui(*) {
+ShowGuiMain(*) {
     if AutoPresets_IsSessionRunning() {
-        SwitchToStoppedState()
+        MainLoadStoppedUi()
     }
     gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
     SetTimer(MainMutedLinkPoll, 100)
@@ -173,10 +173,9 @@ MainProcessOnExit(*) {
 
 OnExit(MainProcessOnExit)
 
-; 启动时不在运行态，RevealStoppedMainGui 的守卫会跳过界面装载，这里显式装载
-SwitchToStoppedState()
-gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
-SetTimer(MainMutedLinkPoll, 100)
+; 启动时不在运行态，ShowGuiMain 的守卫会跳过界面装载，这里显式装载
+MainLoadStoppedUi()
+ShowGuiMain()
 CreateMainIpcListener()
 RegisterGameWindowGroup()
 if (_AutoStart) {

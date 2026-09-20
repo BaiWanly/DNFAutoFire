@@ -232,13 +232,12 @@ gPresetContextMenu.Add(MainText["ExportPreset"], MainExportPreset)
 gPresetContextMenu.Add(MainText["DeletePreset"], MainDeletePreset)
 gPresetBlankContextMenu.Add(MainText["NewPreset"], MainNewPreset)
 
-SwitchToStoppedState(*) {
+MainLoadStoppedUi(*) {
     StopAutoFire()
     gMainGui.Title := MainText["AppTitle"]
-    MainLoadAllPreset()
     MainLoadAutoFireGlobalInterval()
-    LoadMainPresetState(ResolvePresetName(LoadLastPreset()))
-    MainLoatQuickChangeHotKey()
+    LoadMainPresetState(LoadLastPreset())
+    MainLoadQuickChangeHotKey()
 }
 
 HideGuiMain(*) {
@@ -521,10 +520,6 @@ MainSetCurrentPresetLabel(presetName) {
     MainGetCtrl("CurrentPresetLabel").Value := presetName
 }
 
-MainRefreshPresetUi() {
-    MainLoadAllPreset()
-}
-
 MainLvRen(*) {
     ShowGuiLvRen()
 }
@@ -664,7 +659,7 @@ MainSaveQuickChangeHotKey(*) {
     Hotkey(__QuickSwitchHotkey, ShowGuiQuickSwitch, "On")
 }
 
-MainLoatQuickChangeHotKey() {
+MainLoadQuickChangeHotKey() {
     global __QuickSwitchHotkey
     quickChangeHotKey := LoadConfig("QuickChangeHotKey")
     if (quickChangeHotKey = "") {

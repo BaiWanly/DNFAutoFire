@@ -165,9 +165,8 @@ EnterRunningMode(presetName := "") {
     LoadMainPresetState(targetPreset)
     HideGuiMain()
     if !StartAutoFire() {
-        SwitchToStoppedState()
-        gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
-        SetTimer(MainMutedLinkPoll, 100)
+        MainLoadStoppedUi()
+        ShowGuiMain()
     }
 }
 
@@ -319,7 +318,7 @@ LoadMainPresetState(presetName) {
     SetNowSelectPreset(presetName)
     SaveLastPreset(presetName)
     MainLoadEx()
-    MainRefreshPresetUi()
+    MainLoadAllPreset()
     return presetName
 }
 
