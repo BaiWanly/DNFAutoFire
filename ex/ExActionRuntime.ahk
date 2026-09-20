@@ -365,8 +365,7 @@ class ExActionRuntime {
         }
         this.ComboStop(profileIdx)
         profile := ctx.comboProfiles[profileIdx]
-        profile.running := true
-        this.ComboSchedule(profileIdx, 1, 1, profile.runId)
+        this.ComboSchedule(profileIdx, "ComboSendSkillAt", 1, 1, profile.runId)
     }
 
     static ComboClearPendingTimer(profileIdx) {
@@ -381,14 +380,15 @@ class ExActionRuntime {
         }
     }
 
-    static ComboSchedule(profileIdx, skillIdx, delayMs, runId) {
+    ; 单槽定时器链推进：methodName 为 ComboSendSkillAt / ComboReleaseStepAt，stepIdx 为技能序号
+    static ComboSchedule(profileIdx, methodName, stepIdx, delayMs, runId) {
         ctx := this._ctx
         if !this.ComboIsRunning(profileIdx, runId) {
             return
         }
         this.ComboClearPendingTimer(profileIdx)
         profile := ctx.comboProfiles[profileIdx]
-        fn := ObjBindMethod(ExActionRuntime, "ComboSendSkillAt", profileIdx, skillIdx, runId)
+        fn := ObjBindMethod(ExActionRuntime, methodName, profileIdx, stepIdx, runId)
         profile.pendingTimer := fn
         SetTimer(fn, -delayMs)
     }
@@ -399,7 +399,7 @@ class ExActionRuntime {
             return false
         }
         profile := ctx.comboProfiles[profileIdx]
-        if !profile.running || profile.runId != runId || !WinActive("ahk_group DNF") {
+        if profile.runId != runId || !WinActive("ahk_group DNF") {
             return false
         }
         return !profile.loop || profile.isHeld
@@ -422,14 +422,50 @@ class ExActionRuntime {
             return
         }
         if (item.sendToken != "") {
-            try SendIP(item.sendToken, item.hold)
+            if SendIPDown(item.sendToken) {
+                profile.heldToken := item.sendToken
+            }
         }
-        delay := item.delay + 0
+        hold := item.hold + 0
+        if (profile.heldToken != "" && hold > 0) {
+            ; 按下保持交给定时器，保持期间不持锁，链随时可被重置或抬起
+            this.ComboSchedule(profileIdx, "ComboReleaseStepAt", idx, hold, runId)
+            return
+        }
+        this.ComboReleaseStepAt(profileIdx, idx, runId)
+    }
+
+    ; 抬起当前技能按住的键，再按本技能的间隔推进到下一个技能
+    static ComboReleaseStepAt(profileIdx, idx, runId, *) {
+        ctx := this._ctx
+        if !this.ComboIsRunning(profileIdx, runId) {
+            this.ComboStopRun(profileIdx, runId)
+            return
+        }
+        profile := ctx.comboProfiles[profileIdx]
+        this.ComboReleaseHeld(profile)
+        delay := 0
+        if (idx >= 1 && idx <= profile.skills.Length && profile.skills.Has(idx)) {
+            item := profile.skills[idx]
+            if IsObject(item) {
+                delay := item.delay + 0
+            }
+        }
         if (delay <= 0) {
             this.ComboSendSkillAt(profileIdx, idx + 1, runId)
             return
         }
-        this.ComboSchedule(profileIdx, idx + 1, delay, runId)
+        this.ComboSchedule(profileIdx, "ComboSendSkillAt", idx + 1, delay, runId)
+    }
+
+    ; 立即抬起方案当前按住的键（重置、松键和失焦都要走到这里，避免按键卡住）
+    static ComboReleaseHeld(profile) {
+        if !IsObject(profile) || profile.heldToken = "" {
+            return
+        }
+        heldToken := profile.heldToken
+        profile.heldToken := ""
+        SendIPUp(heldToken)
     }
 
     static ComboChainComplete(profileIdx, runId, *) {
@@ -441,7 +477,7 @@ class ExActionRuntime {
         profile := ctx.comboProfiles[profileIdx]
         if (profile.loop && profile.isHeld) {
             if (profile.mainIntervalMs > 0) {
-                this.ComboSchedule(profileIdx, 1, profile.mainIntervalMs, runId)
+                this.ComboSchedule(profileIdx, "ComboSendSkillAt", 1, profile.mainIntervalMs, runId)
             } else {
                 this.ComboSendSkillAt(profileIdx, 1, runId)
             }
@@ -467,7 +503,7 @@ class ExActionRuntime {
         }
         profile := ctx.comboProfiles[profileIdx]
         this.ComboClearPendingTimer(profileIdx)
-        profile.running := false
+        this.ComboReleaseHeld(profile)
         profile.runId += 1
     }
 
@@ -772,9 +808,9 @@ ExAction_BuildComboProfile(profile, mainIntervalMs) {
         blockOriginal: (HasProp(profile, "blockOriginal") && profile.blockOriginal) ? true : false,
         mainIntervalMs: mainIntervalMs,
         isHeld: false,
-        running: false,
         runId: 0,
         pendingTimer: "",
+        heldToken: "",
         skills: skills
     }
 }

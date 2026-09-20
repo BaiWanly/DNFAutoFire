@@ -393,3 +393,61 @@ RenamePreset(oldPresetName, newPresetName) {
     }
     return true
 }
+
+; 导出单个配置：写出该配置的主节与它名下全部一键连招子节，节名原样保留
+ExportPresetToFile(presetName, filePath) {
+    presetName := NormalizePresetName(presetName)
+    path := ConfigIniPath()
+    section := "预设:" presetName
+    prefix := ComboProfileChildPrefix(presetName)
+    prefixLen := StrLen(prefix)
+    if FileExist(filePath) {
+        FileDelete(filePath)
+    }
+    IniWrite(IniRead(path, section), filePath, section)
+    for sec in StrSplit(IniRead(path), "`n", "`r") {
+        sec := Trim(sec)
+        if (SubStr(sec, 1, prefixLen) != prefix) {
+            continue
+        }
+        if !RegExMatch(SubStr(sec, prefixLen + 1), "^[1-9][0-9]*$") {
+            continue
+        }
+        IniWrite(IniRead(path, sec), filePath, sec)
+    }
+}
+
+; 读取导出文件里的配置名（首个 `预设:X` 节）；不是导出文件时返回空
+ImportPresetNameFromFile(filePath) {
+    for sec in StrSplit(IniRead(filePath), "`n", "`r") {
+        sec := Trim(sec)
+        if (SubStr(sec, 1, 3) != "预设:") {
+            continue
+        }
+        if InStr(sec, ".Combo.") {
+            continue
+        }
+        return SubStr(sec, 4)
+    }
+    return ""
+}
+
+; 把导出文件的配置写回 config.ini；覆盖同名配置前先 DeletePreset 清掉旧节
+ImportPresetFromFile(filePath, presetName) {
+    presetName := NormalizePresetName(presetName)
+    path := ConfigIniPath()
+    section := "预设:" presetName
+    prefix := ComboProfileChildPrefix(presetName)
+    prefixLen := StrLen(prefix)
+    IniWrite(IniRead(filePath, section), path, section)
+    for sec in StrSplit(IniRead(filePath), "`n", "`r") {
+        sec := Trim(sec)
+        if (SubStr(sec, 1, prefixLen) != prefix) {
+            continue
+        }
+        if !RegExMatch(SubStr(sec, prefixLen + 1), "^[1-9][0-9]*$") {
+            continue
+        }
+        IniWrite(IniRead(filePath, sec), path, sec)
+    }
+}

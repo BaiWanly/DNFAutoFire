@@ -228,6 +228,7 @@ MainBuildFeaturePanel()
 gPresetContextMenu.Add(MainText["NewPreset"], MainNewPreset)
 gPresetContextMenu.Add(MainText["RenamePreset"], MainRenamePreset)
 gPresetContextMenu.Add(MainText["ClonePreset"], MainClonePreset)
+gPresetContextMenu.Add(MainText["ExportPreset"], MainExportPreset)
 gPresetContextMenu.Add(MainText["DeletePreset"], MainDeletePreset)
 gPresetBlankContextMenu.Add(MainText["NewPreset"], MainNewPreset)
 
@@ -394,6 +395,29 @@ MainDeletePreset(*) {
     AutoPresets_OnPresetDeleted(presetName)
     MainLoadAllPreset()
     LoadMainPresetState(ResolvePresetName())
+}
+
+MainExportPreset(*) {
+    presetName := MainGetCtrl("Preset").Text
+    if !PresetExists(presetName) {
+        MsgBox(MainText["SelectValidPreset"],, "Icon!")
+        return
+    }
+    SaveCurrentPresetState()
+    filePath := FileSelect("S16", A_ScriptDir "\" presetName ".ini", MainText["ExportPresetTitle"], "INI (*.ini)")
+    if (filePath = "") {
+        return
+    }
+    if !RegExMatch(filePath, "i)\.ini$") {
+        filePath .= ".ini"
+    }
+    try {
+        ExportPresetToFile(presetName, filePath)
+    } catch {
+        MsgBox(MainText["ExportPresetFailed"],, "Icon!")
+        return
+    }
+    MsgBox(MainText["ExportPresetSuccessPrefix"] filePath MainText["ExportPresetSuccessSuffix"],, "Iconi")
 }
 
 MainSetListBox(ctrl, listPipe) {

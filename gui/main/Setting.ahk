@@ -17,6 +17,8 @@ gSettingCtrls["SettingSubprocessErrorLog"] := gSettingGui.Add("CheckBox", "vSett
 gSettingCtrls["SettingCloseToTray"] := gSettingGui.Add("CheckBox", "vSettingCloseToTray x16 y120 h20", MainText["SettingCloseToTray"])
 gSettingGui.Add("Text", "x16 y150 w120 h22 +0x200", MainText["SettingGlobalPauseHotkey"])
 gSettingCtrls["SettingGlobalPauseHotkey"] := gSettingGui.Add("Hotkey", "vSettingGlobalPauseHotkey x142 y150 w120 h22")
+gSettingGui.Add("Text", "x16 y180 w120 h22 +0x200", MainText["SettingPresetImport"])
+gSettingGui.Add("Button", "x142 y180 w120 h22", MainText["ImportPreset"]).OnEvent("Click", SettingImportPreset)
 gSettingGui.Add("Button", "x310 y250 w80 h40", MainText["Save"]).OnEvent("Click", SettingSave)
 gSettingCtrls["Tab"].UseTab(MainText["SettingTabHelp"])
 gSettingGui.Add("Text", "x16 y32 w368 h268", MainText["SettingHelp"])
@@ -83,6 +85,29 @@ SettingSave(*) {
     SettingNow()
     GlobalPause_RegisterHotkey(_GlobalPauseHotkey)
     HideGuiSetting()
+}
+
+SettingImportPreset(*) {
+    filePath := FileSelect(1, A_ScriptDir, MainText["ImportPresetTitle"], "INI (*.ini)")
+    if (filePath = "") {
+        return
+    }
+    presetName := ImportPresetNameFromFile(filePath)
+    if (presetName = "") {
+        MsgBox(MainText["ImportPresetInvalid"],, "Icon!")
+        return
+    }
+    if PresetExists(presetName) {
+        ret := MsgBox(MainText["ImportPresetOverwritePrefix"] presetName MainText["ImportPresetOverwriteSuffix"],, "YesNo Icon!")
+        if (ret != "Yes") {
+            return
+        }
+        DeletePreset(presetName)
+    }
+    SaveCurrentPresetState()
+    ImportPresetFromFile(filePath, presetName)
+    LoadMainPresetState(presetName)
+    MsgBox(MainText["ImportPresetSuccessPrefix"] presetName MainText["ImportPresetSuccessSuffix"],, "Iconi")
 }
 
 SettingLoad() {
