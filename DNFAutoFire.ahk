@@ -159,7 +159,9 @@ Exit(*) {
 }
 
 RevealStoppedMainGui(*) {
-    SwitchToStoppedState()
+    if AutoPresets_IsSessionRunning() {
+        SwitchToStoppedState()
+    }
     gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
     SetTimer(MainMutedLinkPoll, 100)
 }
@@ -171,7 +173,10 @@ MainProcessOnExit(*) {
 
 OnExit(MainProcessOnExit)
 
-RevealStoppedMainGui()
+; 启动时不在运行态，RevealStoppedMainGui 的守卫会跳过界面装载，这里显式装载
+SwitchToStoppedState()
+gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
+SetTimer(MainMutedLinkPoll, 100)
 CreateMainIpcListener()
 RegisterGameWindowGroup()
 if (_AutoStart) {
