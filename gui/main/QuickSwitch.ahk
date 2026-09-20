@@ -44,6 +44,9 @@ QuickSwitchStop(*) {
 
 ShowGuiQuickSwitch(*) {
     global gQuickSwitchGui, gQuickSwitchLayout
+    if !AutoPresets_IsSessionRunning() {
+        return
+    }
     HideGuiMain()
     gQuickSwitchGui.Title := MainText["QuickSwitchTitle"]
     gQuickSwitchGui.Show("w" gQuickSwitchLayout.Width() " h" gQuickSwitchLayout.Height())
