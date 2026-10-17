@@ -18,6 +18,8 @@
 SetWorkingDir(A_ScriptDir)
 SetTitleMatchMode(3)
 A_MaxHotkeysPerInterval := 9999
+; 主进程与子进程统一使用无映射键屏蔽菜单，避免 AHK 默认补发左 Ctrl。
+A_MenuMaskKey := "vkFF"
 ; 子进程（/Run=xxx）在 very early 阶段就隐藏图标，避免短暂闪出多个托盘图标
 if (A_Args.Length >= 1 && InStr(A_Args[1], "/Run=")) {
     A_IconHidden := true
