@@ -20,11 +20,13 @@ class AutoPresets {
     static _lastCustomHotkey := ""
     static _sessionId := 0
     static _sequenceId := 0
+    static _enabled := false
+    static _assets := 0
 }
 
 ; 是否开启「自动识别」（全局，config.ini [设置]）
 AutoPresets_LoadEnabledGlobal() {
-    return AutoPresets_CoerceIniBool(LoadConfig("AutoPresetsEnabled", false))
+    return AutoPresets_CoerceIniBool(LoadConfig("AutoPresetsEnabled"))
 }
 
 AutoPresets_CoerceIniBool(raw) {
@@ -205,6 +207,7 @@ AutoPresetsSkillIcons_Save(presetName, items, resolutionKey := false) {
         return
     }
     SavePreset(name, AutoPresetsSkillIconsConfigKey(key), AutoPresetsSkillIcons_FormatStored(items))
+    AutoPresets_InvalidateAssets()
 }
 
 AutoPresetsSkillIcons_NextId(presetName, resolutionKey := false) {
@@ -332,6 +335,7 @@ AutoPresetsSkillIcons_CopyDirs(srcPreset, destPreset) {
             try DirCopy(srcDir, destDir, true)
         }
     }
+    AutoPresets_InvalidateAssets()
 }
 
 AutoPresets_OnPresetCloned(oldName, newName) {
@@ -358,6 +362,7 @@ AutoPresets_OnPresetDeleted(presetName) {
             try DirDelete(dir, true)
         }
     }
+    AutoPresets_InvalidateAssets()
 }
 
 AutoPresetsDungeonIconDir() => AutoPresetsAssetDir() "\dungeon"
@@ -507,6 +512,7 @@ SaveAutoPresetRegionByKey(configKey, x, y, w, h) {
     rh := h / client["h"]
     SaveConfig(configKey, "clientRatio|" client["w"] "|" client["h"] "|"
         Round(rx, 6) "|" Round(ry, 6) "|" Round(rw, 6) "|" Round(rh, 6))
+    AutoPresets_InvalidateAssets()
 }
 
 ParseAutoPresetDungeonRegion() {
@@ -515,10 +521,6 @@ ParseAutoPresetDungeonRegion() {
 
 SaveAutoPresetDungeonRegion(x, y, w, h) {
     SaveAutoPresetRegionByKey("AutoPresetDungeonRegion", x, y, w, h)
-}
-
-AutoPresets_HasAnyDungeonPng() {
-    return AutoPresetsDungeonIconPaths().Length > 0
 }
 
 AutoPresets_GameActive() {
@@ -598,6 +600,7 @@ AutoPresetsCaptureRegionToPng(path, x, y, w, h) {
         }
         DllCall("user32\ReleaseDC", "ptr", 0, "ptr", hdc)
     }
+    AutoPresets_InvalidateAssets()
 }
 
 _AutoPresetsGdipStartup() {
@@ -755,9 +758,30 @@ AutoPresetsDungeonIcon_UpdateCurrent() {
     return path
 }
 
-AutoPresetsDungeonIconMatches() {
-    r := AutoPresets_ResolveRegion(ParseAutoPresetDungeonRegion(), true)
-    paths := AutoPresetsDungeonIconPaths()
+AutoPresets_InvalidateAssets() {
+    AutoPresets._assets := 0
+}
+
+AutoPresets_GetSearchAssets() {
+    resolutionKey := AutoPresetsResolutionKey()
+    assets := AutoPresets._assets
+    if IsObject(assets) && assets.resolutionKey = resolutionKey {
+        return assets
+    }
+    assets := {
+        resolutionKey: resolutionKey,
+        dungeonPaths: AutoPresetsDungeonIconPaths(),
+        dungeonRegion: ParseAutoPresetDungeonRegion(),
+        skillRegion: ParseAutoPresetRegion(),
+        skillImages: 0
+    }
+    AutoPresets._assets := assets
+    return assets
+}
+
+AutoPresetsDungeonIconMatches(assets) {
+    r := AutoPresets_ResolveRegion(assets.dungeonRegion, true)
+    paths := assets.dungeonPaths
     if (paths.Length = 0) {
         return false
     }
@@ -770,6 +794,9 @@ AutoPresetsDungeonIconMatches() {
     prevPixel := CoordMode("Pixel", "Screen")
     try {
         for path in paths {
+            if !FileExist(path) {
+                continue
+            }
             needle := optPrefix . path
             try {
                 if ImageSearch(&_icx, &_icy, x1, y1, x2, y2, needle) {
@@ -802,29 +829,33 @@ AutoPresetsSkillIcon_UpdateForPreset(presetName, skillId := "", resolutionKey :=
     return path
 }
 
-AutoPresetsFindPresetBySkillIcon() {
-    r := AutoPresets_ResolveRegion(ParseAutoPresetRegion(), true)
+AutoPresetsFindPresetBySkillIcon(assets) {
+    if !IsObject(assets.skillImages) {
+        assets.skillImages := []
+        for presetName in LoadAllPreset() {
+            for item in AutoPresetsSkillIcons_Load(presetName, assets.resolutionKey) {
+                assets.skillImages.Push({ presetName: presetName, path: item["path"] })
+            }
+        }
+    }
+    r := AutoPresets_ResolveRegion(assets.skillRegion, true)
     x1 := r["x"]
     y1 := r["y"]
     x2 := x1 + r["w"] - 1
     y2 := y1 + r["h"] - 1
-    variation := AutoPresets.SkillImageVariation
-    optPrefix := AutoPresets_ImageSearchPrefix(variation)
+    optPrefix := AutoPresets_ImageSearchPrefix(AutoPresets.SkillImageVariation)
     prevPixel := CoordMode("Pixel", "Screen")
     try {
-        for presetName in LoadAllPreset() {
-            for item in AutoPresetsSkillIcons_Load(presetName) {
-                path := item["path"]
-                if !FileExist(path) {
-                    continue
+        for item in assets.skillImages {
+            if !FileExist(item.path) {
+                continue
+            }
+            needle := optPrefix . item.path
+            try {
+                if ImageSearch(&_isx, &_isy, x1, y1, x2, y2, needle) {
+                    return item.presetName
                 }
-                needle := optPrefix . path
-                try {
-                    if ImageSearch(&_isx, &_isy, x1, y1, x2, y2, needle) {
-                        return presetName
-                    }
-                } catch TargetError {
-                }
+            } catch TargetError {
             }
         }
         return ""
@@ -848,6 +879,7 @@ AutoPresets_ClearStartTimer() {
 }
 
 AutoPresets_CancelPending() {
+    AutoPresets_InvalidateAssets()
     AutoPresets_ClearRetryTimer()
     AutoPresets_ClearStartTimer()
 }
@@ -870,7 +902,7 @@ AutoPresets_Trigger(*) {
 }
 
 AutoPresets_Request(requireActive := false) {
-    if !AutoPresets_IsFeatureEnabledForRunningPreset() {
+    if !AutoPresets._enabled {
         return
     }
     if !AutoPresets_IsSessionRunning() {
@@ -887,12 +919,8 @@ AutoPresets_Request(requireActive := false) {
     SetTimer(fn, -AutoPresets.StartDelayMs)
 }
 
-AutoPresets_IsFeatureEnabledForRunningPreset() {
-    return AutoPresets_LoadEnabledGlobal()
-}
-
 AutoPresets_HotIfShouldFire(*) {
-    if !AutoPresets_LoadEnabledGlobal() {
+    if !AutoPresets._enabled {
         return false
     }
     if !AutoPresets_IsSessionRunning() {
@@ -906,7 +934,7 @@ AutoPresets_Begin(sessionId, sequenceId, attemptIdx, *) {
         return
     }
     AutoPresets._startTimer := false
-    if !AutoPresets_IsFeatureEnabledForRunningPreset() {
+    if !AutoPresets._enabled {
         return
     }
     if !AutoPresets_IsSessionRunning() {
@@ -941,7 +969,7 @@ AutoPresets_RunAttempt(sessionId, sequenceId, attemptIdx) {
     if !AutoPresets_IsCurrentSequence(sessionId, sequenceId) {
         return
     }
-    if !AutoPresets_IsFeatureEnabledForRunningPreset() {
+    if !AutoPresets._enabled {
         AutoPresets_ClearRetryTimer()
         return
     }
@@ -953,12 +981,13 @@ AutoPresets_RunAttempt(sessionId, sequenceId, attemptIdx) {
         AutoPresets_ScheduleNextAttempt(sessionId, sequenceId, attemptIdx)
         return
     }
-    if AutoPresets_HasAnyDungeonPng() && AutoPresetsDungeonIconMatches() {
+    assets := AutoPresets_GetSearchAssets()
+    if AutoPresetsDungeonIconMatches(assets) {
         AutoPresets_ClearRetryTimer()
         return
     }
 
-    found := AutoPresetsFindPresetBySkillIcon()
+    found := AutoPresetsFindPresetBySkillIcon(assets)
     current := GetNowSelectPreset()
     if (found != "" && found != current) {
         AutoPresets_ApplySwitchOnMain(found)
@@ -1002,7 +1031,8 @@ AutoPresets_DisableSessionHotkeys() {
 
 AutoPresets_RegisterSessionHotkeys() {
     AutoPresets_DisableSessionHotkeys()
-    if !AutoPresets_LoadEnabledGlobal() {
+    AutoPresets._enabled := AutoPresets_LoadEnabledGlobal()
+    if !AutoPresets._enabled {
         return
     }
     if !AutoPresets_IsSessionRunning() {
@@ -1032,13 +1062,14 @@ AutoPresets_OnSessionStarted() {
     AutoPresets._sequenceId += 1
     AutoPresets_CancelPending()
     AutoPresets_RegisterSessionHotkeys()
-    if !AutoPresets_LoadEnabledGlobal() {
+    if !AutoPresets._enabled {
         return
     }
     AutoPresets_Request()
 }
 
 AutoPresets_OnSessionStopped() {
+    AutoPresets._enabled := false
     AutoPresets._sessionId += 1
     AutoPresets._sequenceId += 1
     AutoPresets_DisableSessionHotkeys()

@@ -13,6 +13,7 @@ global gMainMutedLinks := []
 UiApplyWindow(gMainGui)
 gMainGui.OnEvent("Escape", MainGuiEscape)
 gMainGui.OnEvent("Close", MainGuiClose)
+gMainGui.OnEvent("Size", MainGuiSize)
 gMainGui.OnEvent("ContextMenu", MainGuiContextMenu)
 
 MainAdd(ctrlType, options, text := "") {
@@ -37,8 +38,6 @@ MainExFeatureIsEnabled(name) {
         return false
     }
 }
-
-MainCheckboxOn(name) => MainExFeatureIsEnabled(name)
 
 MainAddExFeatureRow(name, colX, y, toggleW, linkW, linkText, linkHandler) {
     global gMainGui, gMainExSwitchUi
@@ -242,8 +241,18 @@ MainLoadStoppedUi(*) {
 
 HideGuiMain(*) {
     global gMainGui
-    SetTimer(MainMutedLinkPoll, 0)
+    MainSetUiPolling(false)
     gMainGui.Hide()
+}
+
+MainSetUiPolling(enabled) {
+    ToggleGdip.SetPolling(enabled)
+    MainKeyCap.SetPolling(enabled)
+    SetTimer(MainMutedLinkPoll, enabled ? 100 : 0)
+}
+
+MainGuiSize(gui, minMax, *) {
+    MainSetUiPolling(minMax != -1)
 }
 
 MainGuiEscape(*) {
@@ -271,7 +280,7 @@ EnableGuiMain() {
     gMainGui.Title := MainText["AppTitleWithVersion"] __Version
     gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
     MainExSwitchPaintAll()
-    SetTimer(MainMutedLinkPoll, 100)
+    MainSetUiPolling(true)
 }
 
 MainSetKeyState(key, state) {
@@ -501,16 +510,13 @@ MainLoadAutoFireGlobalInterval() {
     MainGetCtrl("AutoFireIntervalMs").Text := String(LoadAutoFireGlobalIntervalMs())
 }
 
-MainLoadEx() {
-    AutoFireKeyIntervals_LoadForPreset(GetNowSelectPreset())
-    MainGetCtrl("LvRen").Value := LoadPreset(GetNowSelectPreset(), "LvRenState", false)
-    MainGetCtrl("GuanYu").Value := LoadPreset(GetNowSelectPreset(), "GuanYuState", false)
-    MainGetCtrl("PetSkill").Value := LoadPreset(GetNowSelectPreset(), "PetSkillState", false)
-    MainGetCtrl("ZhanFa").Value := LoadPreset(GetNowSelectPreset(), "ZhanFaState", false)
-    MainGetCtrl("JianZong").Value := LoadPreset(GetNowSelectPreset(), "JianZongState", false)
-    MainGetCtrl("XiuLuo").Value := LoadPreset(GetNowSelectPreset(), "XiuLuoState", false)
-    MainGetCtrl("AutoRun").Value := LoadPreset(GetNowSelectPreset(), "AutoRunState", false)
-    MainGetCtrl("Combo").Value := LoadPreset(GetNowSelectPreset(), "ComboState", false)
+MainLoadEx(cfg) {
+    global _AutoFireKeyIntervals, _AutoFireKeyDelays
+    _AutoFireKeyIntervals := StrToMsMap(cfg.Get("AutoFireKeyIntervals"))
+    _AutoFireKeyDelays := StrToMsMap(cfg.Get("AutoFireKeyDelays"))
+    for name in ["LvRen", "GuanYu", "PetSkill", "ZhanFa", "JianZong", "XiuLuo", "AutoRun", "Combo"] {
+        MainGetCtrl(name).Value := cfg.Get(name "State")
+    }
     MainGetCtrl("AutoPresets").Value := AutoPresets_LoadEnabledGlobal() ? 1 : 0
     MainSyncKeyIntervalBars()
     MainExSwitchPaintAll()

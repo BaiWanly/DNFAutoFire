@@ -2,15 +2,13 @@
 
 global gLvRenGui := Gui("-MinimizeBox -MaximizeBox")
 global gLvRenCtrls := Map()
-global __LvRenSkillKeys := []
 global gLvRenLayout := ExLayout.Window()
 
 UiApplyWindow(gLvRenGui)
 gLvRenGui.OnEvent("Escape", LvRenGuiEscape)
 gLvRenGui.OnEvent("Close", LvRenGuiClose)
 
-UiSkillKeyEditor(gLvRenGui, gLvRenCtrls, "LvRen", exText["LvRenListTitle"], exText["LvRenShotTitle"], exText["LvRenAdd"], exText["LvRenDelete"], LvRenAddKey, LvRenDeleteKey, LvRenSave, LvRenHelp, exText["CommonSave"], exText["LvRenPageTitle"], "", "", gLvRenLayout)
-UiListBoxDragSort_Attach(gLvRenCtrls["LvRenKeysListBox"], LvRenDragGetItems, UiListBoxDragSort_RenderStrings, LvRenDragCommit)
+global gLvRenKeys := UiSkillKeyEditor(gLvRenGui, gLvRenCtrls, "LvRen", exText["LvRenListTitle"], exText["LvRenShotTitle"], exText["LvRenAdd"], exText["LvRenDelete"], LvRenSave, LvRenHelp, exText["CommonSave"], exText["LvRenPageTitle"], "", "", gLvRenLayout)
 
 LvRenGetCtrl(name) {
     global gLvRenCtrls
@@ -45,79 +43,23 @@ LvRenHelp(*) {
     UiHelpMsgBox(exText["LvRenHelp"], exText["LvRenHelpTitle"])
 }
 
-LvRenAddKey(*) {
-    global __LvRenSkillKeys
-    key := GetPressKey()
-    if IsValueInArray(key, __LvRenSkillKeys) {
-        MsgBox(exText["DuplicateKey"],, "Icon!")
-    } else {
-        __LvRenSkillKeys.Push(key)
-    }
-    LvRenChangeListGui(__LvRenSkillKeys)
-    ctrl := LvRenGetCtrl("LvRenKeysListBox")
-    for i, item in __LvRenSkillKeys {
-        if (item = key) {
-            ctrl.Choose(i)
-            break
-        }
-    }
-}
-
-LvRenDeleteKey(*) {
-    global __LvRenSkillKeys
-    DeleteValueInArray(LvRenGetCtrl("LvRenKeysListBox").Text, __LvRenSkillKeys)
-    LvRenChangeListGui(__LvRenSkillKeys)
-}
-
 LvRenSave(*) {
     LvRenSaveConfig()
     HideGuiLvRen()
 }
 
-LvRenChangeListGui(keys) {
-    ctrl := LvRenGetCtrl("LvRenKeysListBox")
-    ctrl.Delete()
-    cnt := 0
-    for key in keys {
-        if (key != "") {
-            ctrl.Add([key])
-            cnt++
-        }
-    }
-    if (cnt > 0) {
-        ctrl.Choose(1)
-    }
-}
-
-LvRenDragGetItems(*) {
-    global __LvRenSkillKeys
-    return UiListBoxDragSort_CopyArray(__LvRenSkillKeys)
-}
-
-LvRenDragCommit(items, selectedIndex) {
-    global __LvRenSkillKeys
-    __LvRenSkillKeys := items
-    LvRenChangeListGui(__LvRenSkillKeys)
-    if (selectedIndex > 0 && selectedIndex <= __LvRenSkillKeys.Length) {
-        try LvRenGetCtrl("LvRenKeysListBox").Choose(selectedIndex)
-    }
-}
-
 LvRenSaveConfig() {
-    global __LvRenSkillKeys
-    keysString := ""
-    for i, v in __LvRenSkillKeys {
-        keysString .= v "|"
-    }
-    keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
-    SavePreset(GetNowSelectPreset(), "LvRenSkillKeys", keysString)
-    SavePreset(GetNowSelectPreset(), "LvRenShotKey", UiPressKeyEdit_Value(LvRenGetCtrl("LvRenShotKey")))
+    global gLvRenKeys
+    cfg := PresetConfigSection(GetNowSelectPreset())
+    cfg.Save(Map(
+        "LvRenSkillKeys", KeyListToString(gLvRenKeys.items),
+        "LvRenShotKey", UiPressKeyEdit_Value(LvRenGetCtrl("LvRenShotKey"))
+    ))
 }
 
 LvRenLoadConfig() {
-    global __LvRenSkillKeys
-    shotKey := LoadPreset(GetNowSelectPreset(), "LvRenShotKey", "Z")
-    __LvRenSkillKeys := LvRenLoadKeys(GetNowSelectPreset())
-    LvRenChangeListGui(__LvRenSkillKeys)
-    LvRenGetCtrl("LvRenShotKey").Text := shotKey
+    global gLvRenKeys
+    cfg := PresetConfigSection(GetNowSelectPreset())
+    gLvRenKeys.Load(cfg.Get("LvRenSkillKeys"))
+    LvRenGetCtrl("LvRenShotKey").Text := cfg.Get("LvRenShotKey")
 }

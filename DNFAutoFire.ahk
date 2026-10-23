@@ -43,7 +43,7 @@ EnsureConfigInitialized()
 #Include ./ex/ExActionRuntime.ahk
 #Include ./ex/AutoRunRuntime.ahk
 
-; 子进程 /Run=… 仅解析到此为止即进入连发逻辑；主进程在返回后继续加载 GUI 等大段代码
+; #Include 在执行前统一解析；子进程在此进入运行时，跳过后续 GUI 初始化的执行。
 SubProcessThread.ScriptStart()
 
 ; 自定义 IPC 消息：WM_APP + 1，用于“重复打开”时通知已运行实例停止连发并显示主界面
@@ -116,6 +116,7 @@ OnIpcRevealMain(wParam, lParam, msg, hwnd) {
 #Include ./lib/ui/Controls.ahk
 #Include ./lib/ui/PressKeyEdit.ahk
 #Include ./lib/ui/ListBoxDragSort.ahk
+#Include ./lib/ui/SkillKeyList.ahk
 #Include ./lib/ui/KeyCap.ahk
 #Include ./gui/main/MainLayout.ahk
 #Include ./gui/ex/ExLayout.ahk
@@ -165,7 +166,7 @@ ShowGuiMain(*) {
         MainLoadStoppedUi()
     }
     gMainGui.Show("w" MainLayout.GuiWidth() " h" MainLayout.GuiHeight())
-    SetTimer(MainMutedLinkPoll, 100)
+    MainSetUiPolling(true)
 }
 
 MainProcessOnExit(*) {

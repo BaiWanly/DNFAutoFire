@@ -190,19 +190,20 @@ AutoRunRuntime_HasRunnable(presetName) {
 }
 
 AutoRunRuntime_Build(presetName) {
-    if !LoadPreset(presetName, "AutoRunState", false) {
+    cfg := PresetConfigSection(presetName)
+    if !cfg.Get("AutoRunState") {
         return 0
     }
-    leftKey := LoadPreset(presetName, "AutoRunLeftKey", "Left")
-    rightKey := LoadPreset(presetName, "AutoRunRightKey", "Right")
+    leftKey := cfg.Get("AutoRunLeftKey")
+    rightKey := cfg.Get("AutoRunRightKey")
     if (leftKey = "") {
         leftKey := "Left"
     }
     if (rightKey = "") {
         rightKey := "Right"
     }
-    tickMs := ExAction_Clamp(LoadPreset(presetName, "AutoRunDelay", 30), 1, 400)
-    pauseHotkeyName := Trim(LoadPreset(presetName, "AutoRunPauseHotkey", ""))
+    tickMs := ExAction_Clamp(cfg.Get("AutoRunDelay"), 1, 400)
+    pauseHotkeyName := Trim(cfg.Get("AutoRunPauseHotkey"))
     pauseHotkey := pauseHotkeyName = "" ? "" : Key2PressKey(GetOriginKeyName(pauseHotkeyName))
     leftSendKey := AutoRunRuntime_SendKey(leftKey)
     rightSendKey := AutoRunRuntime_SendKey(rightKey)

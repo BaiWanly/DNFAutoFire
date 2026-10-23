@@ -2,7 +2,7 @@
 
 class MainKeyCap {
     static _all := []
-    static _timerOn := false
+    static _tickFn := 0
     ctrl := 0
     labelCtrl := 0
     auxLabelCtrl := 0
@@ -23,7 +23,6 @@ class MainKeyCap {
         this._createCtrl()
         MainRegisterKeyCap(this)
         MainKeyCap._all.Push(this)
-        MainKeyCap._EnsureTimer()
     }
 
     _parseRect(pos) {
@@ -195,12 +194,11 @@ class MainKeyCap {
         this._redraw()
     }
 
-    static _EnsureTimer() {
-        if MainKeyCap._timerOn {
-            return
+    static SetPolling(enabled) {
+        if !this._tickFn {
+            this._tickFn := ObjBindMethod(this, "_Tick")
         }
-        MainKeyCap._timerOn := true
-        SetTimer(ObjBindMethod(MainKeyCap, "_Tick"), 80)
+        SetTimer(this._tickFn, enabled ? 80 : 0)
     }
 
     static _Tick(*) {

@@ -1,10 +1,6 @@
 ; 全局主键连发间隔（毫秒），保存在 config.ini [设置]；供主界面与子进程复用
 LoadAutoFireGlobalIntervalMs() {
-    return ClampMsMin1(Round(LoadConfig("AutoFireIntervalMs", 20) + 0))
-}
-
-SaveAutoFireGlobalIntervalMs(intervalMs) {
-    SaveConfig("AutoFireIntervalMs", ClampMsMin1(intervalMs))
+    return ClampMsMin1(Round(LoadConfig("AutoFireIntervalMs") + 0))
 }
 
 ClampMsMin1(ms) {

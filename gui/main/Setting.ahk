@@ -70,12 +70,14 @@ SettingSave(*) {
     settingCloseToTray := SettingGetCtrl("SettingCloseToTray").Value
     settingGlobalPauseHotkey := SettingGetCtrl("SettingGlobalPauseHotkey").Value
 
-    SaveConfig("SettingAutoStart", settingAutoStart)
-    SaveConfig("SettingOnSystemStart", settingOnSystemStart)
-    SaveConfig("SettingBlockWin", settingBlockWin)
-    SaveConfig("SettingSubprocessErrorLog", settingSubprocessErrorLog)
-    SaveConfig("SettingCloseToTray", settingCloseToTray)
-    SaveConfig("SettingGlobalPauseHotkey", settingGlobalPauseHotkey)
+    ConfigSection("设置").Save(Map(
+        "SettingAutoStart", settingAutoStart,
+        "SettingOnSystemStart", settingOnSystemStart,
+        "SettingBlockWin", settingBlockWin,
+        "SettingSubprocessErrorLog", settingSubprocessErrorLog,
+        "SettingCloseToTray", settingCloseToTray,
+        "SettingGlobalPauseHotkey", settingGlobalPauseHotkey
+    ))
 
     _OnSystemStart := settingOnSystemStart
     _BlockWin := settingBlockWin
@@ -111,12 +113,13 @@ SettingImportPreset(*) {
 }
 
 SettingLoad() {
-    SettingGetCtrl("SettingAutoStart").Value := LoadConfig("SettingAutoStart", false)
-    SettingGetCtrl("SettingOnSystemStart").Value := LoadConfig("SettingOnSystemStart", false)
-    SettingGetCtrl("SettingBlockWin").Value := LoadConfig("SettingBlockWin", false)
-    SettingGetCtrl("SettingSubprocessErrorLog").Value := LoadConfig("SettingSubprocessErrorLog", false)
-    SettingGetCtrl("SettingCloseToTray").Value := LoadConfig("SettingCloseToTray", false)
-    SettingGetCtrl("SettingGlobalPauseHotkey").Value := LoadConfig("SettingGlobalPauseHotkey", "F11")
+    cfg := ConfigSection("设置")
+    SettingGetCtrl("SettingAutoStart").Value := cfg.Get("SettingAutoStart")
+    SettingGetCtrl("SettingOnSystemStart").Value := cfg.Get("SettingOnSystemStart")
+    SettingGetCtrl("SettingBlockWin").Value := cfg.Get("SettingBlockWin")
+    SettingGetCtrl("SettingSubprocessErrorLog").Value := cfg.Get("SettingSubprocessErrorLog")
+    SettingGetCtrl("SettingCloseToTray").Value := cfg.Get("SettingCloseToTray")
+    SettingGetCtrl("SettingGlobalPauseHotkey").Value := cfg.Get("SettingGlobalPauseHotkey")
 }
 
 SettingNow() {
@@ -161,11 +164,18 @@ GlobalPause_OnHotkey(*) {
     ShowTip(MainText[paused ? "GlobalPauseOn" : "GlobalPauseOff"])
 }
 
-global _AutoStart := LoadConfig("SettingAutoStart", false)
-global _OnSystemStart := LoadConfig("SettingOnSystemStart", false)
-global _BlockWin := LoadConfig("SettingBlockWin", false)
-global _CloseToTray := LoadConfig("SettingCloseToTray", false)
-global _GlobalPauseHotkey := LoadConfig("SettingGlobalPauseHotkey", "F11")
+LoadSoftwareSettings() {
+    global _AutoStart, _OnSystemStart, _BlockWin, _CloseToTray, _GlobalPauseHotkey
+    cfg := ConfigSection("设置")
+    _AutoStart := cfg.Get("SettingAutoStart")
+    _OnSystemStart := cfg.Get("SettingOnSystemStart")
+    _BlockWin := cfg.Get("SettingBlockWin")
+    _CloseToTray := cfg.Get("SettingCloseToTray")
+    _GlobalPauseHotkey := cfg.Get("SettingGlobalPauseHotkey")
+}
+
+global _AutoStart, _OnSystemStart, _BlockWin, _CloseToTray, _GlobalPauseHotkey
+LoadSoftwareSettings()
 global __GlobalPauseHotkeyId := ""
 
 if (_BlockWin) {

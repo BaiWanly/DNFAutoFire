@@ -4,14 +4,6 @@
 ; 数据布局：每个方案一个独立 INI 节，节名形如 `预设:职业名.Combo.编号`，从 1 起按方案顺序紧凑编号。
 ; 方案内字段：Trigger / Loop / BlockOriginal / Skills；Skills 用 `|` 分隔技能，`:` 分隔技能键、间隔与按下保持时间。
 
-ComboPreset_LoadField(presetName, key, default := "") {
-    presetName := NormalizePresetName(presetName)
-    if (presetName = "") {
-        return ""
-    }
-    return Trim(StrReplace(String(LoadPreset(presetName, key, default)), "`r", ""))
-}
-
 ComboCanonMainKey(raw) {
     s := Trim(String(raw))
     if (s = "") {
@@ -113,24 +105,14 @@ ComboListProfileIndices(presetName) {
     return indices
 }
 
-ComboReadProfileSection(path, section) {
-    p := { trigger: "", loop: false, blockOriginal: false, skills: [] }
-    if !FileExist(path) {
-        return p
+ComboReadProfileSection(section) {
+    cfg := ConfigSection(section)
+    return {
+        trigger: ComboCanonMainKey(cfg.Get("Trigger", "")),
+        loop: Trim(cfg.Get("Loop", "0")) = "1",
+        blockOriginal: Trim(cfg.Get("BlockOriginal", "0")) = "1",
+        skills: ComboParseSkills(cfg.Get("Skills", ""))
     }
-    trigger := ""
-    loopOn := "0"
-    blockOriginal := "0"
-    skillsRaw := ""
-    try trigger := IniRead(path, section, "Trigger", "")
-    try loopOn := IniRead(path, section, "Loop", "0")
-    try blockOriginal := IniRead(path, section, "BlockOriginal", "0")
-    try skillsRaw := IniRead(path, section, "Skills", "")
-    p.trigger := ComboCanonMainKey(trigger)
-    p.loop := (Trim(loopOn) = "1")
-    p.blockOriginal := (Trim(blockOriginal) = "1")
-    p.skills := ComboParseSkills(skillsRaw)
-    return p
 }
 
 ComboLoadProfilesFromPreset(presetName) {
@@ -139,11 +121,10 @@ ComboLoadProfilesFromPreset(presetName) {
     if (presetName = "") {
         return profiles
     }
-    path := ConfigIniPath()
     indices := ComboListProfileIndices(presetName)
     for idx in indices {
         section := ComboProfileChildSection(presetName, idx)
-        profiles.Push(ComboReadProfileSection(path, section))
+        profiles.Push(ComboReadProfileSection(section))
     }
     return profiles
 }
@@ -151,12 +132,10 @@ ComboLoadProfilesFromPreset(presetName) {
 ComboSaveProfilesToPreset(presetName, profiles) {
     presetName := NormalizePresetName(presetName)
     path := ConfigIniPath()
-    ; 先清除该预设下所有旧方案节，再按数组顺序从 1 起紧凑写入
-    for idx in ComboListProfileIndices(presetName) {
-        try IniDelete(path, ComboProfileChildSection(presetName, idx))
-    }
+    oldIndices := ComboListProfileIndices(presetName)
+    saved := Map()
     if !IsObject(profiles) {
-        return
+        profiles := []
     }
     loop profiles.Length {
         if !profiles.Has(A_Index) {
@@ -171,10 +150,16 @@ ComboSaveProfilesToPreset(presetName, profiles) {
         loopOn := (HasProp(p, "loop") && p.loop) ? "1" : "0"
         blockOriginal := (HasProp(p, "blockOriginal") && p.blockOriginal) ? "1" : "0"
         skills := (HasProp(p, "skills") && IsObject(p.skills)) ? p.skills : []
-        IniWrite(trig, path, section, "Trigger")
-        IniWrite(loopOn, path, section, "Loop")
-        IniWrite(blockOriginal, path, section, "BlockOriginal")
-        IniWrite(ComboSerializeSkills(skills), path, section, "Skills")
+        ConfigSection(section).Save(Map(
+            "Trigger", trig, "Loop", loopOn, "BlockOriginal", blockOriginal,
+            "Skills", ComboSerializeSkills(skills)
+        ))
+        saved[A_Index] := true
+    }
+    for idx in oldIndices {
+        if !saved.Has(idx) {
+            IniDelete(path, ComboProfileChildSection(presetName, idx))
+        }
     }
 }
 

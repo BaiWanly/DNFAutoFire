@@ -70,17 +70,20 @@ XiuLuoSave(*) {
 }
 
 XiuLuoSaveConfig() {
-    SavePreset(GetNowSelectPreset(), "XiuLuoTriggerKey", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoTriggerKey")))
-    SavePreset(GetNowSelectPreset(), "XiuLuoXKey", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoXKey")))
-    SavePreset(GetNowSelectPreset(), "XiuLuoWaveKey1", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoWaveKey1")))
-    SavePreset(GetNowSelectPreset(), "XiuLuoWaveKey2", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoWaveKey2")))
-    SavePreset(GetNowSelectPreset(), "XiuLuoWaveKey3", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoWaveKey3")))
+    PresetConfigSection(GetNowSelectPreset()).Save(Map(
+        "XiuLuoTriggerKey", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoTriggerKey")),
+        "XiuLuoXKey", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoXKey")),
+        "XiuLuoWaveKey1", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoWaveKey1")),
+        "XiuLuoWaveKey2", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoWaveKey2")),
+        "XiuLuoWaveKey3", UiPressKeyEdit_Value(XiuLuoGetCtrl("XiuLuoWaveKey3"))
+    ))
 }
 
 XiuLuoLoadConfig() {
-    XiuLuoGetCtrl("XiuLuoTriggerKey").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoTriggerKey", "A")
-    XiuLuoGetCtrl("XiuLuoXKey").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoXKey", "X")
-    XiuLuoGetCtrl("XiuLuoWaveKey1").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoWaveKey1", "S")
-    XiuLuoGetCtrl("XiuLuoWaveKey2").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoWaveKey2", "D")
-    XiuLuoGetCtrl("XiuLuoWaveKey3").Text := LoadPreset(GetNowSelectPreset(), "XiuLuoWaveKey3", "F")
+    cfg := PresetConfigSection(GetNowSelectPreset())
+    XiuLuoGetCtrl("XiuLuoTriggerKey").Text := cfg.Get("XiuLuoTriggerKey", "A")
+    XiuLuoGetCtrl("XiuLuoXKey").Text := cfg.Get("XiuLuoXKey")
+    XiuLuoGetCtrl("XiuLuoWaveKey1").Text := cfg.Get("XiuLuoWaveKey1", "S")
+    XiuLuoGetCtrl("XiuLuoWaveKey2").Text := cfg.Get("XiuLuoWaveKey2", "D")
+    XiuLuoGetCtrl("XiuLuoWaveKey3").Text := cfg.Get("XiuLuoWaveKey3", "F")
 }

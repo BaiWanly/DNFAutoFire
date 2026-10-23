@@ -308,7 +308,7 @@ UiHotkey(ctrls, gui, name, options, onChange := "") {
     return ctrl
 }
 
-UiSkillKeyEditor(gui, ctrls, prefix, listTitle, shotTitle, addText, deleteText, addFn, deleteFn, saveFn, helpFn, saveText, pageTitle := "", delayTitle := "", shotTitle2 := "", layout := "", saveAllFn := "", saveAllText := "") {
+UiSkillKeyEditor(gui, ctrls, prefix, listTitle, shotTitle, addText, deleteText, saveFn, helpFn, saveText, pageTitle := "", delayTitle := "", shotTitle2 := "", layout := "", saveAllFn := "", saveAllText := "") {
     skColX := ExLayout.MarginLeft()
     skColW := 120
     skGap := 16
@@ -333,11 +333,11 @@ UiSkillKeyEditor(gui, ctrls, prefix, listTitle, shotTitle, addText, deleteText, 
         UiExPageTitle(gui, pageTitle, skContentRight, layout, helpFn)
     }
     UiLabel(gui, UiLayoutRect(layout, skColX, 52, skColW, 20), listTitle)
-    UiListBox(ctrls, gui, prefix "KeysListBox", UiLayoutRect(layout, skColX, skListY, skColW, skListH))
+    list := UiSkillKeyList(UiListBox(ctrls, gui, prefix "KeysListBox", UiLayoutRect(layout, skColX, skListY, skColW, skListH)))
 
     ch := ExLayout.ControlHeight()
-    UiPlainButton(gui, UiLayoutRect(layout, skColX, skBtnY, skBtnW, ch), addText, addFn)
-    UiPlainButton(gui, UiLayoutRect(layout, skColX + skBtnW + skBtnGap, skBtnY, skBtnW, ch), deleteText, deleteFn)
+    UiPlainButton(gui, UiLayoutRect(layout, skColX, skBtnY, skBtnW, ch), addText, ObjBindMethod(list, "Add"))
+    UiPlainButton(gui, UiLayoutRect(layout, skColX + skBtnW + skBtnGap, skBtnY, skBtnW, ch), deleteText, ObjBindMethod(list, "Delete"))
 
     UiLabel(gui, UiLayoutRect(layout, skRightX, skShotRowY, skTriggerLW, ch), shotTitle)
     UiPressKeyEdit(ctrls, gui, prefix "ShotKey", UiLayoutRect(layout, skTriggerEX, skShotRowY, skTriggerEW, ch))
@@ -364,4 +364,5 @@ UiSkillKeyEditor(gui, ctrls, prefix, listTitle, shotTitle, addText, deleteText, 
     } else {
         UiPlainButton(gui, UiExSaveButtonRect(layout, skSaveY, skContentRight), saveText, saveFn, "primary")
     }
+    return list
 }

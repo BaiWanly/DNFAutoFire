@@ -64,7 +64,7 @@ AutoRunHelp(*) {
 }
 
 AutoRunReadFields() {
-    delay := Round((Trim(AutoRunGetCtrl("AutoRunDelay").Text) = "" ? 30 : AutoRunGetCtrl("AutoRunDelay").Text) + 0)
+    delay := Round((Trim(AutoRunGetCtrl("AutoRunDelay").Text) = "" ? ConfigDefaults.Preset["AutoRunDelay"] : AutoRunGetCtrl("AutoRunDelay").Text) + 0)
     if (delay < 1) {
         delay := 1
     } else if (delay > 400) {
@@ -80,10 +80,7 @@ AutoRunReadFields() {
 }
 
 AutoRunWritePreset(presetName, fields) {
-    SavePreset(presetName, "AutoRunLeftKey", fields["AutoRunLeftKey"])
-    SavePreset(presetName, "AutoRunRightKey", fields["AutoRunRightKey"])
-    SavePreset(presetName, "AutoRunDelay", fields["AutoRunDelay"])
-    SavePreset(presetName, "AutoRunPauseHotkey", fields["AutoRunPauseHotkey"])
+    PresetConfigSection(presetName).Save(fields)
 }
 
 AutoRunSave(*) {
@@ -100,14 +97,15 @@ AutoRunSaveToAll(*) {
 }
 
 AutoRunLoadConfig() {
-    delay := Round(LoadPreset(GetNowSelectPreset(), "AutoRunDelay", 30) + 0)
+    cfg := PresetConfigSection(GetNowSelectPreset())
+    delay := Round(cfg.Get("AutoRunDelay") + 0)
     if (delay < 1) {
         delay := 1
     } else if (delay > 400) {
         delay := 400
     }
-    AutoRunGetCtrl("AutoRunLeftKey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunLeftKey", "Left")
-    AutoRunGetCtrl("AutoRunRightKey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunRightKey", "Right")
+    AutoRunGetCtrl("AutoRunLeftKey").Text := cfg.Get("AutoRunLeftKey")
+    AutoRunGetCtrl("AutoRunRightKey").Text := cfg.Get("AutoRunRightKey")
     AutoRunGetCtrl("AutoRunDelay").Text := delay
-    AutoRunGetCtrl("AutoRunPauseHotkey").Text := LoadPreset(GetNowSelectPreset(), "AutoRunPauseHotkey", "")
+    AutoRunGetCtrl("AutoRunPauseHotkey").Text := cfg.Get("AutoRunPauseHotkey")
 }

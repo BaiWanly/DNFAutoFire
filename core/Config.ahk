@@ -1,20 +1,87 @@
 ; 始终使用主脚本目录下的 config.ini（勿用裸 "config.ini"，否则 CWD 非脚本目录时读写不一致、列表为空）
 ConfigIniPath() => A_ScriptDir "\config.ini"
 
+class ConfigDefaults {
+    static Settings := Map(
+        "SettingAutoStart", false, "SettingOnSystemStart", false,
+        "SettingBlockWin", false, "SettingSubprocessErrorLog", false,
+        "SettingCloseToTray", false, "SettingGlobalPauseHotkey", "F11",
+        "AutoFireIntervalMs", 20, "AutoPresetsEnabled", false
+    )
+    static Preset := Map(
+        "keys", "", "AutoFireKeyIntervals", "", "AutoFireKeyDelays", "",
+        "LvRenState", false, "LvRenSkillKeys", "", "LvRenShotKey", "Z",
+        "GuanYuState", false, "GuanYuSkillKeys", "", "GuanYuShotKey", "Space", "GuanYuDelay", 300,
+        "PetSkillState", false, "PetSkillSkillKeys", "", "PetSkillShotKey", "Z",
+        "ZhanFaState", false, "ZhanFaSkillKeys", "", "ZhanFaShotKey", "Space", "ZhanFaBigShotKey", "",
+        "JianZongState", false, "JianZongSkillKey", "A", "JianZongDelay", 200,
+        "XiuLuoState", false, "XiuLuoTriggerKey", "", "XiuLuoXKey", "X",
+        "XiuLuoWaveKey1", "1", "XiuLuoWaveKey2", "2", "XiuLuoWaveKey3", "3",
+        "AutoRunState", false, "AutoRunLeftKey", "Left", "AutoRunRightKey", "Right",
+        "AutoRunDelay", 30, "AutoRunPauseHotkey", "", "ComboState", false, "MainAutoFireInterval", 20
+    )
+}
+
+ConfigDefaultValue(section, key, default := unset) {
+    if IsSet(default) {
+        return default == "" ? A_Space : default
+    }
+    defaults := section = "设置" ? ConfigDefaults.Settings : ConfigDefaults.Preset
+    return defaults.Has(key) ? defaults[key] : A_Space
+}
+
+; 单次操作的 INI 节快照；不在进程间或多个操作间缓存配置。
+class ConfigSection {
+    __New(section) {
+        this.name := section
+        this.values := Map()
+        this.values.CaseSense := "Off"
+        raw := ""
+        try raw := IniRead(ConfigIniPath(), section)
+        for line in StrSplit(raw, "`n", "`r") {
+            eq := InStr(line, "=")
+            if !eq {
+                continue
+            }
+            key := Trim(SubStr(line, 1, eq - 1))
+            value := Trim(SubStr(line, eq + 1))
+            quote := SubStr(value, 1, 1)
+            if (StrLen(value) >= 2 && (quote = '"' || quote = "'") && SubStr(value, -1) = quote) {
+                value := SubStr(value, 2, StrLen(value) - 2)
+            }
+            this.values[key] := value
+        }
+    }
+
+    Get(key, default := unset) {
+        return this.values.Has(key) ? this.values[key] : ConfigDefaultValue(this.name, key, default?)
+    }
+
+    Save(values) {
+        for key, value in values {
+            if (this.values.Has(key) && this.values[key] == String(value)) {
+                continue
+            }
+            IniWrite(value, ConfigIniPath(), this.name, key)
+            this.values[key] := String(value)
+        }
+    }
+}
+
+PresetConfigSection(presetName) => ConfigSection("预设:" NormalizePresetName(presetName))
+
 NormalizePresetName(presetName) {
     return Trim(StrReplace(presetName, "`|"))
 }
 
 ; 保存软件设置
 SaveConfig(type, value){
-    IniWrite(value, ConfigIniPath(), "设置", type)
+    ConfigSection("设置").Save(Map(type, value))
 }
 
 ; 读取软件设置
-LoadConfig(type, default := ""){
-    if(default == ""){
-        default := A_Space
-    }
+LoadConfig(type, default := unset){
+    default := ConfigDefaultValue("设置", type, default?)
     return IniRead(ConfigIniPath(), "设置", type, default)
 }
 
@@ -26,14 +93,12 @@ DeleteConfig(type){
 ; 保存预设
 SavePreset(presetsName, type, value){
     presetsName := NormalizePresetName(presetsName)
-    IniWrite(value, ConfigIniPath(), "预设:" presetsName, type)
+    PresetConfigSection(presetsName).Save(Map(type, value))
 }
 
 ; 读取预设
-LoadPreset(presetsName, type, default := ""){
-    if(default == ""){
-        default := A_Space
-    }
+LoadPreset(presetsName, type, default := unset){
+    default := ConfigDefaultValue("预设:", type, default?)
     presetsName := NormalizePresetName(presetsName)
     return IniRead(ConfigIniPath(), "预设:" presetsName, type, default)
 }
@@ -64,48 +129,28 @@ DeletePreset(presetsName){
     }
 }
 
-; 保存预设的连发按键
-SavePresetKeys(presetsName, keys){
-    keysString := ""
-    if !IsObject(keys) {
-        SavePreset(presetsName, "keys", keysString)
-        return
-    }
-    try keyCount := keys.Length
-    catch {
-        keyCount := 0
-    }
-    loop keyCount
-    {
-        try hasItem := keys.Has(A_Index)
-        catch {
-            hasItem := false
-        }
-        if !hasItem {
-            continue
-        }
-        item := keys[A_Index]
-        if (item != "") {
-            keysString := keysString . item . "|"
-        }
-    }
-    if (StrLen(keysString) > 0) {
-        keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
-    }
-    SavePreset(presetsName, "keys", keysString)
+; 读取预设的连发按键
+LoadPresetKeys(presetsName) {
+    return ParseKeyList(LoadPreset(presetsName, "keys"))
 }
 
-; 读取预设的连发按键
-LoadPresetKeys(presetsName){
-    config := LoadPreset(presetsName, "keys")
+ParseKeyList(raw) {
     keys := []
-    for item in StrSplit(config, "|")
-    {
+    for item in StrSplit(raw, "|") {
+        item := Trim(item)
         if (item != "") {
             keys.Push(item)
         }
     }
     return keys
+}
+
+KeyListToString(keys) {
+    raw := ""
+    for key in keys {
+        raw .= key "|"
+    }
+    return RTrim(raw, "|")
 }
 
 ; 单键毫秒表：`键名:毫秒|键名:毫秒`（键名与主界面键帽 Name 一致）
@@ -262,13 +307,9 @@ EnsureConfigInitialized() {
 }
 
 _CreateDefaultConfigIni() {
-    SaveConfig("SettingAutoStart", false)
-    SaveConfig("SettingOnSystemStart", false)
-    SaveConfig("SettingBlockWin", false)
-    SaveConfig("SettingSubprocessErrorLog", false)
-    SaveConfig("SettingCloseToTray", false)
-    SaveConfig("SettingGlobalPauseHotkey", "F11")
-    SaveLastPreset(DEFAULT_PRESET_NAME)
+    values := ConfigDefaults.Settings.Clone()
+    values["LastPreset"] := DEFAULT_PRESET_NAME
+    ConfigSection("设置").Save(values)
     CreateBlankPreset(DEFAULT_PRESET_NAME)
 }
 
@@ -340,27 +381,17 @@ ClonePreset(sourcePresetName, targetPresetName) {
 }
 
 CreateBlankPreset(presetName) {
-    presetName := NormalizePresetName(presetName)
-    SavePreset(presetName, "keys", "")
-    SavePreset(presetName, "LvRenState", false)
-    SavePreset(presetName, "GuanYuState", false)
-    SavePreset(presetName, "PetSkillState", false)
-    SavePreset(presetName, "ZhanFaState", false)
-    SavePreset(presetName, "JianZongState", false)
-    SavePreset(presetName, "XiuLuoState", false)
-    SavePreset(presetName, "AutoRunState", false)
-    SavePreset(presetName, "ComboState", false)
-    SavePreset(presetName, "XiuLuoTriggerKey", "")
-    SavePreset(presetName, "XiuLuoXKey", "X")
-    SavePreset(presetName, "XiuLuoWaveKey1", "1")
-    SavePreset(presetName, "XiuLuoWaveKey2", "2")
-    SavePreset(presetName, "XiuLuoWaveKey3", "3")
-    SavePreset(presetName, "AutoRunLeftKey", "Left")
-    SavePreset(presetName, "AutoRunRightKey", "Right")
-    SavePreset(presetName, "AutoRunDelay", 30)
-    SavePreset(presetName, "AutoRunPauseHotkey", "")
-    SavePreset(presetName, "AutoFireKeyIntervals", "")
-    SavePreset(presetName, "AutoFireKeyDelays", "")
+    values := Map()
+    for key in [
+        "keys", "LvRenState", "GuanYuState", "PetSkillState", "ZhanFaState",
+        "JianZongState", "XiuLuoState", "AutoRunState", "ComboState",
+        "XiuLuoTriggerKey", "XiuLuoXKey", "XiuLuoWaveKey1", "XiuLuoWaveKey2", "XiuLuoWaveKey3",
+        "AutoRunLeftKey", "AutoRunRightKey", "AutoRunDelay", "AutoRunPauseHotkey",
+        "AutoFireKeyIntervals", "AutoFireKeyDelays"
+    ] {
+        values[key] := ConfigDefaults.Preset[key]
+    }
+    PresetConfigSection(presetName).Save(values)
 }
 
 RenamePreset(oldPresetName, newPresetName) {

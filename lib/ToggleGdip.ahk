@@ -2,7 +2,7 @@
 
 class ToggleGdip {
     static _all := []
-    static _timerOn := false
+    static _tickFn := 0
 
     __New(gui, x, y, tw, th) {
         GdiPlusSession.EnsureStarted()
@@ -16,7 +16,6 @@ class ToggleGdip {
         this._renderState := "normal"
         this._assignBitmap(this._renderBitmap())
         ToggleGdip._all.Push(this)
-        ToggleGdip._EnsureTimer()
     }
 
     _assignBitmap(hbm) {
@@ -52,12 +51,11 @@ class ToggleGdip {
         this.ctrl.OnEvent("Click", handler)
     }
 
-    static _EnsureTimer() {
-        if ToggleGdip._timerOn {
-            return
+    static SetPolling(enabled) {
+        if !this._tickFn {
+            this._tickFn := ObjBindMethod(this, "_Tick")
         }
-        ToggleGdip._timerOn := true
-        SetTimer(ObjBindMethod(ToggleGdip, "_Tick"), 16)
+        SetTimer(this._tickFn, enabled ? 16 : 0)
     }
 
     static _Tick(*) {

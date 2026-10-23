@@ -58,11 +58,14 @@ JianZongSave(*) {
 }
 
 JianZongSaveConfig() {
-    SavePreset(GetNowSelectPreset(), "JianZongSkillKey", UiPressKeyEdit_Value(JianZongGetCtrl("JianZongSkillKey")))
-    SavePreset(GetNowSelectPreset(), "JianZongDelay", JianZongGetCtrl("JianZongDelay").Text)
+    PresetConfigSection(GetNowSelectPreset()).Save(Map(
+        "JianZongSkillKey", UiPressKeyEdit_Value(JianZongGetCtrl("JianZongSkillKey")),
+        "JianZongDelay", JianZongGetCtrl("JianZongDelay").Text
+    ))
 }
 
 JianZongLoadConfig() {
-    JianZongGetCtrl("JianZongSkillKey").Text := LoadPreset(GetNowSelectPreset(), "JianZongSkillKey", "A")
-    JianZongGetCtrl("JianZongDelay").Text := LoadPreset(GetNowSelectPreset(), "JianZongDelay", "200")
+    cfg := PresetConfigSection(GetNowSelectPreset())
+    JianZongGetCtrl("JianZongSkillKey").Text := cfg.Get("JianZongSkillKey")
+    JianZongGetCtrl("JianZongDelay").Text := cfg.Get("JianZongDelay")
 }

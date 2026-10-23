@@ -2,15 +2,13 @@
 
 global gGuanYuGui := Gui("-MinimizeBox -MaximizeBox")
 global gGuanYuCtrls := Map()
-global __GuanYuSkillKeys := []
 global gGuanYuLayout := ExLayout.Window()
 
 UiApplyWindow(gGuanYuGui)
 gGuanYuGui.OnEvent("Escape", GuanYuGuiEscape)
 gGuanYuGui.OnEvent("Close", GuanYuGuiClose)
 
-UiSkillKeyEditor(gGuanYuGui, gGuanYuCtrls, "GuanYu", exText["GuanYuListTitle"], exText["GuanYuShotTitle"], exText["GuanYuAdd"], exText["GuanYuDelete"], GuanYuAddKey, GuanYuDeleteKey, GuanYuSave, GuanYuHelp, exText["CommonSave"], exText["GuanYuPageTitle"], exText["GuanYuDelayTitle"], "", gGuanYuLayout)
-UiListBoxDragSort_Attach(gGuanYuCtrls["GuanYuKeysListBox"], GuanYuDragGetItems, UiListBoxDragSort_RenderStrings, GuanYuDragCommit)
+global gGuanYuKeys := UiSkillKeyEditor(gGuanYuGui, gGuanYuCtrls, "GuanYu", exText["GuanYuListTitle"], exText["GuanYuShotTitle"], exText["GuanYuAdd"], exText["GuanYuDelete"], GuanYuSave, GuanYuHelp, exText["CommonSave"], exText["GuanYuPageTitle"], exText["GuanYuDelayTitle"], "", gGuanYuLayout)
 
 GuanYuGetCtrl(name) {
     global gGuanYuCtrls
@@ -45,96 +43,28 @@ GuanYuHelp(*) {
     UiHelpMsgBox(exText["GuanYuHelp"], exText["GuanYuHelpTitle"])
 }
 
-GuanYuAddKey(*) {
-    global __GuanYuSkillKeys
-    key := GetPressKey()
-    if IsValueInArray(key, __GuanYuSkillKeys) {
-        MsgBox(exText["DuplicateKey"],, "Icon!")
-    } else {
-        __GuanYuSkillKeys.Push(key)
-    }
-    GuanYuChangeListGui(__GuanYuSkillKeys)
-    ctrl := GuanYuGetCtrl("GuanYuKeysListBox")
-    for i, item in __GuanYuSkillKeys {
-        if (item = key) {
-            ctrl.Choose(i)
-            break
-        }
-    }
-}
-
-GuanYuDeleteKey(*) {
-    global __GuanYuSkillKeys
-    DeleteValueInArray(GuanYuGetCtrl("GuanYuKeysListBox").Text, __GuanYuSkillKeys)
-    GuanYuChangeListGui(__GuanYuSkillKeys)
-}
-
 GuanYuSave(*) {
     GuanYuSaveConfig()
     HideGuiGuanYu()
 }
 
-GuanYuChangeListGui(keys) {
-    ctrl := GuanYuGetCtrl("GuanYuKeysListBox")
-    ctrl.Delete()
-    cnt := 0
-    for key in keys {
-        if (key != "") {
-            ctrl.Add([key])
-            cnt++
-        }
-    }
-    if (cnt > 0) {
-        ctrl.Choose(1)
-    }
-}
-
-GuanYuDragGetItems(*) {
-    global __GuanYuSkillKeys
-    return UiListBoxDragSort_CopyArray(__GuanYuSkillKeys)
-}
-
-GuanYuDragCommit(items, selectedIndex) {
-    global __GuanYuSkillKeys
-    __GuanYuSkillKeys := items
-    GuanYuChangeListGui(__GuanYuSkillKeys)
-    if (selectedIndex > 0 && selectedIndex <= __GuanYuSkillKeys.Length) {
-        try GuanYuGetCtrl("GuanYuKeysListBox").Choose(selectedIndex)
-    }
-}
-
 GuanYuSaveConfig() {
-    global __GuanYuSkillKeys
-    keysString := ""
-    for v in __GuanYuSkillKeys {
-        keysString .= v "|"
-    }
-    if (StrLen(keysString) > 0) {
-        keysString := SubStr(keysString, 1, StrLen(keysString) - 1)
-    }
-    delay := Round((Trim(GuanYuGetCtrl("GuanYuDelay").Text) = "" ? 300 : GuanYuGetCtrl("GuanYuDelay").Text) + 0)
-    if (delay < 0) {
-        delay := 0
-    } else if (delay > 500) {
-        delay := 500
-    }
+    global gGuanYuKeys
+    cfg := PresetConfigSection(GetNowSelectPreset())
+    delay := Round((Trim(GuanYuGetCtrl("GuanYuDelay").Text) = "" ? ConfigDefaults.Preset["GuanYuDelay"] : GuanYuGetCtrl("GuanYuDelay").Text) + 0)
+    delay := Max(0, Min(500, delay))
     GuanYuGetCtrl("GuanYuDelay").Text := delay
-    SavePreset(GetNowSelectPreset(), "GuanYuSkillKeys", keysString)
-    SavePreset(GetNowSelectPreset(), "GuanYuShotKey", UiPressKeyEdit_Value(GuanYuGetCtrl("GuanYuShotKey")))
-    SavePreset(GetNowSelectPreset(), "GuanYuDelay", delay)
+    cfg.Save(Map(
+        "GuanYuSkillKeys", KeyListToString(gGuanYuKeys.items),
+        "GuanYuShotKey", UiPressKeyEdit_Value(GuanYuGetCtrl("GuanYuShotKey")),
+        "GuanYuDelay", delay
+    ))
 }
 
 GuanYuLoadConfig() {
-    global __GuanYuSkillKeys
-    shotKey := LoadPreset(GetNowSelectPreset(), "GuanYuShotKey", "Space")
-    delay := Round(LoadPreset(GetNowSelectPreset(), "GuanYuDelay", 300) + 0)
-    if (delay < 0) {
-        delay := 0
-    } else if (delay > 500) {
-        delay := 500
-    }
-    __GuanYuSkillKeys := GuanYuLoadKeys(GetNowSelectPreset())
-    GuanYuChangeListGui(__GuanYuSkillKeys)
-    GuanYuGetCtrl("GuanYuShotKey").Text := shotKey
-    GuanYuGetCtrl("GuanYuDelay").Text := delay
+    global gGuanYuKeys
+    cfg := PresetConfigSection(GetNowSelectPreset())
+    gGuanYuKeys.Load(cfg.Get("GuanYuSkillKeys"))
+    GuanYuGetCtrl("GuanYuShotKey").Text := cfg.Get("GuanYuShotKey")
+    GuanYuGetCtrl("GuanYuDelay").Text := Max(0, Min(500, Round(cfg.Get("GuanYuDelay") + 0)))
 }

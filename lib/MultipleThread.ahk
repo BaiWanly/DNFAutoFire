@@ -67,7 +67,7 @@ class SubProcessThread
     }
     static _LogError(label, err)
     {
-        if !LoadConfig("SettingSubprocessErrorLog", false) {
+        if !LoadConfig("SettingSubprocessErrorLog") {
             return
         }
         try {

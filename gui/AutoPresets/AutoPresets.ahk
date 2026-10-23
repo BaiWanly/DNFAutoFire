@@ -549,6 +549,7 @@ AutoPresetsDeleteDungeonIcon(*) {
     try FileDelete(path)
     resolutionKey := AutoPresetsDungeonPathToResolution(path)
     try DirDelete(AutoPresetsSkillResolutionDir(resolutionKey), true)
+    AutoPresets_InvalidateAssets()
     gAutoPresetsSelectedDungeonPath := ""
     AutoPresetsSyncDungeonResolutionList()
 }

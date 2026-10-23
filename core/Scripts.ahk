@@ -254,23 +254,23 @@ SaveMainPresetState(presetName) {
     if (presetName = "") {
         return false
     }
-    SavePresetKeys(presetName, _AutoFireEnableKeys)
-    SavePreset(presetName, "LvRenState", MainGetCtrl("LvRen").Value)
-    SavePreset(presetName, "GuanYuState", MainGetCtrl("GuanYu").Value)
-    SavePreset(presetName, "PetSkillState", MainGetCtrl("PetSkill").Value)
-    SavePreset(presetName, "ZhanFaState", MainGetCtrl("ZhanFa").Value)
-    SavePreset(presetName, "JianZongState", MainGetCtrl("JianZong").Value)
-    SavePreset(presetName, "XiuLuoState", MainGetCtrl("XiuLuo").Value)
-    SavePreset(presetName, "AutoRunState", MainGetCtrl("AutoRun").Value)
-    SavePreset(presetName, "ComboState", MainGetCtrl("Combo").Value)
-    SaveConfig("AutoPresetsEnabled", MainGetCtrl("AutoPresets").Value ? 1 : 0)
-    try {
-        SaveAutoFireGlobalIntervalMs(MainGetCtrl("AutoFireIntervalMs").Text)
-    } catch {
-        SaveAutoFireGlobalIntervalMs(20)
+    values := Map(
+        "keys", KeyListToString(_AutoFireEnableKeys),
+        "AutoFireKeyIntervals", MsMapToStr(_AutoFireKeyIntervals),
+        "AutoFireKeyDelays", MsMapToStr(_AutoFireKeyDelays)
+    )
+    for name in ["LvRen", "GuanYu", "PetSkill", "ZhanFa", "JianZong", "XiuLuo", "AutoRun", "Combo"] {
+        values[name "State"] := MainGetCtrl(name).Value
     }
-    SavePreset(presetName, "AutoFireKeyIntervals", MsMapToStr(_AutoFireKeyIntervals))
-    SavePreset(presetName, "AutoFireKeyDelays", MsMapToStr(_AutoFireKeyDelays))
+    PresetConfigSection(presetName).Save(values)
+    try intervalMs := ClampMsMin1(MainGetCtrl("AutoFireIntervalMs").Text)
+    catch {
+        intervalMs := ConfigDefaults.Settings["AutoFireIntervalMs"]
+    }
+    ConfigSection("设置").Save(Map(
+        "AutoPresetsEnabled", MainGetCtrl("AutoPresets").Value ? 1 : 0,
+        "AutoFireIntervalMs", intervalMs
+    ))
     return true
 }
 
@@ -298,26 +298,14 @@ ResolvePresetName(presetName := "") {
     return fallbackPreset
 }
 
-; 从预设节加载单键连发间隔表到内存（与主界面右键设置共用）
-AutoFireKeyIntervals_LoadForPreset(presetName) {
-    global _AutoFireKeyIntervals, _AutoFireKeyDelays
-    presetName := NormalizePresetName(presetName)
-    if (presetName = "") {
-        _AutoFireKeyIntervals := Map()
-        _AutoFireKeyDelays := Map()
-        return
-    }
-    _AutoFireKeyIntervals := StrToMsMap(LoadPreset(presetName, "AutoFireKeyIntervals", ""))
-    _AutoFireKeyDelays := StrToMsMap(LoadPreset(presetName, "AutoFireKeyDelays", ""))
-}
-
 LoadMainPresetState(presetName) {
     presetName := ResolvePresetName(presetName)
-    presetKeys := LoadPresetKeys(presetName)
+    cfg := PresetConfigSection(presetName)
+    presetKeys := ParseKeyList(cfg.Get("keys"))
     SetAllKeysAutoFire(presetKeys)
     SetNowSelectPreset(presetName)
     SaveLastPreset(presetName)
-    MainLoadEx()
+    MainLoadEx(cfg)
     MainLoadAllPreset()
     return presetName
 }
@@ -334,48 +322,6 @@ ChangePreset(presetName){
         SaveMainPresetState(currentPreset)
     }
     LoadMainPresetState(targetPreset)
-}
-
-; 判断数组中是否存在某值
-IsValueInArray(value, array){
-    if !IsObject(array) {
-        return false
-    }
-    try itemCount := array.Length
-    catch {
-        itemCount := 0
-    }
-    loop itemCount
-    {
-        if !array.Has(A_Index) {
-            continue
-        }
-        if(array[A_Index] == value){
-            return true
-        }
-    }
-    return false
-}
-
-; 删除数组中的某值
-DeleteValueInArray(value, array){
-    if !IsObject(array) {
-        return
-    }
-    try itemCount := array.Length
-    catch {
-        itemCount := 0
-    }
-    loop itemCount
-    {
-        if !array.Has(A_Index) {
-            continue
-        }
-        if(array[A_Index] == value){
-            array.RemoveAt(A_Index)
-            return
-        }
-    }
 }
 
 GAME_WINDOW_TITLES := [
